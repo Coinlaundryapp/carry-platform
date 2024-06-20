@@ -1,0 +1,18 @@
+spring:
+  r2dbc:
+    url: r2dbc:mysql://localhost:3306/coin_laundry
+    username: coin_laundry
+    password: coin_laundry!prod01!#
+    pool:
+      enabled: true
+      max-size: 20
+      initial-size: 10
+      max-idle-time: 30m
+      max-create-connection-time: 10s
+      validation-query: SELECT 1
+
+  flyway:
+    enabled: true
+    url: jdbc:mysql://localhost:3306/coin_laundry
+    user: coin_laundry
+    password: coin_laundry!prod01!#
