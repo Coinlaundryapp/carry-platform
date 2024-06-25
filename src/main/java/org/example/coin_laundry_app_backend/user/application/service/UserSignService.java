@@ -43,7 +43,7 @@ public class UserSignService {
      * @return A Mono of the VerificationCode. If the verification code is invalid or expired, an error is thrown.
      */
     // TODO: Is Necessary to delete verification code from database?
-    public Mono<VerificationCode> verifyPhoneVerificationCode(PhoneNumber phoneNumber,
+    public Mono<Void> verifyPhoneVerificationCode(PhoneNumber phoneNumber,
         String verificationCode) {
         var current = LocalDateTime.now();
         // Verify verification code via database
@@ -51,8 +51,12 @@ public class UserSignService {
         return verificationCodeRepository.findByPhoneNumberAndCode(phoneNumber.getValue(),
                 verificationCode)
             .switchIfEmpty(Mono.error(new IllegalArgumentException("Invalid verification code")))
-            .map(VerificationCode::new)
-            .filter(vc -> !vc.isExpired(current))
-            .switchIfEmpty(Mono.error(new IllegalArgumentException("Expired verification code")));
+            .flatMap(vc -> {
+                var verification = new VerificationCode(vc);
+                if(verification.isExpired(current)) {
+                    return Mono.error(new IllegalArgumentException("Expired verification code"));
+                }
+                return Mono.empty();
+            });
     }
 }
