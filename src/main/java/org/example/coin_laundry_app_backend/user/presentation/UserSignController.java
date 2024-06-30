@@ -28,13 +28,9 @@ public class UserSignController {
         @RequestBody VerificationCodeRequest request) {
         var phoneNumber = PhoneNumber.from(request.getPhoneNumber());
         return userSignService.requestPhoneVerificationCode(phoneNumber).flatMap(
-            vc -> {
-                var code = vc.getCode();
-                notificationService.sendToIndividual(
-                    new NotificationMessage("AUTH-001", phoneNumber.toString(),
-                        new String[]{code}));
-                return Mono.empty();
-            }
+            vc -> notificationService.sendToIndividual(
+                new NotificationMessage("AUTH-001", phoneNumber.toString(),
+                    new String[]{vc.getCode()}))
         ).then(Mono.just(ApiCommonResponse.createSuccessResponse()));
     }
 
@@ -48,11 +44,9 @@ public class UserSignController {
 
     // Login
     @PostMapping("/login")
-    public Mono<ApiCommonResponse<LoginResponse>> login(
-        @RequestBody VerifyCodeRequest request) {
+    public Mono<ApiCommonResponse<LoginResponse>> login(@RequestBody VerifyCodeRequest request) {
         return userSignService.login(PhoneNumber.from(request.getPhoneNumber()),
-                request.getVerificationCode())
-            .flatMap(token -> Mono.just(ApiCommonResponse.createSuccessResponse(token)));
+            request.getVerificationCode()).map(ApiCommonResponse::createSuccessResponse);
     }
 
 }
