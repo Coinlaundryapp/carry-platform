@@ -8,7 +8,7 @@ import org.example.coin_laundry_app_backend.user.application.service.UserSignSer
 import org.example.coin_laundry_app_backend.user.domain.model.value.PhoneNumber;
 import org.example.coin_laundry_app_backend.user.presentation.payload.request.VerificationCodeRequest;
 import org.example.coin_laundry_app_backend.user.presentation.payload.request.VerifyCodeRequest;
-import org.springframework.http.HttpStatus;
+import org.example.coin_laundry_app_backend.user.presentation.payload.response.LoginResponse;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -43,10 +43,16 @@ public class UserSignController {
         @RequestBody VerifyCodeRequest request) {
         return userSignService.verifyPhoneVerificationCode(
                 PhoneNumber.from(request.getPhoneNumber()), request.getVerificationCode())
-            .then(Mono.defer(Mono::empty))
-            .onErrorResume(IllegalArgumentException.class,
-                ex -> Mono.just(ApiCommonResponse.createFailResponse(
-                    HttpStatus.BAD_REQUEST, ex.getMessage())))
             .then(Mono.just(ApiCommonResponse.createSuccessResponse()));
     }
+
+    // Login
+    @PostMapping("/login")
+    public Mono<ApiCommonResponse<LoginResponse>> login(
+        @RequestBody VerifyCodeRequest request) {
+        return userSignService.login(PhoneNumber.from(request.getPhoneNumber()),
+                request.getVerificationCode())
+            .flatMap(token -> Mono.just(ApiCommonResponse.createSuccessResponse(token)));
+    }
+
 }

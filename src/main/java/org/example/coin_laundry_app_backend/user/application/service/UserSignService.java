@@ -2,27 +2,29 @@ package org.example.coin_laundry_app_backend.user.application.service;
 
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
+import org.example.coin_laundry_app_backend.config.security.jwt.JWTHelper;
 import org.example.coin_laundry_app_backend.user.domain.model.entity.domainmodel.VerificationCode;
 import org.example.coin_laundry_app_backend.user.domain.model.value.PhoneNumber;
 import org.example.coin_laundry_app_backend.user.domain.service.VerificationCodeGenerator;
+import org.example.coin_laundry_app_backend.user.presentation.payload.response.LoginResponse;
+import org.example.coin_laundry_app_backend.user.repository.UserRepository;
 import org.example.coin_laundry_app_backend.user.repository.VerificationCodeRepository;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Mono;
 
 @Service
-@Transactional
 @RequiredArgsConstructor
 public class UserSignService {
 
+    private final UserRepository userRepository;
     private final VerificationCodeRepository verificationCodeRepository;
+    private final JWTHelper jwtHelper;
 
     /**
-     * Request a phone verification code.
-     * Generates a verification code and saves it to the database.
+     * 전화번호 인증 코드를 요청합니다. 인증 코드를 생성하고 데이터베이스에 저장합니다.
      *
-     * @param phoneNumber The phone number to which the verification code is sent.
-     * @return A Mono of the VerificationCode.
+     * @param phoneNumber 인증 코드가 전송될 전화번호.
+     * @return VerificationCode 의 Mono 객체.
      */
     public Mono<VerificationCode> requestPhoneVerificationCode(PhoneNumber phoneNumber) {
         // Generate verification code
@@ -33,30 +35,54 @@ public class UserSignService {
             .map(VerificationCode::new);
     }
 
-
     /**
-     * Verify the phone verification code.
-     * Checks if the provided verification code matches the one in the database and is not expired.
+     * 전화번호 인증 코드를 검증합니다. 데이터베이스에서 인증 코드를 확인합니다. Mono가 비어 있는 경우 예외가 발생합니다. 그렇지 않으면,
+     * VerificationCode로 매핑됩니다.
      *
-     * @param phoneNumber The phone number to which the verification code was sent.
-     * @param verificationCode The verification code to verify.
-     * @return A Mono of the VerificationCode. If the verification code is invalid or expired, an error is thrown.
+     * @param phoneNumber      전화번호
+     * @param verificationCode 인증 코드
+     * @return VerificationCode의 Mono 객체. 인증 코드가 유효하지 않거나 만료된 경우, 오류가 발생합니다.
      */
-    // TODO: Is Necessary to delete verification code from database?
-    public Mono<Void> verifyPhoneVerificationCode(PhoneNumber phoneNumber,
+    // TODO: 데이터베이스에서 인증 코드를 삭제할 필요가 있는지 확인 필요
+    public Mono<VerificationCode> verifyPhoneVerificationCode(PhoneNumber phoneNumber,
         String verificationCode) {
-        var current = LocalDateTime.now();
         // Verify verification code via database
         // if Mono is Empty, throw exception else Map to VerificationCode
         return verificationCodeRepository.findByPhoneNumberAndCode(phoneNumber.getValue(),
                 verificationCode)
             .switchIfEmpty(Mono.error(new IllegalArgumentException("Invalid verification code")))
-            .flatMap(vc -> {
-                var verification = new VerificationCode(vc);
-                if(verification.isExpired(current)) {
-                    return Mono.error(new IllegalArgumentException("Expired verification code"));
-                }
-                return Mono.empty();
-            });
+            .flatMap(vc -> validateVerificationCode(new VerificationCode(vc)));
     }
+
+    /**
+     * 사용자를 로그인합니다. 전화번호 인증 코드를 검증하고 JWT 토큰을 반환합니다.
+     *
+     * @param phoneNumber      인증 코드가 전송된 전화번호.
+     * @param verificationCode 검증할 인증 코드.
+     * @return LoginResponse 의 Mono 객체. 인증 코드가 유효하지 않거나 만료된 경우, 오류가 발생합니다.
+     */
+    public Mono<LoginResponse> login(PhoneNumber phoneNumber, String verificationCode) {
+        return verifyPhoneVerificationCode(phoneNumber, verificationCode)
+            .flatMap(vc -> userRepository.findByPhoneNumber(vc.getPhoneNumber())
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("User not found")))
+                .flatMap(user -> {
+                    var token = jwtHelper.sign(user.getId());
+                    return Mono.just(new LoginResponse(token));
+                })
+            );
+    }
+
+    /**
+     * 인증 코드를 검증합니다. 인증 코드가 만료되었는지 확인합니다. 인증 코드가 만료된 경우, 오류가 발생합니다.
+     *
+     * @param verificationCode 검증할 인증 코드.
+     * @return 인증 코드의 Mono 객체.
+     */
+    private Mono<VerificationCode> validateVerificationCode(VerificationCode verificationCode) {
+        if (verificationCode.isExpired(LocalDateTime.now())) {
+            return Mono.error(new IllegalArgumentException("Expired verification code"));
+        }
+        return Mono.just(verificationCode);
+    }
+
 }

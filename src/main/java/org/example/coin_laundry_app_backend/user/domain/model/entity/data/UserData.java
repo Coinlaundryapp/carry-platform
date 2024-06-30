@@ -9,7 +9,11 @@ import org.springframework.data.relational.core.mapping.Table;
 @AllArgsConstructor
 @Table("users")
 public class UserData {
+
     @Id
     private Long id;
-    private String name;
+    private String username;
+    private String phoneNumber;
+    private Boolean commercialYn;
+    private Boolean locationYn;
 }

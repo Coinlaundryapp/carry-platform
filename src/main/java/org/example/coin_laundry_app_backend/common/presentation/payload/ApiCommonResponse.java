@@ -33,12 +33,17 @@ public class ApiCommonResponse<T> {
         return new ApiCommonResponse<>(httpStatus.value(), message, data);
     }
 
-    public static ApiCommonResponse<Void> createFailResponse(HttpStatus httpStatus, String message) {
+    public static ApiCommonResponse<Void> createFailResponse(HttpStatus httpStatus,
+        String message) {
         return new ApiCommonResponse<>(httpStatus.value(), message);
     }
 
     public static ApiCommonResponse<Void> createSuccessResponse() {
         return new ApiCommonResponse<>(HttpStatus.OK.value());
+    }
+
+    public static <T> ApiCommonResponse<T> createSuccessResponse(T data) {
+        return new ApiCommonResponse<>(HttpStatus.OK.value(), "Success", data);
     }
 
 
