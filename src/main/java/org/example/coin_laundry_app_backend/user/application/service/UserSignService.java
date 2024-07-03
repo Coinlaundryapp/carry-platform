@@ -3,11 +3,11 @@ package org.example.coin_laundry_app_backend.user.application.service;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import org.example.coin_laundry_app_backend.config.security.jwt.JWTHelper;
+import org.example.coin_laundry_app_backend.user.domain.model.entity.domainmodel.User;
 import org.example.coin_laundry_app_backend.user.domain.model.entity.domainmodel.VerificationCode;
 import org.example.coin_laundry_app_backend.user.domain.model.value.PhoneNumber;
 import org.example.coin_laundry_app_backend.user.domain.service.VerificationCodeGenerator;
 import org.example.coin_laundry_app_backend.user.presentation.payload.response.LoginResponse;
-import org.example.coin_laundry_app_backend.user.repository.UserRepository;
 import org.example.coin_laundry_app_backend.user.repository.VerificationCodeRepository;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
@@ -16,7 +16,7 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class UserSignService {
 
-    private final UserRepository userRepository;
+    private final UserService userService;
     private final VerificationCodeRepository verificationCodeRepository;
     private final JWTHelper jwtHelper;
 
@@ -63,13 +63,25 @@ public class UserSignService {
      */
     public Mono<LoginResponse> login(PhoneNumber phoneNumber, String verificationCode) {
         return verifyPhoneVerificationCode(phoneNumber, verificationCode)
-            .flatMap(vc -> userRepository.findByPhoneNumber(vc.getPhoneNumber())
-                .switchIfEmpty(Mono.error(new IllegalArgumentException("User not found")))
+            .flatMap(vc -> userService.getUserByPhoneNumber(phoneNumber)
                 .flatMap(user -> {
                     var token = jwtHelper.sign(user.getId());
                     return Mono.just(new LoginResponse(token));
                 })
             );
+    }
+
+    /**
+     * 사용자를 등록합니다. 사용자 정보를 저장합니다.
+     *
+     * @param phoneNumber  전화번호
+     * @param commercialYn 광고성 정보 수신 동의 여부
+     * @param locationYn   위치 정보 수신 동의 여부
+     * @return User 의 Mono 객체.
+     */
+    public Mono<User> signUp(PhoneNumber phoneNumber, Boolean commercialYn, Boolean locationYn) {
+        var user = User.of(phoneNumber, commercialYn, locationYn);
+        return userService.addUser(user);
     }
 
     /**

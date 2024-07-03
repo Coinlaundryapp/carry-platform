@@ -3,10 +3,13 @@ package org.example.coin_laundry_app_backend.user.application.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 import java.time.LocalDateTime;
+import org.example.coin_laundry_app_backend.config.security.jwt.JWTHelper;
 import org.example.coin_laundry_app_backend.user.domain.model.entity.data.VerificationCodeData;
+import org.example.coin_laundry_app_backend.user.domain.model.entity.domainmodel.User;
 import org.example.coin_laundry_app_backend.user.domain.model.value.PhoneNumber;
 import org.example.coin_laundry_app_backend.user.domain.service.VerificationCodeGenerator;
 import org.example.coin_laundry_app_backend.user.repository.VerificationCodeRepository;
@@ -27,6 +30,11 @@ class UserSignServiceTest {
     private UserSignService userSignService;
     @Mock
     private VerificationCodeRepository verificationCodeRepository;
+    @Mock
+    private UserService userService;
+    @Mock
+    private JWTHelper jwtHelper;
+
     private String expectedVerificationCode;
     private LocalDateTime expectedCreatedAt;
     private LocalDateTime expectedExpiredAt;
@@ -107,5 +115,42 @@ class UserSignServiceTest {
         assertThatThrownBy(actualResult::block)
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessage("Expired verification code");
+    }
+
+    @Test
+    void 로그인_성공() {
+        // Arrange
+        var expectedUser = spy(User.of(expectedPhoneNumber, true, true));
+        var expectedAccessToken = "accessToken";
+        when(expectedUser.getId()).thenReturn(expectedId);
+        when(verificationCodeRepository.findByPhoneNumberAndCode(expectedPhoneNumber.getValue(),
+            expectedVerificationCode)).thenReturn(Mono.just(verificationCodeData));
+        when(userService.getUserByPhoneNumber(any(PhoneNumber.class))).thenReturn(
+            Mono.just(expectedUser));
+        when(jwtHelper.sign(expectedId)).thenReturn(expectedAccessToken);
+        // Act
+        var actualResult = userSignService.login(expectedPhoneNumber, expectedVerificationCode)
+            .block();
+        // Assert
+        assertThat(actualResult).isNotNull()
+            .hasFieldOrProperty(expectedAccessToken);
+    }
+
+    @Test
+    void 회원가입_성공() {
+        // Arrange
+        var expectedUser = spy(User.of(expectedPhoneNumber, true, true));
+        when(userService.addUser(any(User.class))).thenReturn(Mono.just(expectedUser));
+        when(expectedUser.getId()).thenReturn(expectedId);
+        // Act
+        var actualResult = userSignService.signUp(expectedPhoneNumber, true, true).block();
+        // Assert
+        assertThat(actualResult).isNotNull()
+            .hasFieldOrPropertyWithValue("id", expectedId)
+            .hasFieldOrPropertyWithValue("username", "**" + expectedPhoneNumber.getValue()
+                .substring(expectedPhoneNumber.getValue().length() - 2))
+            .hasFieldOrPropertyWithValue("phoneNumber", expectedPhoneNumber)
+            .hasFieldOrPropertyWithValue("commercialYn", true)
+            .hasFieldOrPropertyWithValue("locationYn", true);
     }
 }

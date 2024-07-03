@@ -24,7 +24,17 @@ public class User {
             userData.getLocationYn());
     }
 
+    public static User of(PhoneNumber phoneNumber, Boolean commercialYn, Boolean locationYn) {
+        return new User(null, generateUsername(phoneNumber), phoneNumber, commercialYn, locationYn);
+    }
+
     public UserData toData() {
         return new UserData(id, username, phoneNumber.getValue(), commercialYn, locationYn);
+    }
+
+    private static String generateUsername(PhoneNumber phoneNumber) {
+        var value = phoneNumber.getValue();
+        return "**" + value.substring(value.length() - 2);
+
     }
 }
