@@ -39,15 +39,17 @@ public class UserInfoService {
         );
     }
 
-    private void validateCommercialTerm(User user, Boolean commercialYn) {
+    private void validateCommercialTerm(User user, boolean commercialYn) {
         if (user.getCommercialYn().equals(commercialYn)) {
-            throw new IllegalArgumentException("commercialYn is already set to " + commercialYn);
+            throw new IllegalArgumentException(
+                "이미 광고성 정보 수신에 " + (commercialYn ? "동의" : "철회") + " 했습니다.");
         }
     }
 
-    private void validateLocationTerm(User user, Boolean locationYn) {
+    private void validateLocationTerm(User user, boolean locationYn) {
         if (user.getLocationYn().equals(locationYn)) {
-            throw new IllegalArgumentException("locationYn is already set to " + locationYn);
+            throw new IllegalArgumentException(
+                "이미 위치 정보 제공에 " + (locationYn ? "동의" : "철회") + " 했습니다.");
         }
     }
 }
