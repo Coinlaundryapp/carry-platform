@@ -16,7 +16,6 @@ public class ReverseGeoController {
 
     private final ReverseGeocodingService reverseGeocodingService;
 
-
     @GetMapping("/rgc")
     Mono<ReverseGeoModel> getReverseGeocoding(EPSG4326Coordinate coordinate) {
         return reverseGeocodingService.getReverseGeocoding(coordinate);

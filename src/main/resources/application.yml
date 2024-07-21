@@ -21,3 +21,5 @@ spring:
     url: jdbc:${db.mysql.url}
     user: ${db.mysql.username}
     password: ${db.mysql.password}
+  config:
+    import: classpath:naver-api-test.yaml
