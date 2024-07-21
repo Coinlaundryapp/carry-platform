@@ -1,8 +1,13 @@
+db:
+  mysql:
+    url: mysql://localhost:3306/coin_laundry
+    username: coin_laundry
+    password: coin_laundry!dev01!#
 spring:
   r2dbc:
-    url: r2dbc:mysql://localhost:3306/coin_laundry
-    username: coin_laundry
-    password: coin_laundry!prod01!#
+    url: r2dbc:${db.mysql.url}
+    username: ${db.mysql.username}
+    password: ${db.mysql.password}
     pool:
       enabled: true
       max-size: 20
@@ -13,6 +18,8 @@ spring:
 
   flyway:
     enabled: true
-    url: jdbc:mysql://localhost:3306/coin_laundry
-    user: coin_laundry
-    password: coin_laundry!prod01!#
+    url: jdbc:${db.mysql.url}
+    user: ${db.mysql.username}
+    password: ${db.mysql.password}
+  config:
+    import: classpath:naver-api-test.yaml
