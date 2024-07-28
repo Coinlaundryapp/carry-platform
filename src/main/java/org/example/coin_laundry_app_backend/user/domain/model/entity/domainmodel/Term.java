@@ -24,8 +24,9 @@ public class Term {
             termData.getCreatedAt());
     }
 
-    public static Term of(TermType termType, TermInfo termInfo, String context) {
-        return new Term(null, termType, termInfo, context, null);
+    public static Term of(TermType termType, TermInfo termInfo, String context,
+        LocalDateTime createdAt) {
+        return new Term(null, termType, termInfo, context, createdAt);
     }
 
     public TermData toData() {
