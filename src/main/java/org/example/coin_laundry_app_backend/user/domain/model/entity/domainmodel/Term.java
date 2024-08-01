@@ -34,4 +34,11 @@ public class Term {
             createdAt);
     }
 
+    public boolean isMandatory() {
+        return termType == TermType.MANDATORY;
+    }
+
+    public int getVersion() {
+        return termInfo.getVersion();
+    }
 }
