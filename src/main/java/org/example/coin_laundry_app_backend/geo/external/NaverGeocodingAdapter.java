@@ -3,6 +3,8 @@ package org.example.coin_laundry_app_backend.geo.external;
 import org.example.coin_laundry_app_backend.geo.domain.model.EPSG4326Coordinate;
 import org.example.coin_laundry_app_backend.geo.service.GeocodingService;
 import org.example.coin_laundry_app_backend.geo.service.model.GeoModel;
+import org.example.coin_laundry_app_backend.geo.service.model.JibunGeoModel;
+import org.example.coin_laundry_app_backend.geo.service.model.RoadGeoCoding;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -59,5 +61,42 @@ public class NaverGeocodingAdapter implements GeocodingService {
                     )
                 ).collect(Collectors.toCollection(ArrayList::new))
             );
+    }
+
+    @Override
+    public Mono<List<JibunGeoModel>> getJibunGeocoding(String address) {
+        return getGeocoding(address)
+            .map(geoModels -> geoModels.stream()
+                .filter(geoModel -> !geoModel.jibunAddress().isEmpty())
+                .map(geoModel -> new JibunGeoModel(
+                    geoModel.jibunAddress(),
+                    geoModel.coordinate(),
+                    geoModel.sido(),
+                    geoModel.sigungu(),
+                    geoModel.dongmyun(),
+                    geoModel.ri(),
+                    geoModel.buildingName(),
+                    geoModel.landNumber(),
+                    geoModel.postalCode()
+                )).collect(Collectors.toCollection(ArrayList::new)));
+    }
+
+    @Override
+    public Mono<List<RoadGeoCoding>> getRoadGeocoding(String address) {
+        return getGeocoding(address)
+            .map(geoModels -> geoModels.stream()
+                .filter(geoModel -> !geoModel.roadAddress().isEmpty())
+                .map(geoModel -> new RoadGeoCoding(
+                    geoModel.roadAddress(),
+                    geoModel.coordinate(),
+                    geoModel.sido(),
+                    geoModel.sigungu(),
+                    geoModel.dongmyun(),
+                    geoModel.ri(),
+                    geoModel.roadName(),
+                    geoModel.buildingName(),
+                    geoModel.landNumber(),
+                    geoModel.postalCode()
+                )).collect(Collectors.toCollection(ArrayList::new)));
     }
 }

@@ -5,7 +5,9 @@ import org.example.coin_laundry_app_backend.geo.domain.model.EPSG4326Coordinate;
 import org.example.coin_laundry_app_backend.geo.service.GeocodingService;
 import org.example.coin_laundry_app_backend.geo.service.ReverseGeocodingService;
 import org.example.coin_laundry_app_backend.geo.service.model.GeoModel;
+import org.example.coin_laundry_app_backend.geo.service.model.JibunGeoModel;
 import org.example.coin_laundry_app_backend.geo.service.model.ReverseGeoModel;
+import org.example.coin_laundry_app_backend.geo.service.model.RoadGeoCoding;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -27,6 +29,16 @@ public class GeoPocController {
     @GetMapping("/gc")
     Mono<List<GeoModel>> getGeoCoding(String address) {
         return geocodingService.getGeocoding(address);
+    }
+
+    @GetMapping("/gc/jibun")
+    Mono<List<JibunGeoModel>> getJibunGeoCoding(String address) {
+        return geocodingService.getJibunGeocoding(address);
+    }
+
+    @GetMapping("/gc/road")
+    Mono<List<RoadGeoCoding>> getRoadGeoCoding(String address) {
+        return geocodingService.getRoadGeocoding(address);
     }
 
     @GetMapping("/rgc")
