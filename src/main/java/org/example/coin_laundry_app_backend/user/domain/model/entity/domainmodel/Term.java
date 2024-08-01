@@ -12,11 +12,11 @@ import org.example.coin_laundry_app_backend.user.domain.model.value.TermInfo;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class Term {
 
-    Long id;
-    TermType termType;
-    TermInfo termInfo;
-    String context;
-    LocalDateTime createdAt;
+    private Long id;
+    private final TermType termType;
+    private final TermInfo termInfo;
+    private final String context;
+    private final LocalDateTime createdAt;
 
     public static Term from(TermData termData) {
         TermInfo info = TermInfo.of(termData.getTermInfoTitle(), termData.getTermInfoVersion());
@@ -33,4 +33,5 @@ public class Term {
         return new TermData(id, termType, termInfo.getTitle(), termInfo.getVersion(), context,
             createdAt);
     }
+
 }

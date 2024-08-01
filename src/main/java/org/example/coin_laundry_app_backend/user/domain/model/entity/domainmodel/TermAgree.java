@@ -10,11 +10,11 @@ import org.example.coin_laundry_app_backend.user.domain.model.entity.data.TermAg
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class TermAgree {
 
-    Long id;
-    User user;
-    Term term;
-    Boolean agreeYn;
-    LocalDateTime updatedAt;
+    private Long id;
+    private final User user;
+    private final Term term;
+    private final Boolean agreeYn;
+    private LocalDateTime updatedAt;
 
     public static TermAgree from(TermAgreeData termAgreeData) {
         User user = User.from(termAgreeData.getUser());
