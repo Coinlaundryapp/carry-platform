@@ -10,6 +10,7 @@ import java.util.List;
 import org.example.coin_laundry_app_backend.user.domain.model.entity.domainmodel.Term;
 import org.example.coin_laundry_app_backend.user.domain.model.enums.TermType;
 import org.example.coin_laundry_app_backend.user.domain.model.value.TermInfo;
+import org.example.coin_laundry_app_backend.user.domain.service.TermService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -47,7 +48,7 @@ class TermAdminServiceTest {
             Term.of(TermType.OPTIONAL, TermInfo.of(expectedTitle + 2, 1), "testContext",
                 expectedCreatedAt)
         );
-        given(termService.findAllTerms()).willReturn(terms);
+        given(termService.getAllTerms()).willReturn(terms);
         // Act
         TermAdminService actualResult = new TermAdminService(termService);
         // Assert
@@ -63,7 +64,7 @@ class TermAdminServiceTest {
 
         @BeforeEach
         void setUp() {
-            given(termService.findAllTerms()).willReturn(Flux.empty());
+            given(termService.getAllTerms()).willReturn(Flux.empty());
             termAdminService = new TermAdminService(termService);
         }
 
@@ -77,7 +78,7 @@ class TermAdminServiceTest {
                 // Arrange
                 Term term = Term.of(TermType.MANDATORY, TermInfo.of("testTitle", 1), "testContext",
                     LocalDateTime.now());
-                given(termService.findTermsByTitle(term.getTermInfo().getTitle()))
+                given(termService.getTermsByTitle(term.getTermInfo().getTitle()))
                     .willReturn(Flux.just(term));
                 // Act
                 Mono<Term> actualResult = termAdminService.createNewTerm(term);
@@ -98,7 +99,7 @@ class TermAdminServiceTest {
                 LocalDateTime expectedCreatedAt = LocalDateTime.now();
                 Term term = Term.of(expectedTermType, expectedTermInfo, expectedContext,
                     expectedCreatedAt);
-                given(termService.findTermsByTitle(any(String.class))).willReturn(Flux.empty());
+                given(termService.getTermsByTitle(any(String.class))).willReturn(Flux.empty());
                 given(termService.addTerm(term)).willReturn(Mono.just(term));
                 // Act
                 Mono<Term> actualResult = termAdminService.createNewTerm(term);
@@ -125,7 +126,7 @@ class TermAdminServiceTest {
             void testUpdateTermWithNotExist() {
                 // Arrange
                 given(
-                    termService.findTermsByTitle(expectedTerm.getTermInfo().getTitle())).willReturn(
+                    termService.getTermsByTitle(expectedTerm.getTermInfo().getTitle())).willReturn(
                     Flux.empty());
                 // Act
                 Mono<Term> actualResult = termAdminService.updateTerm(expectedTerm);
@@ -142,7 +143,7 @@ class TermAdminServiceTest {
                 Term existTerm = Term.of(TermType.MANDATORY, TermInfo.of("testTitle", 1),
                     "testContext",
                     LocalDateTime.now());
-                given(termService.findTermsByTitle(expectedTerm.getTermInfo().getTitle()))
+                given(termService.getTermsByTitle(expectedTerm.getTermInfo().getTitle()))
                     .willReturn(Flux.just(existTerm));
                 // Act
                 Mono<Term> actualResult = termAdminService.updateTerm(expectedTerm);
@@ -160,7 +161,7 @@ class TermAdminServiceTest {
                 Term existTerm = Term.of(TermType.MANDATORY, TermInfo.of("testTitle", 0),
                     "testContext",
                     LocalDateTime.now());
-                given(termService.findTermsByTitle(expectedTerm.getTermInfo().getTitle()))
+                given(termService.getTermsByTitle(expectedTerm.getTermInfo().getTitle()))
                     .willReturn(Flux.just(existTerm));
                 given(termService.addTerm(expectedTerm)).willReturn(Mono.just(expectedTerm));
                 // Act

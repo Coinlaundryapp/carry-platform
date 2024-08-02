@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.example.coin_laundry_app_backend.user.domain.model.entity.domainmodel.Term;
 import org.example.coin_laundry_app_backend.user.domain.model.value.TermInfo;
+import org.example.coin_laundry_app_backend.user.domain.service.TermService;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -24,7 +25,7 @@ public class TermAdminService {
 
     public Mono<Term> createNewTerm(Term term) {
         TermInfo termInfo = term.getTermInfo();
-        return Mono.from(termService.findTermsByTitle(termInfo.getTitle()).flatMap(
+        return Mono.from(termService.getTermsByTitle(termInfo.getTitle()).flatMap(
                 terms -> Flux.defer(() -> Flux.error(
                     new IllegalArgumentException("이미 존재하는 약관입니다: " + termInfo.getTitle()))))
             .switchIfEmpty(Mono.defer(() -> {
@@ -40,7 +41,7 @@ public class TermAdminService {
 
     public Mono<Term> updateTerm(Term term) {
         TermInfo termInfo = term.getTermInfo();
-        return termService.findTermsByTitle(termInfo.getTitle()).collectList().flatMap(terms -> {
+        return termService.getTermsByTitle(termInfo.getTitle()).collectList().flatMap(terms -> {
             if (terms.isEmpty()) {
                 return Mono.defer(() -> Mono.error(
                     new IllegalArgumentException("업데이트할 약관이 존재하지 않습니다: " + termInfo.getTitle())));
@@ -66,7 +67,7 @@ public class TermAdminService {
 
     private Map<String, Term> verityRequiredTerms() {
         Map<String, Term> map = new ConcurrentHashMap<>();
-        termService.findAllTerms()
+        termService.getAllTerms()
             .filter(Term::isMandatory)
             .groupBy(term -> term.getTermInfo().getTitle())
             .flatMap(

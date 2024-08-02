@@ -1,4 +1,4 @@
-package org.example.coin_laundry_app_backend.user.application.service;
+package org.example.coin_laundry_app_backend.user.domain.service;
 
 import lombok.RequiredArgsConstructor;
 import org.example.coin_laundry_app_backend.user.domain.model.entity.domainmodel.Term;
@@ -17,11 +17,15 @@ public class TermService {
         return termRepository.save(term.toData()).map(Term::from);
     }
 
-    public Flux<Term> findTermsByTitle(String title) {
+    public Mono<Term> getTermById(Long id) {
+        return termRepository.findById(id).map(Term::from);
+    }
+
+    public Flux<Term> getTermsByTitle(String title) {
         return termRepository.findByTermInfoTitleOrderByTermInfoVersionDesc(title).map(Term::from);
     }
 
-    public Flux<Term> findAllTerms() {
+    public Flux<Term> getAllTerms() {
         return termRepository.findAll().map(Term::from);
     }
 
