@@ -24,6 +24,11 @@ public class User {
             userData.getLocationYn());
     }
 
+    public static User from(PhoneNumber phoneNumber) {
+        return new User(null, generateUsername(phoneNumber), phoneNumber, null, null);
+    }
+
+    @Deprecated(forRemoval = true)
     public static User of(PhoneNumber phoneNumber, Boolean commercialYn, Boolean locationYn) {
         return new User(null, generateUsername(phoneNumber), phoneNumber, commercialYn, locationYn);
     }

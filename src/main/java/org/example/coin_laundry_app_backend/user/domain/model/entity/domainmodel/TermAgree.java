@@ -13,7 +13,7 @@ public class TermAgree {
     private Long id;
     private final User user;
     private final Term term;
-    private final Boolean agreeYn;
+    private Boolean agreeYn;
     private LocalDateTime updatedAt;
 
     public static TermAgree from(TermAgreeData termAgreeData) {
@@ -25,6 +25,11 @@ public class TermAgree {
 
     public static TermAgree of(User user, Term term, boolean agreeYn, LocalDateTime updatedAt) {
         return new TermAgree(null, user, term, agreeYn, updatedAt);
+    }
+
+    public void updateAgreeYn(boolean agreeYn, LocalDateTime updatedAt) {
+        this.agreeYn = agreeYn;
+        this.updatedAt = updatedAt;
     }
 
     public TermAgreeData toData() {
