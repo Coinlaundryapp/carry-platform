@@ -5,7 +5,7 @@ import lombok.NoArgsConstructor;
 
 @Getter
 @NoArgsConstructor
-public class UpdateTermRequest {
+public class TermUpdateRequest {
 
-    private Boolean acceptYn;
+    private Long termId;
 }

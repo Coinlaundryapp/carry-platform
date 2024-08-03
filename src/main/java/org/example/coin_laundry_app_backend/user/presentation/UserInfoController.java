@@ -1,10 +1,11 @@
 package org.example.coin_laundry_app_backend.user.presentation;
 
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.example.coin_laundry_app_backend.common.presentation.payload.ApiCommonResponse;
-import org.example.coin_laundry_app_backend.user.application.service.UserInfoService;
-import org.example.coin_laundry_app_backend.user.presentation.payload.request.UpdateTermRequest;
-import org.example.coin_laundry_app_backend.user.presentation.payload.response.UserTermsResponse;
+import org.example.coin_laundry_app_backend.user.application.service.UserTermService;
+import org.example.coin_laundry_app_backend.user.presentation.payload.request.TermUpdateRequest;
+import org.example.coin_laundry_app_backend.user.presentation.payload.response.UserTermAgreeResponse;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,28 +19,26 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class UserInfoController {
 
-    private final UserInfoService userInfoService;
+    private final UserTermService userTermService;
 
     @GetMapping("/terms")
-    public Mono<ApiCommonResponse<UserTermsResponse>> getUserTermsInfo(
+    public Mono<ApiCommonResponse<List<UserTermAgreeResponse>>> getUserTermsInfo(
         @AuthenticationPrincipal Long userId) {
-        Mono<UserTermsResponse> userTermsResponseMono = userInfoService.getUserTermsInfo(userId);
-        return userTermsResponseMono.map(ApiCommonResponse::createSuccessResponse);
+        return userTermService.getTermAgrees(userId).collectList()
+            .map(ApiCommonResponse::createSuccessResponse);
     }
 
-    @PostMapping("/terms/commercial")
-    public Mono<ApiCommonResponse<Void>> setCommercialTermYn(@AuthenticationPrincipal Long userId,
-        @RequestBody UpdateTermRequest request) {
-        Mono<Void> voidMono = userInfoService.setCommercialTermYn(userId, request.getAcceptYn());
-        return voidMono.then(
-            Mono.defer(() -> Mono.just(ApiCommonResponse.createSuccessResponse())));
+    @PostMapping("/terms/agree")
+    public Mono<ApiCommonResponse<UserTermAgreeResponse>> requestAgreeTerm(
+        @AuthenticationPrincipal Long userId, @RequestBody TermUpdateRequest request) {
+        return userTermService.agreeTerm(userId, request.getTermId())
+            .map(ApiCommonResponse::createSuccessResponse);
     }
 
-    @PostMapping("/terms/location")
-    public Mono<ApiCommonResponse<Void>> setLocationTermYn(@AuthenticationPrincipal Long userId,
-        @RequestBody UpdateTermRequest request) {
-        Mono<Void> voidMono = userInfoService.setLocationTermYn(userId, request.getAcceptYn());
-        return voidMono.then(
-            Mono.defer(() -> Mono.just(ApiCommonResponse.createSuccessResponse())));
+    @PostMapping("/terms/disagree")
+    public Mono<ApiCommonResponse<UserTermAgreeResponse>> requestDisagreeTerm(
+        @AuthenticationPrincipal Long userId, @RequestBody TermUpdateRequest request) {
+        return userTermService.disagreeTerm(userId, request.getTermId())
+            .map(ApiCommonResponse::createSuccessResponse);
     }
 }
