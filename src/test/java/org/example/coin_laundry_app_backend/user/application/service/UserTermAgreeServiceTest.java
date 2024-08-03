@@ -27,11 +27,11 @@ import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("UserTermService는")
-class UserTermServiceTest {
+@DisplayName("UserTermAgreeService는")
+class UserTermAgreeServiceTest {
 
     @InjectMocks
-    private UserTermService userTermService;
+    private UserTermAgreeService userTermAgreeService;
 
     @Mock
     private UserService userService;
@@ -74,7 +74,7 @@ class UserTermServiceTest {
             given(termAgreeService.addTermAgree(any())).willReturn(Mono.just(expectedTermAgree));
             given(termService.getTermById(expectedTermId)).willReturn(Mono.just(expectedTerm));
             // Act & Assert
-            StepVerifier.create(userTermService.agreeTerm(expectedUserId, expectedTermId))
+            StepVerifier.create(userTermAgreeService.agreeTerm(expectedUserId, expectedTermId))
                 .expectNextMatches(
                     response -> response.getUserId().equals(expectedUserId) && response.getTermId()
                         .equals(expectedTermId))
@@ -94,7 +94,7 @@ class UserTermServiceTest {
                     expectedTermId)).willReturn(Mono.just(expectedTermAgree));
 
                 // Act & Assert
-                StepVerifier.create(userTermService.agreeTerm(expectedUserId, expectedTermId))
+                StepVerifier.create(userTermAgreeService.agreeTerm(expectedUserId, expectedTermId))
                     .expectError(IllegalArgumentException.class)
                     .verify();
             }
@@ -110,7 +110,7 @@ class UserTermServiceTest {
                     Mono.just(expectedTermAgree));
 
                 // Act & Assert
-                StepVerifier.create(userTermService.agreeTerm(expectedUserId, expectedTermId))
+                StepVerifier.create(userTermAgreeService.agreeTerm(expectedUserId, expectedTermId))
                     .expectNextMatches(
                         response -> response.getUserId().equals(expectedUserId)
                             && response.getTermId()
@@ -134,7 +134,7 @@ class UserTermServiceTest {
                 expectedTermId)).willReturn(Mono.empty());
 
             // Act & Assert
-            StepVerifier.create(userTermService.disagreeTerm(expectedUserId, expectedTermId))
+            StepVerifier.create(userTermAgreeService.disagreeTerm(expectedUserId, expectedTermId))
                 .expectError(IllegalArgumentException.class)
                 .verify();
         }
@@ -148,7 +148,7 @@ class UserTermServiceTest {
             given(expectedTermAgree.getAgreeYn()).willReturn(false);
 
             // Act & Assert
-            StepVerifier.create(userTermService.disagreeTerm(expectedUserId, expectedTermId))
+            StepVerifier.create(userTermAgreeService.disagreeTerm(expectedUserId, expectedTermId))
                 .expectError(IllegalArgumentException.class)
                 .verify();
         }
@@ -164,7 +164,7 @@ class UserTermServiceTest {
             given(expectedTermAgree.getAgreeYn()).willReturn(true);
 
             // Act & Assert
-            StepVerifier.create(userTermService.disagreeTerm(expectedUserId, expectedTermId))
+            StepVerifier.create(userTermAgreeService.disagreeTerm(expectedUserId, expectedTermId))
                 .expectNextMatches(
                     response -> response.getUserId().equals(expectedUserId) && response.getTermId()
                         .equals(expectedTermId))
@@ -181,7 +181,7 @@ class UserTermServiceTest {
         given(termAgreeService.getTermAgreesByUserId(expectedUserId)).willReturn(
             Flux.just(expectedTermAgree));
         // Act & Assert
-        StepVerifier.create(userTermService.getTermAgrees(expectedUserId))
+        StepVerifier.create(userTermAgreeService.getTermAgrees(expectedUserId))
             .expectNextMatches(
                 response -> response.getUserId().equals(expectedUserId) && response.getTermId()
                     .equals(expectedTermId))

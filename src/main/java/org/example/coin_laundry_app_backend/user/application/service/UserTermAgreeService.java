@@ -14,7 +14,7 @@ import reactor.core.publisher.Mono;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class UserTermService {
+public class UserTermAgreeService {
 
     private final UserService userService;
     private final TermService termService;
