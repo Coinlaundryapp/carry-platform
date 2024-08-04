@@ -2,17 +2,13 @@ package org.example.coin_laundry_app_backend.config.security.jwt;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.BDDMockito.given;
 
 import com.auth0.jwt.exceptions.JWTVerificationException;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import java.util.stream.Stream;
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -21,74 +17,111 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
+import org.springframework.mock.web.server.MockServerWebExchange;
+import org.springframework.web.server.WebFilterChain;
+import reactor.core.publisher.Mono;
+import reactor.test.StepVerifier;
 
 @ExtendWith(MockitoExtension.class)
+@DisplayName("JWTAuthenticationFilter는")
 class JWTAuthenticationFilterTest {
 
     @InjectMocks
     private JWTAuthenticationFilter jwtAuthenticationFilter;
-
     @Mock
     private JWTHelper jwtHelper;
     @Mock
-    private HttpServletRequest request;
-    @Mock
-    private HttpServletResponse response;
-    @Mock
-    private FilterChain filterChain;
+    private WebFilterChain webFilterChain;
 
-
-    @AfterEach
-    void tearDown() {
-        SecurityContextHolder.clearContext();
+    @BeforeEach
+    void init() {
+        given(webFilterChain.filter(any())).willReturn(Mono.empty());
     }
 
-    @Test
-    void 토큰_인증_성공() throws Exception {
-        // Arrange
-        var expectedUserId = 1L;
-        when(request.getHeader(any())).thenReturn("Bearer validToken");
-        when(jwtHelper.verify(anyString())).thenReturn(expectedUserId);
-        // Act
-        jwtAuthenticationFilter.doFilterInternal(request, response, filterChain);
-        // Assert
-        verify(filterChain).doFilter(request, response);
-        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNotNull();
-        assertThat(SecurityContextHolder.getContext().getAuthentication().getPrincipal()).isEqualTo(
-            expectedUserId);
+    @Nested
+    @DisplayName("토큰 검증을 할 때")
+    class whenVerifyToken {
+
+        @DisplayName("토큰이 없으면 JWTVerificationException을 전달한다.")
+        @Test
+        void ifTokenIsNullShouldReturnException() {
+            // Arrange
+            MockServerHttpRequest request = MockServerHttpRequest.get("/")
+                .build();
+            MockServerWebExchange exchange = MockServerWebExchange.from(request);
+            // Act & Assert
+            StepVerifier
+                .create(jwtAuthenticationFilter.filter(exchange, webFilterChain))
+                .verifyComplete();
+            assertThat(exchange.getAttributes().get("exception"))
+                .isInstanceOf(JWTVerificationException.class);
+        }
+
+        @DisplayName("토큰이 형식이 올바르지 않다면 JWTVerificationException을 전달한다.")
+        @ParameterizedTest
+        @MethodSource("invalidTokenProvider")
+        void ifTokenIsInvalidShouldReturnException(String token) {
+            // Arrange
+            MockServerHttpRequest request = MockServerHttpRequest.get("/")
+                .header("Authorization", token)
+                .build();
+            MockServerWebExchange exchange = MockServerWebExchange.from(request);
+            given(jwtHelper.verify(any())).willThrow(JWTVerificationException.class);
+            // Act & Assert
+            StepVerifier
+                .create(jwtAuthenticationFilter.filter(exchange, webFilterChain))
+                .verifyComplete();
+            assertThat(exchange.getAttributes().get("exception"))
+                .isInstanceOf(JWTVerificationException.class);
+        }
+
+        @DisplayName("토큰 형식이 올바르지 않다면 JWTVerificationException을 전달한다.")
+        @ParameterizedTest
+        @MethodSource("wrongTokenProvider")
+        void ifTokenIsWrongShouldReturnException(String token) {
+            // Arrange
+            MockServerHttpRequest request = MockServerHttpRequest.get("/")
+                .header("Authorization", token)
+                .build();
+            MockServerWebExchange exchange = MockServerWebExchange.from(request);
+            // Act & Assert
+            StepVerifier
+                .create(jwtAuthenticationFilter.filter(exchange, webFilterChain))
+                .verifyComplete();
+            assertThat(exchange.getAttributes().get("exception"))
+                .isInstanceOf(JWTVerificationException.class);
+        }
+
+        @DisplayName("토큰이 올바르다면 JWTAuthenticationToken을 생성한다.")
+        @Test
+        void ifTokenIsValidShouldReturnJWTAuthenticationToken() {
+            // Arrange
+            MockServerHttpRequest request = MockServerHttpRequest.get("/")
+                .header("Authorization", "Bearer validToken")
+                .build();
+            MockServerWebExchange exchange = MockServerWebExchange.from(request);
+            given(jwtHelper.verify(any())).willReturn(1L);
+            // Act & Assert
+            StepVerifier.create(jwtAuthenticationFilter.filter(exchange, webFilterChain))
+                .verifyComplete();
+        }
+
+        private static Stream<Arguments> invalidTokenProvider() {
+            return Stream.of(
+                Arguments.of("Bearer "),
+                Arguments.of("Bearer invalidToken")
+            );
+        }
+
+        private static Stream<Arguments> wrongTokenProvider() {
+            return Stream.of(
+                Arguments.of("invalidToken"),
+                Arguments.of("Bearer")
+            );
+        }
+
     }
 
-    @MethodSource("invalidTokenProvider")
-    @ParameterizedTest
-    void 토큰_인증_실패_잘못된_토큰(String token) throws Exception {
-        // Arrange
-        when(request.getHeader(any())).thenReturn(token);
-        lenient().when(jwtHelper.verify(anyString())).thenThrow(JWTVerificationException.class);
-        // Act
-        jwtAuthenticationFilter.doFilterInternal(request, response, filterChain);
-        // Assert
-        verify(filterChain).doFilter(request, response);
-        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
-    }
 
-    @Test
-    void 토큰_인증_실패_토큰_없음() throws Exception {
-        // Arrange
-        when(request.getHeader(any())).thenReturn(null);
-        // Act
-        jwtAuthenticationFilter.doFilterInternal(request, response, filterChain);
-        // Assert
-        verify(filterChain).doFilter(request, response);
-        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
-    }
-
-    private static Stream<Arguments> invalidTokenProvider() {
-        return Stream.of(
-            Arguments.of("invalidToken"),
-            Arguments.of("Bearer"),
-            Arguments.of("Bearer "),
-            Arguments.of("Bearer invalidToken")
-        );
-    }
 }

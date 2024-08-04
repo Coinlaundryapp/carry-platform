@@ -5,37 +5,32 @@ import org.example.coin_laundry_app_backend.config.security.jwt.JWTAuthenticatio
 import org.example.coin_laundry_app_backend.config.security.jwt.JWTHelper;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
+import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
+import org.springframework.security.config.web.server.ServerHttpSecurity;
+import org.springframework.security.web.server.SecurityWebFilterChain;
 
 @Configuration
-@EnableWebSecurity
+@EnableWebFluxSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
     private final JWTHelper jwtHelper;
 
     @Bean
-    SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        return http
-            .httpBasic(AbstractHttpConfigurer::disable)
-            .csrf(AbstractHttpConfigurer::disable)
-            .formLogin(AbstractHttpConfigurer::disable)
-            .rememberMe(AbstractHttpConfigurer::disable)
-            .logout(AbstractHttpConfigurer::disable)
-            .sessionManagement(
-                management -> management.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(
-                requests -> {
-                    requests.requestMatchers("/api/v1/sign/**").permitAll();
-                    requests.anyRequest().authenticated();
+    SecurityWebFilterChain filterChain(ServerHttpSecurity httpSecurity) {
+        return httpSecurity
+            .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
+            .csrf(ServerHttpSecurity.CsrfSpec::disable)
+            .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
+            .logout(ServerHttpSecurity.LogoutSpec::disable)
+            .authorizeExchange(
+                exchanges -> {
+                    exchanges.pathMatchers("/api/v1/sign/**").permitAll();
+                    exchanges.anyExchange().authenticated();
                 }
             )
-            .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
+            .addFilterAt(jwtAuthenticationFilter(), SecurityWebFiltersOrder.AUTHENTICATION)
             .build();
     }
 
