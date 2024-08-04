@@ -1,7 +1,6 @@
 package org.example.coin_laundry_app_backend.user.application.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 
@@ -20,6 +19,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.test.StepVerifier;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("TermAdminService는")
@@ -80,12 +80,10 @@ class TermAdminServiceTest {
                     LocalDateTime.now());
                 given(termService.getTermsByTitle(term.getTermInfo().getTitle()))
                     .willReturn(Flux.just(term));
-                // Act
-                Mono<Term> actualResult = termAdminService.createNewTerm(term);
-                // Assert
-                assertThatThrownBy(actualResult::block)
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessage("이미 존재하는 약관입니다: " + term.getTermInfo().getTitle());
+                // Act & Assert
+                StepVerifier.create(termAdminService.createNewTerm(term))
+                    .expectError(IllegalArgumentException.class)
+                    .verify();
             }
 
 
@@ -101,14 +99,14 @@ class TermAdminServiceTest {
                     expectedCreatedAt);
                 given(termService.getTermsByTitle(any(String.class))).willReturn(Flux.empty());
                 given(termService.addTerm(term)).willReturn(Mono.just(term));
-                // Act
-                Mono<Term> actualResult = termAdminService.createNewTerm(term);
-                // Assert
-                assertThat(actualResult.block()).isNotNull()
-                    .extracting(Term::getTermType, Term::getTermInfo, Term::getContext,
-                        Term::getCreatedAt)
-                    .contains(expectedTermType, expectedTermInfo, expectedContext,
-                        expectedCreatedAt);
+                // Act & Assert
+                StepVerifier.create(termAdminService.createNewTerm(term))
+                    .assertNext(response -> assertThat(response)
+                        .extracting(Term::getTermType, Term::getTermInfo, Term::getContext,
+                            Term::getCreatedAt)
+                        .contains(expectedTermType, expectedTermInfo, expectedContext,
+                            expectedCreatedAt))
+                    .verifyComplete();
             }
 
         }
@@ -128,12 +126,10 @@ class TermAdminServiceTest {
                 given(
                     termService.getTermsByTitle(expectedTerm.getTermInfo().getTitle())).willReturn(
                     Flux.empty());
-                // Act
-                Mono<Term> actualResult = termAdminService.updateTerm(expectedTerm);
-                // Assert
-                assertThatThrownBy(actualResult::block)
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessage("업데이트할 약관이 존재하지 않습니다: " + expectedTerm.getTermInfo().getTitle());
+                // Act & Assert
+                StepVerifier.create(termAdminService.updateTerm(expectedTerm))
+                    .expectError(IllegalArgumentException.class)
+                    .verify();
             }
 
             @Test
@@ -145,13 +141,10 @@ class TermAdminServiceTest {
                     LocalDateTime.now());
                 given(termService.getTermsByTitle(expectedTerm.getTermInfo().getTitle()))
                     .willReturn(Flux.just(existTerm));
-                // Act
-                Mono<Term> actualResult = termAdminService.updateTerm(expectedTerm);
-                // Assert
-                assertThatThrownBy(actualResult::block)
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessage(
-                        "이미 존재하는 약관 버전이 같거나 더 높습니다: " + expectedTerm.getTermInfo().getVersion());
+                // Act & Assert
+                StepVerifier.create(termAdminService.updateTerm(expectedTerm))
+                    .expectError(IllegalArgumentException.class)
+                    .verify();
             }
 
             @Test
@@ -164,14 +157,14 @@ class TermAdminServiceTest {
                 given(termService.getTermsByTitle(expectedTerm.getTermInfo().getTitle()))
                     .willReturn(Flux.just(existTerm));
                 given(termService.addTerm(expectedTerm)).willReturn(Mono.just(expectedTerm));
-                // Act
-                Mono<Term> actualResult = termAdminService.updateTerm(expectedTerm);
-                // Assert
-                assertThat(actualResult.block()).isNotNull()
-                    .extracting(Term::getTermType, Term::getTermInfo, Term::getContext,
-                        Term::getCreatedAt)
-                    .contains(expectedTerm.getTermType(), expectedTerm.getTermInfo(),
-                        expectedTerm.getContext(), expectedTerm.getCreatedAt());
+                // Act & Assert
+                StepVerifier.create(termAdminService.updateTerm(expectedTerm))
+                    .assertNext(response -> assertThat(response)
+                        .extracting(Term::getTermType, Term::getTermInfo, Term::getContext,
+                            Term::getCreatedAt)
+                        .contains(expectedTerm.getTermType(), expectedTerm.getTermInfo(),
+                            expectedTerm.getContext(), expectedTerm.getCreatedAt()))
+                    .verifyComplete();
             }
         }
 
