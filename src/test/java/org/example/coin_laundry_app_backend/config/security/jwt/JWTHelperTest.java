@@ -2,78 +2,109 @@ package org.example.coin_laundry_app_backend.config.security.jwt;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
 
 import com.auth0.jwt.exceptions.JWTVerificationException;
+import java.util.List;
+import org.example.coin_laundry_app_backend.user.application.service.TermAdminService;
+import org.example.coin_laundry_app_backend.user.domain.model.entity.domainmodel.Term;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-@DisplayName("기능 테스트: JWTHelper")
+@ExtendWith(MockitoExtension.class)
+@DisplayName("JWTHelper는")
 class JWTHelperTest {
 
-    private static final JWTHelper jwtHelper;
-    private static final String ISSUER = "CoinLaundryApp";
-    private static final String CLIENT_SECRET = "coin_laundry_app";
+    private JWTHelper jwtHelper;
 
-    static {
-        var jwtProperties = new JWTProperties();
-        jwtProperties.setIssuer("CoinLaundryApp");
-        jwtProperties.setClientSecret("coin_laundry_app");
-        jwtProperties.setAccessTokenExpiryDate(1L);
-        jwtHelper = new JWTHelper(jwtProperties);
+    @Mock
+    private JWTProperties jwtProperties;
+    @Mock
+    private TermAdminService termAdminService;
+
+    @BeforeEach
+    void setUp() {
+        given(jwtProperties.getIssuer()).willReturn("issuer");
+        given(jwtProperties.getClientSecret()).willReturn("clientSecret");
+        given(jwtProperties.getAccessTokenExpiryDate()).willReturn(1L);
+        jwtHelper = new JWTHelper(jwtProperties, termAdminService);
     }
 
     @Test
-    void 토큰_발급() {
-        // Arrange
-        long expectedUserId = 1L;
-        // Act
-        var actualResult = jwtHelper.sign(expectedUserId);
-        // Assert
-        assertThat(actualResult).isNotNull();
-    }
-
-    @Test
-    void 토큰_검증_성공() {
-        // Arrange
-        long expectedUserId = 1L;
-        var token = jwtHelper.sign(expectedUserId);
-        // Act
-        var actualResult = jwtHelper.verify(token);
-        // Assert
-        assertThat(actualResult).isEqualTo(expectedUserId);
-    }
-
-    @Test
-    void 토큰_검증_실패_잘못된_토큰형식() {
-        // Arrange
-        var token = "invalid_token";
+    @DisplayName("생성된다.")
+    void create() {
         // Act & Assert
-        assertThatThrownBy(() -> jwtHelper.verify(token))
-            .isInstanceOf(JWTVerificationException.class);
+        assertThat(jwtHelper)
+            .extracting("issuer", "termAdminService")
+            .containsExactly("issuer", termAdminService);
     }
 
-    @Test
-    void 토큰_검증_실패_만료된_토큰() {
-        // Arrange
-        var corruptJwtHelper = new JWTHelper(new JWTProperties() {
-            @Override
-            public String getIssuer() {
-                return ISSUER;
-            }
+    @Nested
+    @DisplayName("토큰을 생성할 때")
+    class whenSign {
 
-            @Override
-            public String getClientSecret() {
-                return CLIENT_SECRET;
-            }
-
-            @Override
-            public Long getAccessTokenExpiryDate() {
-                return 0L;
-            }
-        });
-        var token = corruptJwtHelper.sign(1L);
-        // Act & Assert
-        assertThatThrownBy(() -> jwtHelper.verify(token))
-            .isInstanceOf(JWTVerificationException.class);
+        @Test
+        @DisplayName("정상적으로 생성한다.")
+        void signSuccess() {
+            // Arrange
+            Long expectedUserId = 1L;
+            Long expectedTermId = 1L;
+            Term expectedTerm = mock(Term.class);
+            List<Term> expectedAcceptedTerms = List.of(expectedTerm);
+            given(expectedTerm.getId()).willReturn(expectedTermId);
+            // Act
+            String actualResult = jwtHelper.sign(expectedUserId, expectedAcceptedTerms);
+            // Assert
+            assertThat(actualResult).isNotNull();
+        }
     }
+
+    @Nested
+    @DisplayName("토큰을 검증할 때")
+    class whenVerify {
+
+        private String expectedToken;
+        private final Term expectedTerm = mock(Term.class);
+
+        @BeforeEach
+        void init() {
+            Long expectedUserId = 1L;
+            Long expectedTermId = 1L;
+            List<Term> expectedAcceptedTerms = List.of(expectedTerm);
+            given(expectedTerm.getId()).willReturn(expectedTermId);
+            given(termAdminService.getRequiredTerms()).willReturn(List.of(expectedTerm));
+            expectedToken = jwtHelper.sign(expectedUserId, expectedAcceptedTerms);
+        }
+
+        @Test
+        @DisplayName("정상적으로 검증한다.")
+        void verifySuccess() {
+            // Arrange
+            given(expectedTerm.getId()).willReturn(1L);
+            given(termAdminService.getRequiredTerms()).willReturn(List.of(expectedTerm));
+            // Act
+            Long actualResult = jwtHelper.verify(expectedToken);
+            // Assert
+            assertThat(actualResult).isEqualTo(1L);
+        }
+
+        @Test
+        @DisplayName("약관 갱신이 필요한 경우 예외를 던진다.")
+        void verifyFailWhenTermsNeedUpdate() {
+            // Arrange
+            given(expectedTerm.getId()).willReturn(2L);
+            given(termAdminService.getRequiredTerms()).willReturn(List.of(expectedTerm));
+            // Act & Assert
+            assertThatThrownBy(() -> jwtHelper.verify(expectedToken))
+                .isInstanceOf(JWTVerificationException.class)
+                .hasMessage("약관 동의가 필요합니다.");
+        }
+    }
+
 }
