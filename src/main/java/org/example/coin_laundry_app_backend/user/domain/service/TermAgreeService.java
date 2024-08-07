@@ -18,11 +18,11 @@ public class TermAgreeService {
     }
 
     public Flux<TermAgree> getTermAgreesByUserId(Long userId) {
-        return termAgreeRepository.findByUser_Id(userId).map(TermAgree::from);
+        return termAgreeRepository.findByUserId(userId).map(TermAgree::from);
     }
 
     public Mono<TermAgree> getTermAgreeByUserIdAndTermId(Long userId, Long termId) {
-        return termAgreeRepository.findByUser_IdAndTerm_Id(userId, termId).map(TermAgree::from);
+        return termAgreeRepository.findByUserIdAndTermId(userId, termId).map(TermAgree::from);
     }
 
     public Mono<TermAgree> updateTermAgree(TermAgree termAgree) {

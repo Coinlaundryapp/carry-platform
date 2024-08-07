@@ -5,7 +5,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.coin_laundry_app_backend.user.domain.model.entity.domainmodel.TermAgree;
 import org.example.coin_laundry_app_backend.user.domain.service.TermAgreeService;
-import org.example.coin_laundry_app_backend.user.domain.service.TermService;
 import org.example.coin_laundry_app_backend.user.presentation.payload.response.UserTermAgreeResponse;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -16,8 +15,6 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class UserTermAgreeService {
 
-    private final UserService userService;
-    private final TermService termService;
     private final TermAgreeService termAgreeService;
 
     public Mono<UserTermAgreeResponse> agreeTerm(Long userId, Long termId) {
@@ -33,10 +30,8 @@ public class UserTermAgreeService {
                 }
                 termAgree.updateAgreeYn(true, currentTime);
                 return termAgreeService.updateTermAgree(termAgree);
-            }).switchIfEmpty(userService.getUserById(userId).flatMap(
-                user -> termService.getTermById(termId)
-                    .flatMap(term -> termAgreeService.addTermAgree(
-                        TermAgree.of(user, term, true, currentTime)))))
+            }).switchIfEmpty(Mono.defer(() -> termAgreeService.addTermAgree(
+                TermAgree.of(userId, termId, true, currentTime))))
             .map(UserTermAgreeResponse::from);
     }
 

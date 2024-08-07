@@ -1,20 +1,14 @@
 package org.example.coin_laundry_app_backend.user.application.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
 import java.time.LocalDateTime;
-import org.example.coin_laundry_app_backend.user.domain.model.entity.domainmodel.Term;
 import org.example.coin_laundry_app_backend.user.domain.model.entity.domainmodel.TermAgree;
-import org.example.coin_laundry_app_backend.user.domain.model.entity.domainmodel.User;
-import org.example.coin_laundry_app_backend.user.domain.model.enums.TermType;
-import org.example.coin_laundry_app_backend.user.domain.model.value.TermInfo;
 import org.example.coin_laundry_app_backend.user.domain.service.TermAgreeService;
-import org.example.coin_laundry_app_backend.user.domain.service.TermService;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -34,35 +28,17 @@ class UserTermAgreeServiceTest {
     private UserTermAgreeService userTermAgreeService;
 
     @Mock
-    private UserService userService;
-    @Mock
-    private TermService termService;
-    @Mock
     private TermAgreeService termAgreeService;
 
     private final Long expectedUserId = 1L;
     private final Long expectedTermId = 1L;
     private final LocalDateTime currentTime = LocalDateTime.now();
-    private final User expectedUser = mock(User.class);
-    private final Term expectedTerm = spy(
-        Term.of(TermType.MANDATORY, TermInfo.of("testTitle", 1), "testContext", currentTime));
     private final TermAgree expectedTermAgree = spy(
-        TermAgree.of(expectedUser, expectedTerm, true, currentTime));
-
-    @BeforeEach
-    void init() {
-        given(expectedUser.getId()).willReturn(expectedUserId);
-        given(expectedTerm.getId()).willReturn(expectedTermId);
-    }
+        TermAgree.of(expectedUserId, expectedTermId, true, currentTime));
 
     @Nested
     @DisplayName("동의 약관을 추가할 때")
     class whenAgreeTerm {
-
-        @BeforeEach
-        void init() {
-            given(userService.getUserById(expectedUserId)).willReturn(Mono.just(expectedUser));
-        }
 
         @Test
         @DisplayName("동의 약관이 존재하지 않으면 새로운 동의 약관을 생성한다.")
@@ -71,12 +47,15 @@ class UserTermAgreeServiceTest {
             given(termAgreeService.getTermAgreeByUserIdAndTermId(expectedUserId,
                 expectedTermId)).willReturn(Mono.empty());
             given(termAgreeService.addTermAgree(any())).willReturn(Mono.just(expectedTermAgree));
-            given(termService.getTermById(expectedTermId)).willReturn(Mono.just(expectedTerm));
             // Act & Assert
             StepVerifier.create(userTermAgreeService.agreeTerm(expectedUserId, expectedTermId))
                 .expectNextMatches(
-                    response -> response.getUserId().equals(expectedUserId) && response.getTermId()
-                        .equals(expectedTermId))
+                    response -> {
+                        assertThat(response)
+                            .extracting("userId", "termId", "agreeYn", "updatedAt")
+                            .containsExactly(expectedUserId, expectedTermId, true, currentTime);
+                        return true;
+                    })
                 .verifyComplete();
             verify(termAgreeService).addTermAgree(any());
         }
@@ -89,9 +68,9 @@ class UserTermAgreeServiceTest {
             @DisplayName("이미 동의한 약관이면 에러를 반환한다.")
             void shouldReturnErrorWhenAlreadyAgree() {
                 // Arrange
+                given(expectedTermAgree.getAgreeYn()).willReturn(Boolean.TRUE);
                 given(termAgreeService.getTermAgreeByUserIdAndTermId(expectedUserId,
                     expectedTermId)).willReturn(Mono.just(expectedTermAgree));
-
                 // Act & Assert
                 StepVerifier.create(userTermAgreeService.agreeTerm(expectedUserId, expectedTermId))
                     .expectError(IllegalArgumentException.class)
@@ -102,9 +81,9 @@ class UserTermAgreeServiceTest {
             @DisplayName("이미 동의한 약관이 아니면 동의 약관을 업데이트한다.")
             void shouldUpdateTermAgreeWhenNotAgree() {
                 // Arrange
+                given(expectedTermAgree.getAgreeYn()).willReturn(Boolean.FALSE);
                 given(termAgreeService.getTermAgreeByUserIdAndTermId(expectedUserId,
                     expectedTermId)).willReturn(Mono.just(expectedTermAgree));
-                given(expectedTermAgree.getAgreeYn()).willReturn(false);
                 given(termAgreeService.updateTermAgree(expectedTermAgree)).willReturn(
                     Mono.just(expectedTermAgree));
 

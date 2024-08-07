@@ -10,7 +10,7 @@ import reactor.core.publisher.Mono;
 @Repository
 public interface TermAgreeRepository extends ReactiveCrudRepository<TermAgreeData, Long> {
 
-    Flux<TermAgreeData> findByUser_Id(@NonNull Long id);
+    Mono<TermAgreeData> findByUserIdAndTermId(@NonNull Long userId, @NonNull Long termId);
 
-    Mono<TermAgreeData> findByUser_IdAndTerm_Id(@NonNull Long userId, @NonNull Long termId);
+    Flux<TermAgreeData> findByUserId(@NonNull Long userId);
 }

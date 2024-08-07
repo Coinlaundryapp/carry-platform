@@ -13,8 +13,8 @@ public class TermAgreeData {
 
     @Id
     private Long id;
-    private UserData user;
-    private TermData term;
+    private Long userId;
+    private Long termId;
     private Boolean agreeYn;
     private LocalDateTime updatedAt;
 }

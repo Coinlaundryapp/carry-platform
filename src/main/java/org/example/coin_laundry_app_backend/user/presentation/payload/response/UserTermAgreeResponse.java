@@ -23,7 +23,7 @@ public class UserTermAgreeResponse {
     }
 
     public static UserTermAgreeResponse from(TermAgree termAgree) {
-        return new UserTermAgreeResponse(termAgree.getId(), termAgree.getUser().getId(),
-            termAgree.getTerm().getId(), termAgree.getAgreeYn(), termAgree.getUpdatedAt());
+        return new UserTermAgreeResponse(termAgree.getId(), termAgree.getUserId(),
+            termAgree.getTermId(), termAgree.getAgreeYn(), termAgree.getUpdatedAt());
     }
 }
