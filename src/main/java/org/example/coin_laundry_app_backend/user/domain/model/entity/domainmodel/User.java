@@ -32,16 +32,6 @@ public class User {
             PhoneNumber.from(userData.getPhoneNumber()), UserInfo.from(userData));
     }
 
-    @Deprecated(forRemoval = true)
-    public static User of(PhoneNumber phoneNumber, Boolean commercialYn, Boolean locationYn) {
-        return null;
-    }
-
-    public static User of(UserData userData, UserInfo userInfo) {
-        return new User(userData.getId(), userData.getName(), userData.getNickname(),
-            PhoneNumber.from(userData.getPhoneNumber()), userInfo);
-    }
-
     public UserData toData() {
         return new UserData(id, name, nickname, phoneNumber.getValue(), userInfo.getId(),
             userInfo.getThumbnailImageUrl(), userInfo.getProfileImageUrl(),

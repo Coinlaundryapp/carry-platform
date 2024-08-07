@@ -37,23 +37,13 @@ public class JWTHelper {
         this.termAdminService = termAdminService;
     }
 
-    @Deprecated(forRemoval = true)
-    public String sign(Long userId) {
+    public String sign(Long userId, List<Long> acceptedTerms) {
         Date current = new Date();
         return create()
             .withIssuer(issuer)
             .withExpiresAt(calculateExpiryDate(current.getTime()))
             .withClaim(USER_ID_KEY, userId)
-            .sign(algorithm);
-    }
-
-    public String sign(Long userId, List<Term> acceptedTerms) {
-        Date current = new Date();
-        return create()
-            .withIssuer(issuer)
-            .withExpiresAt(calculateExpiryDate(current.getTime()))
-            .withClaim(USER_ID_KEY, userId)
-            .withArrayClaim(TERMS_KEY, acceptedTerms.stream().map(Term::getId).toArray(Long[]::new))
+            .withArrayClaim(TERMS_KEY, acceptedTerms.toArray(new Long[0]))
             .sign(algorithm);
     }
 

@@ -55,9 +55,7 @@ class JWTHelperTest {
             // Arrange
             Long expectedUserId = 1L;
             Long expectedTermId = 1L;
-            Term expectedTerm = mock(Term.class);
-            List<Term> expectedAcceptedTerms = List.of(expectedTerm);
-            given(expectedTerm.getId()).willReturn(expectedTermId);
+            List<Long> expectedAcceptedTerms = List.of(expectedTermId);
             // Act
             String actualResult = jwtHelper.sign(expectedUserId, expectedAcceptedTerms);
             // Assert
@@ -76,8 +74,7 @@ class JWTHelperTest {
         void init() {
             Long expectedUserId = 1L;
             Long expectedTermId = 1L;
-            List<Term> expectedAcceptedTerms = List.of(expectedTerm);
-            given(expectedTerm.getId()).willReturn(expectedTermId);
+            List<Long> expectedAcceptedTerms = List.of(expectedTermId);
             given(termAdminService.getRequiredTerms()).willReturn(List.of(expectedTerm));
             expectedToken = jwtHelper.sign(expectedUserId, expectedAcceptedTerms);
         }

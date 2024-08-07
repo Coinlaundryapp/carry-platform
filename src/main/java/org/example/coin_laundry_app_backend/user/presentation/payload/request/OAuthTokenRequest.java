@@ -5,8 +5,7 @@ import lombok.NoArgsConstructor;
 
 @Getter
 @NoArgsConstructor
-public class VerifyCodeRequest {
+public class OAuthTokenRequest {
 
-    private String phoneNumber;
-    private String verificationCode;
+    private String accessToken;
 }
