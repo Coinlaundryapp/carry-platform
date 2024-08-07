@@ -3,43 +3,52 @@ package org.example.coin_laundry_app_backend.user.domain.model.entity.domainmode
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.Setter;
 import org.example.coin_laundry_app_backend.user.domain.model.entity.data.UserData;
 import org.example.coin_laundry_app_backend.user.domain.model.value.PhoneNumber;
+import org.example.coin_laundry_app_backend.user.domain.model.value.UserInfo;
+import org.example.coin_laundry_app_backend.user.presentation.payload.response.KakaoUserResponse;
+import org.example.coin_laundry_app_backend.user.presentation.payload.response.KakaoUserResponse.KakaoAccount;
+import org.example.coin_laundry_app_backend.user.presentation.payload.response.KakaoUserResponse.KakaoAccount.Profile;
 
 @Getter
-@Setter
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class User {
 
-    Long id;
-    String username;
-    PhoneNumber phoneNumber;
-    Boolean commercialYn;
-    Boolean locationYn;
+    private Long id;
+    private final String name;
+    private final String nickname;
+    private final PhoneNumber phoneNumber;
+    private UserInfo userInfo;
 
-    public static User from(UserData userData) {
-        return new User(userData.getId(), userData.getUsername(),
-            PhoneNumber.from(userData.getPhoneNumber()), userData.getCommercialYn(),
-            userData.getLocationYn());
+    public static User from(KakaoUserResponse kakaoUserResponse) {
+        KakaoAccount kakaoAccount = kakaoUserResponse.getKakaoAccount();
+        Profile profile = kakaoAccount.getProfile();
+        return new User(kakaoUserResponse.getId(), kakaoAccount.getName(), profile.getNickname(),
+            PhoneNumber.from(kakaoAccount.getPhoneNumber()), UserInfo.from(kakaoUserResponse));
     }
 
-    public static User from(PhoneNumber phoneNumber) {
-        return new User(null, generateUsername(phoneNumber), phoneNumber, null, null);
+    public static User from(UserData userData) {
+        return new User(userData.getId(), userData.getName(), userData.getNickname(),
+            PhoneNumber.from(userData.getPhoneNumber()), UserInfo.from(userData));
     }
 
     @Deprecated(forRemoval = true)
     public static User of(PhoneNumber phoneNumber, Boolean commercialYn, Boolean locationYn) {
-        return new User(null, generateUsername(phoneNumber), phoneNumber, commercialYn, locationYn);
+        return null;
+    }
+
+    public static User of(UserData userData, UserInfo userInfo) {
+        return new User(userData.getId(), userData.getName(), userData.getNickname(),
+            PhoneNumber.from(userData.getPhoneNumber()), userInfo);
     }
 
     public UserData toData() {
-        return new UserData(id, username, phoneNumber.getValue(), commercialYn, locationYn);
+        return new UserData(id, name, nickname, phoneNumber.getValue(), userInfo.getId(),
+            userInfo.getThumbnailImageUrl(), userInfo.getProfileImageUrl(),
+            userInfo.getConnectedAt(), userInfo.getHasEmail(), userInfo.getIsEmailValid(),
+            userInfo.getIsEmailVerified(), userInfo.getEmail(), userInfo.getAgeRange(),
+            userInfo.getHasBirthday(), userInfo.getBirthday(), userInfo.getBirthdayType(),
+            userInfo.getGender(), userInfo.getCi(), userInfo.getCiAuthenticatedAt());
     }
 
-    private static String generateUsername(PhoneNumber phoneNumber) {
-        var value = phoneNumber.getValue();
-        return "**" + value.substring(value.length() - 2);
-
-    }
 }

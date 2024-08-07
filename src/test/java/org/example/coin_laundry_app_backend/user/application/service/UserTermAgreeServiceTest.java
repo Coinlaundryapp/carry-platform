@@ -2,6 +2,7 @@ package org.example.coin_laundry_app_backend.user.application.service;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
@@ -10,7 +11,6 @@ import org.example.coin_laundry_app_backend.user.domain.model.entity.domainmodel
 import org.example.coin_laundry_app_backend.user.domain.model.entity.domainmodel.TermAgree;
 import org.example.coin_laundry_app_backend.user.domain.model.entity.domainmodel.User;
 import org.example.coin_laundry_app_backend.user.domain.model.enums.TermType;
-import org.example.coin_laundry_app_backend.user.domain.model.value.PhoneNumber;
 import org.example.coin_laundry_app_backend.user.domain.model.value.TermInfo;
 import org.example.coin_laundry_app_backend.user.domain.service.TermAgreeService;
 import org.example.coin_laundry_app_backend.user.domain.service.TermService;
@@ -43,8 +43,7 @@ class UserTermAgreeServiceTest {
     private final Long expectedUserId = 1L;
     private final Long expectedTermId = 1L;
     private final LocalDateTime currentTime = LocalDateTime.now();
-    private final PhoneNumber expectedPhoneNumber = PhoneNumber.from("010-1234-5678");
-    private final User expectedUser = spy(User.from(expectedPhoneNumber));
+    private final User expectedUser = mock(User.class);
     private final Term expectedTerm = spy(
         Term.of(TermType.MANDATORY, TermInfo.of("testTitle", 1), "testContext", currentTime));
     private final TermAgree expectedTermAgree = spy(
