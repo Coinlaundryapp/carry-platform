@@ -33,6 +33,7 @@ class JWTHelperTest {
         given(jwtProperties.getIssuer()).willReturn("issuer");
         given(jwtProperties.getClientSecret()).willReturn("clientSecret");
         given(jwtProperties.getAccessTokenExpiryDate()).willReturn(1L);
+        given(jwtProperties.getRefreshTokenExpiryDate()).willReturn(14L);
         jwtHelper = new JWTHelper(jwtProperties, termAdminService);
     }
 
@@ -57,7 +58,7 @@ class JWTHelperTest {
             Long expectedTermId = 1L;
             List<Long> expectedAcceptedTerms = List.of(expectedTermId);
             // Act
-            String actualResult = jwtHelper.sign(expectedUserId, expectedAcceptedTerms);
+            JWTTokenResponse actualResult = jwtHelper.sign(expectedUserId, expectedAcceptedTerms);
             // Assert
             assertThat(actualResult).isNotNull();
         }
@@ -67,8 +68,8 @@ class JWTHelperTest {
     @DisplayName("토큰을 검증할 때")
     class whenVerify {
 
-        private String expectedToken;
         private final Term expectedTerm = mock(Term.class);
+        private String expectedAccessToken;
 
         @BeforeEach
         void init() {
@@ -76,7 +77,9 @@ class JWTHelperTest {
             Long expectedTermId = 1L;
             List<Long> expectedAcceptedTerms = List.of(expectedTermId);
             given(termAdminService.getRequiredTerms()).willReturn(List.of(expectedTerm));
-            expectedToken = jwtHelper.sign(expectedUserId, expectedAcceptedTerms);
+            JWTTokenResponse expectedTokenResponse = jwtHelper.sign(expectedUserId,
+                expectedAcceptedTerms);
+            expectedAccessToken = expectedTokenResponse.getAccessToken();
         }
 
         @Test
@@ -86,7 +89,7 @@ class JWTHelperTest {
             given(expectedTerm.getId()).willReturn(1L);
             given(termAdminService.getRequiredTerms()).willReturn(List.of(expectedTerm));
             // Act
-            Long actualResult = jwtHelper.verify(expectedToken);
+            Long actualResult = jwtHelper.verify(expectedAccessToken);
             // Assert
             assertThat(actualResult).isEqualTo(1L);
         }
@@ -98,7 +101,7 @@ class JWTHelperTest {
             given(expectedTerm.getId()).willReturn(2L);
             given(termAdminService.getRequiredTerms()).willReturn(List.of(expectedTerm));
             // Act & Assert
-            assertThatThrownBy(() -> jwtHelper.verify(expectedToken))
+            assertThatThrownBy(() -> jwtHelper.verify(expectedAccessToken))
                 .isInstanceOf(JWTVerificationException.class)
                 .hasMessage("약관 동의가 필요합니다.");
         }

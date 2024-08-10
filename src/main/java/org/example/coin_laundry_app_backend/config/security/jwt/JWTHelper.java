@@ -25,6 +25,7 @@ public class JWTHelper {
 
     private final String issuer;
     private final Long accessTokenExpiryMillis;
+    private final Long refreshTokenExpiryMillis;
     private final Algorithm algorithm;
     private final JWTVerifier jwtVerifier;
     private final TermAdminService termAdminService;
@@ -32,19 +33,27 @@ public class JWTHelper {
     public JWTHelper(JWTProperties jwtProperties, TermAdminService termAdminService) {
         this.issuer = jwtProperties.getIssuer();
         this.accessTokenExpiryMillis = daysToMillis(jwtProperties.getAccessTokenExpiryDate());
+        this.refreshTokenExpiryMillis = daysToMillis(jwtProperties.getRefreshTokenExpiryDate());
         this.algorithm = Algorithm.HMAC256(jwtProperties.getClientSecret());
         this.jwtVerifier = require(algorithm).withIssuer(issuer).build();
         this.termAdminService = termAdminService;
     }
 
-    public String sign(Long userId, List<Long> acceptedTerms) {
+    public JWTTokenResponse sign(Long userId, List<Long> acceptedTerms) {
         Date current = new Date();
-        return create()
+        String accessToken = create()
             .withIssuer(issuer)
-            .withExpiresAt(calculateExpiryDate(current.getTime()))
+            .withExpiresAt(calculateExpiryDate(current.getTime(), accessTokenExpiryMillis))
             .withClaim(USER_ID_KEY, userId)
             .withArrayClaim(TERMS_KEY, acceptedTerms.toArray(new Long[0]))
             .sign(algorithm);
+        Date refreshTokenExpiryDate = calculateExpiryDate(current.getTime(),
+            refreshTokenExpiryMillis);
+        String refreshToken = create()
+            .withIssuer(issuer)
+            .withExpiresAt(refreshTokenExpiryDate)
+            .sign(algorithm);
+        return JWTTokenResponse.of(accessToken, refreshToken, refreshTokenExpiryDate);
     }
 
     public Long verify(String token) {
@@ -66,7 +75,7 @@ public class JWTHelper {
         return days * 24 * 60 * 60 * 1000;
     }
 
-    private Date calculateExpiryDate(long currentTime) {
-        return new Date(currentTime + accessTokenExpiryMillis);
+    private Date calculateExpiryDate(long currentTime, long expiryTime) {
+        return new Date(currentTime + expiryTime);
     }
 }

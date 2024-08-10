@@ -16,4 +16,5 @@ public class JWTProperties {
     private String issuer;
     private String clientSecret;
     private Long accessTokenExpiryDate;
+    private Long refreshTokenExpiryDate;
 }
