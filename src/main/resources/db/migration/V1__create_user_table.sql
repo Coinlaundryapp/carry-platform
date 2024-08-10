@@ -21,3 +21,30 @@ CREATE TABLE users
     ci                  varchar(255),
     ci_authenticated_at TIMESTAMP
 );
+
+CREATE TABLE terms
+(
+    id                BIGINT AUTO_INCREMENT PRIMARY KEY,
+    term_type         ENUM ('MANDATORY', 'OPTIONAL') NOT NULL,
+    term_info_title   VARCHAR(100)                   NOT NULL,
+    term_info_version INTEGER                        NOT NULL,
+    context           TEXT                           NOT NULL,
+    created_at        TIMESTAMP                      NOT NULL
+);
+
+CREATE TABLE term_agrees
+(
+    id         BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id    BIGINT     NOT NULL,
+    term_id    BIGINT     NOT NULL,
+    agree_yn   TINYINT(1) NOT NULL DEFAULT 0,
+    created_at TIMESTAMP  NOT NULL
+);
+
+CREATE TABLE refresh_tokens
+(
+    id         BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id    BIGINT       NOT NULL,
+    value      VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP    NOT NULL
+);
