@@ -16,3 +16,9 @@ spring:
     url: jdbc:mysql://localhost:3306/coin_laundry
     user: coin_laundry
     password: coin_laundry!prod01!#
+
+jwt:
+  issuer: coin-laundry
+  client-secret: secret
+  access-token-expiry-date: 1
+  refresh-token-expiry-date: 14
