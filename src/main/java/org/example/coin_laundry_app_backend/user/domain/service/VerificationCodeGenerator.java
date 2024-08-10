@@ -5,6 +5,7 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
+@Deprecated(forRemoval = true, since = "2024-08-10")
 public class VerificationCodeGenerator {
 
     private static final SecureRandom RANDOM = new SecureRandom();

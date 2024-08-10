@@ -5,6 +5,7 @@ import lombok.Getter;
 import org.example.coin_laundry_app_backend.user.domain.model.entity.data.VerificationCodeData;
 
 @Getter
+@Deprecated(forRemoval = true, since = "2024-08-10")
 public class VerificationCode {
 
     private static final long EXPIRED_MINUTES = 3;

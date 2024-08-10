@@ -9,6 +9,7 @@ import org.springframework.data.relational.core.mapping.Table;
 @Getter
 @AllArgsConstructor
 @Table("verification_codes")
+@Deprecated(forRemoval = true, since = "2024-08-10")
 public class VerificationCodeData {
 
     @Id
