@@ -1,5 +1,6 @@
 package org.example.coin_laundry_app_backend.user.application.service;
 
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.example.coin_laundry_app_backend.config.security.jwt.JWTHelper;
 import org.example.coin_laundry_app_backend.config.security.jwt.JWTTokenResponse;
@@ -33,7 +34,7 @@ public class UserSignService {
                         JWTTokenResponse jwtTokenResponse = jwtHelper.sign(userId, acceptedTerms);
                         LoginResponse response = LoginResponse.from(jwtTokenResponse);
                         return refreshTokenService.addRefreshToken(
-                            RefreshToken.from(jwtTokenResponse)).thenReturn(response);
+                            RefreshToken.of(userId, jwtTokenResponse)).thenReturn(response);
                     });
             }).switchIfEmpty(
                 Mono.fromCallable(() -> Mono.error(new IllegalArgumentException("User not found")))
@@ -47,5 +48,18 @@ public class UserSignService {
             .flatMap(kakaoUserResponse -> userService.addUser(User.from(kakaoUserResponse)));
     }
 
+    public Mono<LoginResponse> reissue(String refreshToken) {
+        return refreshTokenService.findRefreshTokenByValue(refreshToken)
+            .flatMap(refreshTokenData -> {
+                Long userId = refreshTokenData.getUserId();
+                Mono<List<Long>> acceptedTermIds = termAgreeService.getTermAgreesByUserId(userId)
+                    .map(TermAgree::getTermId).collectList();
+                return acceptedTermIds.flatMap(acceptedTerms -> {
+                    JWTTokenResponse tokenResponse = jwtHelper.sign(userId, acceptedTerms,
+                        refreshTokenData.getValue(), refreshTokenData.getExpiryAt());
+                    return Mono.defer(() -> Mono.just(LoginResponse.from(tokenResponse)));
+                });
+            });
+    }
 
 }

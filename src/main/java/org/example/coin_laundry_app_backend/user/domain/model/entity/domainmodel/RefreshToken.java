@@ -12,20 +12,22 @@ import org.example.coin_laundry_app_backend.user.domain.model.entity.data.Refres
 public class RefreshToken {
 
     private final Long id;
+    private final Long userId;
     private final String value;
     private final LocalDateTime expiryAt;
 
     public static RefreshToken from(RefreshTokenData tokenData) {
-        return new RefreshToken(tokenData.getId(), tokenData.getValue(), tokenData.getExpiryAt());
+        return new RefreshToken(tokenData.getId(), tokenData.getUserId(), tokenData.getValue(),
+            tokenData.getExpiryAt());
     }
 
-    public static RefreshToken from(JWTTokenResponse response) {
-        return new RefreshToken(null, response.getRefreshToken(),
+    public static RefreshToken of(Long userId, JWTTokenResponse response) {
+        return new RefreshToken(null, userId, response.getRefreshToken(),
             response.getRefreshTokenExpiryAt());
     }
 
     public RefreshTokenData toData() {
-        return new RefreshTokenData(id, value, expiryAt);
+        return new RefreshTokenData(id, userId, value, expiryAt);
     }
 
     public boolean isExpired() {

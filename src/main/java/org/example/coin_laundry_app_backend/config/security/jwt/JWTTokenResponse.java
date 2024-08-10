@@ -25,4 +25,9 @@ public class JWTTokenResponse {
             .toLocalDateTime();
         return new JWTTokenResponse(accessToken, refreshToken, expiryAt);
     }
+
+    public static JWTTokenResponse of(String accessToken, String refreshToken,
+        LocalDateTime refreshTokenExpiryAt) {
+        return new JWTTokenResponse(accessToken, refreshToken, refreshTokenExpiryAt);
+    }
 }

@@ -8,6 +8,7 @@ import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.Claim;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.auth0.jwt.interfaces.JWTVerifier;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
@@ -52,6 +53,18 @@ public class JWTHelper {
         String refreshToken = create()
             .withIssuer(issuer)
             .withExpiresAt(refreshTokenExpiryDate)
+            .sign(algorithm);
+        return JWTTokenResponse.of(accessToken, refreshToken, refreshTokenExpiryDate);
+    }
+
+    public JWTTokenResponse sign(Long userId, List<Long> acceptedTerms, String refreshToken,
+        LocalDateTime refreshTokenExpiryDate) {
+        Date current = new Date();
+        String accessToken = create()
+            .withIssuer(issuer)
+            .withExpiresAt(calculateExpiryDate(current.getTime(), accessTokenExpiryMillis))
+            .withClaim(USER_ID_KEY, userId)
+            .withArrayClaim(TERMS_KEY, acceptedTerms.toArray(new Long[0]))
             .sign(algorithm);
         return JWTTokenResponse.of(accessToken, refreshToken, refreshTokenExpiryDate);
     }

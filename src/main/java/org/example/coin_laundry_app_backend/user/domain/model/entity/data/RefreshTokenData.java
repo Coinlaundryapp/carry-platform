@@ -13,6 +13,7 @@ public class RefreshTokenData {
 
     @Id
     private Long id;
+    private Long userId;
     private String value;
     private LocalDateTime expiryAt;
 
