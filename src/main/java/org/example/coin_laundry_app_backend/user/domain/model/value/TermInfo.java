@@ -18,6 +18,11 @@ public class TermInfo {
         return new TermInfo(title, version);
     }
 
+    public static TermInfo from(String kakaoTag) {
+        String[] split = kakaoTag.split("_");
+        return new TermInfo(split[0], Integer.parseInt(split[1]));
+    }
+
     @Override
     public final boolean equals(Object o) {
         if (this == o) {
