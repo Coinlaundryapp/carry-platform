@@ -3,6 +3,7 @@ package org.example.coin_laundry_app_backend.user.domain.service;
 import org.example.coin_laundry_app_backend.user.presentation.payload.response.KakaoAuthenticationResponse;
 import org.example.coin_laundry_app_backend.user.presentation.payload.response.KakaoUnlinkResponse;
 import org.example.coin_laundry_app_backend.user.presentation.payload.response.KakaoUserResponse;
+import org.example.coin_laundry_app_backend.user.presentation.payload.response.KakaoUserTermsResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -48,6 +49,16 @@ public class KakaoOAuthService {
             .onErrorResume(
                 e -> Mono.fromCallable(() -> new IllegalArgumentException(e.getMessage()))
                     .cast(KakaoUserResponse.class));
+    }
+
+    public Mono<KakaoUserTermsResponse> getUserAgreeTerms(String accessToken) {
+        WebClient webClient = WebClient.builder()
+            .baseUrl("https://kapi.kakao.com/v2/user/service_terms")
+            .defaultHeaders(headers -> headers.setBearerAuth(accessToken))
+            .build();
+        return webClient.get()
+            .retrieve()
+            .bodyToMono(KakaoUserTermsResponse.class);
     }
 
     public Mono<KakaoUnlinkResponse> unlinkKakao(String accessToken) {
