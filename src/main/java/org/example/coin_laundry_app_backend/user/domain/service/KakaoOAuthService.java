@@ -28,10 +28,8 @@ public class KakaoOAuthService {
     }
 
     public Mono<KakaoAuthenticationResponse> getKakaoAccessToken(String code) {
-        WebClient webClient = WebClient.builder().baseUrl("https://kauth.kakao.com/oauth/token")
-            .defaultHeaders(
-                headers -> headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED)).build();
-        return webClient.post()
+        return createWebClient("https://kauth.kakao.com/oauth/token")
+            .post()
             .body(BodyInserters
                 .fromFormData("grant_type", "authorization_code")
                 .with("client_id", clientId)
@@ -39,46 +37,65 @@ public class KakaoOAuthService {
                 .with("code", code)
                 .with("client_secret", clientSecret))
             .retrieve()
-            .bodyToMono(KakaoAuthenticationResponse.class);
+            .bodyToMono(KakaoAuthenticationResponse.class)
+            .transform(this::handleError);
     }
 
     public Mono<KakaoUserResponse> getKakaoUserInfo(String accessToken) {
-        return getWebClient("https://kapi.kakao.com/v2/user/me", accessToken).get()
+        return createWebClient("https://kapi.kakao.com/v2/user/me", accessToken,
+            MediaType.APPLICATION_FORM_URLENCODED)
+            .get()
             .retrieve()
             .bodyToMono(KakaoUserResponse.class)
-            .onErrorResume(
-                e -> Mono.fromCallable(() -> new IllegalArgumentException(e.getMessage()))
-                    .cast(KakaoUserResponse.class));
+            .transform(this::handleError);
     }
 
     public Mono<KakaoUserTermsResponse> getUserAgreeTerms(String accessToken) {
-        WebClient webClient = WebClient.builder()
-            .baseUrl("https://kapi.kakao.com/v2/user/service_terms")
-            .defaultHeaders(headers -> headers.setBearerAuth(accessToken))
-            .build();
-        return webClient.get()
+        return createWebClient("https://kapi.kakao.com/v2/user/service_terms", accessToken)
+            .get()
             .retrieve()
-            .bodyToMono(KakaoUserTermsResponse.class);
+            .bodyToMono(KakaoUserTermsResponse.class)
+            .transform(this::handleError);
     }
 
     public Mono<KakaoUnlinkResponse> unlinkKakao(String accessToken) {
-        return getWebClient("https://kapi.kakao.com/v1/user/unlink", accessToken).post()
+        return createWebClient("https://kapi.kakao.com/v1/user/unlink", accessToken,
+            MediaType.APPLICATION_FORM_URLENCODED)
+            .post()
             .retrieve()
             .bodyToMono(KakaoUnlinkResponse.class)
-            .onErrorResume(
-                e -> Mono.fromCallable(() -> new IllegalArgumentException(e.getMessage()))
-                    .cast(KakaoUnlinkResponse.class));
+            .transform(this::handleError);
     }
 
-    private WebClient getWebClient(String baseUrl, String accessToken) {
+    private WebClient createWebClient(String baseUrl) {
+        return WebClient.builder()
+            .baseUrl(baseUrl)
+            .defaultHeaders(headers -> headers.setContentType(MediaType.APPLICATION_JSON))
+            .build();
+    }
+
+    private WebClient createWebClient(String baseUrl, String accessToken) {
+        return WebClient.builder()
+            .baseUrl(baseUrl)
+            .defaultHeaders(
+                header -> header.setBearerAuth(accessToken)
+            ).build();
+    }
+
+    private WebClient createWebClient(String baseUrl, String accessToken, MediaType contentType) {
         return WebClient.builder()
             .baseUrl(baseUrl)
             .defaultHeaders(
                 header -> {
                     header.setBearerAuth(accessToken);
-                    header.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+                    header.setContentType(contentType);
                 }
             ).build();
     }
 
+    private <T> Mono<T> handleError(Mono<T> mono) {
+        return mono.onErrorResume(e ->
+            Mono.error(new IllegalArgumentException(e.getMessage()))
+        );
+    }
 }
