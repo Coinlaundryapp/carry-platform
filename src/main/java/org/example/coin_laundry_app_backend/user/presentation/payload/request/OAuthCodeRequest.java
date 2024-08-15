@@ -5,7 +5,7 @@ import lombok.NoArgsConstructor;
 
 @Getter
 @NoArgsConstructor
-public class OAuthTokenRequest {
+public class OAuthCodeRequest {
 
-    private String accessToken;
+    private String authorizationCode;
 }
