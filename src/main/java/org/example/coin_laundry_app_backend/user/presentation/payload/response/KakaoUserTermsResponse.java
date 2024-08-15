@@ -8,11 +8,11 @@ import lombok.Getter;
 public class KakaoUserTermsResponse {
 
     private Long id;
-    private ServiceTerms[] serviceTerms;
+    private ServiceTerm[] serviceTerms;
 
     @Getter
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class ServiceTerms {
+    public static class ServiceTerm {
 
         private String tag;
         private Boolean required;
