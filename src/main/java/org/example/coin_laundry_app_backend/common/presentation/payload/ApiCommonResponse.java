@@ -1,5 +1,6 @@
 package org.example.coin_laundry_app_backend.common.presentation.payload;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -7,10 +8,14 @@ import org.springframework.http.HttpStatus;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
+@Schema(description = "공통 응답")
 public class ApiCommonResponse<T> {
 
+    @Schema(description = "응답 상태 코드", example = "200")
     private int statusCode;
+    @Schema(description = "응답 메시지", example = "Success")
     private String message;
+    @Schema(description = "응답 데이터")
     private T data;
 
     private ApiCommonResponse(int status, String message, T data) {

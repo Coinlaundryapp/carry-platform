@@ -4,6 +4,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.example.coin_laundry_app_backend.common.presentation.payload.ApiCommonResponse;
 import org.example.coin_laundry_app_backend.user.application.service.UserTermAgreeService;
+import org.example.coin_laundry_app_backend.user.presentation.api.UserInfoSwagger;
 import org.example.coin_laundry_app_backend.user.presentation.payload.request.TermUpdateRequest;
 import org.example.coin_laundry_app_backend.user.presentation.payload.response.UserTermAgreeResponse;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -17,7 +18,7 @@ import reactor.core.publisher.Mono;
 @RestController
 @RequestMapping("/api/v1/user")
 @RequiredArgsConstructor
-public class UserInfoController {
+public class UserInfoController implements UserInfoSwagger {
 
     private final UserTermAgreeService userTermAgreeService;
 
