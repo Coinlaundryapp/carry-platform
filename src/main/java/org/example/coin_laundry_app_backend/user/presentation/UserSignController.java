@@ -21,7 +21,7 @@ public class UserSignController {
 
     @PostMapping("/login")
     public Mono<ApiCommonResponse<LoginResponse>> login(@RequestBody OAuthCodeRequest request) {
-        return userSignService.login(request.getAuthorizationCode())
+        return userSignService.manageUser(request.getAuthorizationCode())
             .map(ApiCommonResponse::createSuccessResponse);
     }
 
