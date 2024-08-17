@@ -38,13 +38,13 @@ CREATE TABLE term_agrees
     user_id    BIGINT     NOT NULL,
     term_id    BIGINT     NOT NULL,
     agree_yn   TINYINT(1) NOT NULL DEFAULT 0,
-    created_at TIMESTAMP  NOT NULL
+    updated_at TIMESTAMP  NOT NULL
 );
 
 CREATE TABLE refresh_tokens
 (
-    id         BIGINT AUTO_INCREMENT PRIMARY KEY,
-    user_id    BIGINT       NOT NULL,
-    value      VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP    NOT NULL
+    id        BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id   BIGINT       NOT NULL,
+    value     VARCHAR(255) NOT NULL,
+    expiry_at TIMESTAMP    NOT NULL
 );
