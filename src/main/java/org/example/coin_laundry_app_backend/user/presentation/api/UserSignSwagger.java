@@ -7,7 +7,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.security.SecurityRequirements;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.example.coin_laundry_app_backend.common.presentation.payload.ApiCommonResponse;
 import org.example.coin_laundry_app_backend.user.presentation.payload.request.OAuthCodeRequest;
@@ -23,20 +23,11 @@ public interface UserSignSwagger {
         summary = "사용자 로그인",
         description = "OAuth 인증 코드를 사용하여 사용자 로그인을 처리합니다."
     )
-    @ApiResponse(
-        responseCode = "200",
-        description = "로그인 성공",
-        content = @Content(
-            mediaType = APPLICATION_JSON,
-            schema = @Schema(implementation = LoginResponse.class)
-        )
-    )
-    @ApiResponse(responseCode = "400", description = "잘못된 요청")
-    @ApiResponse(responseCode = "401", description = "인증 실패")
+    @ApiResponse(responseCode = "200", description = "로그인 성공")
     @PostMapping("/login")
-    @SecurityRequirements
+    @SecurityRequirement(name = "jwtAuth")
     Mono<ApiCommonResponse<LoginResponse>> login(
-        @Schema(description = "OAuth 인증 코드 요청 객체") OAuthCodeRequest request
+        @Parameter(description = "Authentication 코드 요청", required = true) OAuthCodeRequest request
     );
 
     @Operation(
@@ -51,8 +42,6 @@ public interface UserSignSwagger {
             schema = @Schema(implementation = LoginResponse.class)
         )
     )
-    @ApiResponse(responseCode = "400", description = "잘못된 요청")
-    @ApiResponse(responseCode = "401", description = "유효하지 않은 리프레시 토큰")
     @PostMapping("/reissue")
     Mono<ApiCommonResponse<LoginResponse>> reissue(
         @CookieValue("refreshToken")

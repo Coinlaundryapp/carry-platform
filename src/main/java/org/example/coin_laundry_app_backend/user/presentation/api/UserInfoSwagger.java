@@ -1,11 +1,7 @@
 package org.example.coin_laundry_app_backend.user.presentation.api;
 
-import static io.netty.handler.codec.http.HttpHeaders.Values.APPLICATION_JSON;
-
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -16,7 +12,7 @@ import org.example.coin_laundry_app_backend.user.presentation.payload.response.U
 import reactor.core.publisher.Mono;
 
 @Tag(name = "User Terms", description = "사용자 약관 동의 관련 API")
-@SecurityRequirement(name = "bearerAuth")
+@SecurityRequirement(name = "jwtAuth")
 public interface UserInfoSwagger {
 
     @Operation(
@@ -25,13 +21,8 @@ public interface UserInfoSwagger {
     )
     @ApiResponse(
         responseCode = "200",
-        description = "성공적으로 조회됨",
-        content = @Content(
-            mediaType = APPLICATION_JSON,
-            schema = @Schema(implementation = UserTermAgreeResponse.class)
-        )
+        description = "성공적으로 조회됨"
     )
-    @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자")
     Mono<ApiCommonResponse<List<UserTermAgreeResponse>>> getUserTermsInfo(
         @Parameter(hidden = true) Long userId);
 
@@ -41,14 +32,8 @@ public interface UserInfoSwagger {
     )
     @ApiResponse(
         responseCode = "200",
-        description = "성공적으로 동의 처리됨",
-        content = @Content(
-            mediaType = APPLICATION_JSON,
-            schema = @Schema(implementation = UserTermAgreeResponse.class)
-        )
+        description = "성공적으로 동의 처리됨"
     )
-    @ApiResponse(responseCode = "400", description = "잘못된 요청 (예: 유효하지 않은 약관 ID)")
-    @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자")
     Mono<ApiCommonResponse<UserTermAgreeResponse>> requestAgreeTerm(
         @Parameter(hidden = true) Long userId,
         @Parameter(description = "동의할 약관 정보", required = true) TermUpdateRequest request);
@@ -59,14 +44,8 @@ public interface UserInfoSwagger {
     )
     @ApiResponse(
         responseCode = "200",
-        description = "성공적으로 철회 처리됨",
-        content = @Content(
-            mediaType = APPLICATION_JSON,
-            schema = @Schema(implementation = UserTermAgreeResponse.class)
-        )
+        description = "성공적으로 철회 처리됨"
     )
-    @ApiResponse(responseCode = "400", description = "잘못된 요청 (예: 유효하지 않은 약관 ID)")
-    @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자")
     Mono<ApiCommonResponse<UserTermAgreeResponse>> requestDisagreeTerm(
         @Parameter(hidden = true) Long userId,
         @Parameter(description = "철회할 약관 정보", required = true) TermUpdateRequest request);
