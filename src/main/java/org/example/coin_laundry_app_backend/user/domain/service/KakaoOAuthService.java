@@ -19,9 +19,9 @@ public class KakaoOAuthService {
     private final String clientSecret;
     private final String redirectUri;
 
-    public KakaoOAuthService(@Value("oauth.kakao.client-id") String clientId,
-        @Value("oauth.kakao.client-secret") String clientSecret,
-        @Value("oauth.kakao.redirect-uri") String redirectUri) {
+    public KakaoOAuthService(@Value("${oauth.kakao.client-id}") String clientId,
+        @Value("${oauth.kakao.client-secret}") String clientSecret,
+        @Value("${oauth.kakao.redirect-uri}") String redirectUri) {
         this.clientId = clientId;
         this.clientSecret = clientSecret;
         this.redirectUri = redirectUri;
