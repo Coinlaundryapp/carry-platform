@@ -1,7 +1,6 @@
 package org.example.coin_laundry_app_backend.user.application.service;
 
 import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.example.coin_laundry_app_backend.config.security.jwt.JWTHelper;
@@ -19,9 +18,11 @@ import org.example.coin_laundry_app_backend.user.presentation.payload.response.K
 import org.example.coin_laundry_app_backend.user.presentation.payload.response.KakaoUserTermsResponse.ServiceTerm;
 import org.example.coin_laundry_app_backend.user.presentation.payload.response.LoginResponse;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Mono;
 
 @Service
+@Transactional
 @RequiredArgsConstructor
 public class UserSignService {
 
@@ -51,8 +52,9 @@ public class UserSignService {
             .flatMap(kakaoUserResponse ->
                 userService.getUserByKakaoId(kakaoUserResponse.getId())
                     .flatMap(this::handleExistingUser)
-                    .switchIfEmpty(
-                        handleNewUser(kakaoUserResponse, kakaoAuthResponse.getAccessToken()))
+                    .switchIfEmpty(Mono.defer(
+                        () -> handleNewUser(kakaoUserResponse, kakaoAuthResponse.getAccessToken()))
+                    )
             );
     }
 
@@ -70,8 +72,8 @@ public class UserSignService {
     private Mono<Void> processKakaoTerms(User user, String accessToken) {
         return kakaoOAuthService.getUserAgreeTerms(accessToken)
             .flatMap(kakaoUserTermsResponse -> {
-                List<Mono<TermAgree>> termAgreeMono = Arrays.stream(
-                        kakaoUserTermsResponse.getServiceTerms())
+                List<Mono<TermAgree>> termAgreeMono = kakaoUserTermsResponse.getServiceTerms()
+                    .stream()
                     .filter(term -> term.getRequired() && term.getAgreed())
                     .map(term -> addTermAgree(user.getId(), term))
                     .toList();
