@@ -9,7 +9,5 @@ import reactor.core.publisher.Mono;
 @Repository
 public interface UserRepository extends ReactiveCrudRepository<UserData, Long> {
 
-    Mono<UserData> findByPhoneNumber(String phoneNumber);
-
     Mono<UserData> findByKakaoId(@NonNull Long kakaoId);
 }

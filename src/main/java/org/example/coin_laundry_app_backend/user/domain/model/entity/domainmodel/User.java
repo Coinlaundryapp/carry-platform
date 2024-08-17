@@ -23,7 +23,7 @@ public class User {
     public static User from(KakaoUserResponse kakaoUserResponse) {
         KakaoAccount kakaoAccount = kakaoUserResponse.getKakaoAccount();
         Profile profile = kakaoAccount.getProfile();
-        return new User(kakaoUserResponse.getId(), kakaoAccount.getName(), profile.getNickname(),
+        return new User(null, kakaoAccount.getName(), profile.getNickname(),
             PhoneNumber.from(kakaoAccount.getPhoneNumber()), UserInfo.from(kakaoUserResponse));
     }
 
@@ -33,7 +33,7 @@ public class User {
     }
 
     public UserData toData() {
-        return new UserData(id, name, nickname, phoneNumber.getValue(), userInfo.getId(),
+        return new UserData(id, name, nickname, phoneNumber.toString(), userInfo.getId(),
             userInfo.getThumbnailImageUrl(), userInfo.getProfileImageUrl(),
             userInfo.getConnectedAt(), userInfo.getHasEmail(), userInfo.getIsEmailValid(),
             userInfo.getIsEmailVerified(), userInfo.getEmail(), userInfo.getAgeRange(),
