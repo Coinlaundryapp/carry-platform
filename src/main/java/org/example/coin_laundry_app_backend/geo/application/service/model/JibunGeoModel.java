@@ -1,4 +1,4 @@
-package org.example.coin_laundry_app_backend.geo.service.model;
+package org.example.coin_laundry_app_backend.geo.application.service.model;
 
 import lombok.NonNull;
 import org.example.coin_laundry_app_backend.geo.domain.model.EPSG4326Coordinate;

@@ -1,25 +1,3 @@
-db:
-  mysql:
-    url: mysql://localhost:3306/coin_laundry
-    username: coin_laundry
-    password: coin_laundry!dev01!#
 spring:
-  r2dbc:
-    url: r2dbc:${db.mysql.url}
-    username: ${db.mysql.username}
-    password: ${db.mysql.password}
-    pool:
-      enabled: true
-      max-size: 20
-      initial-size: 10
-      max-idle-time: 30m
-      max-create-connection-time: 10s
-      validation-query: SELECT 1
-
-  flyway:
-    enabled: true
-    url: jdbc:${db.mysql.url}
-    user: ${db.mysql.username}
-    password: ${db.mysql.password}
-  config:
-    import: classpath:naver-api-test.yaml
+  profiles:
+    active: local  # 기본으로 사용할 프로파일 지정

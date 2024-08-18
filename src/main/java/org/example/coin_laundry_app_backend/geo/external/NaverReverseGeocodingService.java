@@ -1,31 +1,40 @@
 package org.example.coin_laundry_app_backend.geo.external;
 
+import jakarta.annotation.PostConstruct;
+import lombok.Setter;
 import org.example.coin_laundry_app_backend.geo.domain.model.EPSG4326Coordinate;
-import org.example.coin_laundry_app_backend.geo.service.ReverseGeocodingService;
-import org.example.coin_laundry_app_backend.geo.service.model.ReverseGeoModel;
+import org.example.coin_laundry_app_backend.geo.application.service.ReverseGeocodingService;
+import org.example.coin_laundry_app_backend.geo.application.service.model.ReverseGeoModel;
+import org.example.coin_laundry_app_backend.geo.external.formatter.EPSG4326CoordinateBuilderForApi;
+import org.example.coin_laundry_app_backend.geo.external.recrod.GetReverseGeocodingResponse;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
-@Component
-public class NaverReverseGeocodingAdapter implements ReverseGeocodingService {
+@Setter
+@Service
+@ConfigurationProperties(prefix = "settings.external.reverse-geocoding-api.naver")
+public class NaverReverseGeocodingService implements ReverseGeocodingService {
 
-    NaverReverseGeocodingAdapter(
-        @Value("${naver.api.id}") final String naverApiKeyId,
-        @Value("${naver.api.key}") final String naverApiKey
-    ) {
+    private String baseUrl;
+    private String apiKeyId;
+    private String apiKey;
+    private WebClient webClient;
+
+    @PostConstruct
+    public void init() {
         this.webClient = WebClient.builder()
-            .baseUrl("https://naveropenapi.apigw.ntruss.com/map-reversegeocode/v2/gc")
-            .defaultHeaders((headers) -> {
-                    headers.add("X-NCP-APIGW-API-KEY-ID", naverApiKeyId);
-                    headers.add("X-NCP-APIGW-API-KEY", naverApiKey);
-                }
-            )
-            .build();
+                .baseUrl(baseUrl)
+                .defaultHeaders((headers) -> {
+                            headers.add("X-NCP-APIGW-API-KEY-ID", apiKeyId);
+                            headers.add("X-NCP-APIGW-API-KEY", apiKey);
+                        }
+                )
+                .build();
     }
-
-    private final WebClient webClient;
 
     @Override
     public Mono<ReverseGeoModel> getReverseGeocoding(final EPSG4326Coordinate coordinate) {

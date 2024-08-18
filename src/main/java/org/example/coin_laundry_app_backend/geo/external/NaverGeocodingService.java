@@ -1,11 +1,18 @@
 package org.example.coin_laundry_app_backend.geo.external;
 
+import jakarta.annotation.PostConstruct;
+import lombok.Setter;
 import org.example.coin_laundry_app_backend.geo.domain.model.EPSG4326Coordinate;
-import org.example.coin_laundry_app_backend.geo.service.GeocodingService;
-import org.example.coin_laundry_app_backend.geo.service.model.GeoModel;
-import org.example.coin_laundry_app_backend.geo.service.model.JibunGeoModel;
-import org.example.coin_laundry_app_backend.geo.service.model.RoadGeoCoding;
+import org.example.coin_laundry_app_backend.geo.application.service.GeocodingService;
+import org.example.coin_laundry_app_backend.geo.application.service.model.GeoModel;
+import org.example.coin_laundry_app_backend.geo.application.service.model.JibunGeoModel;
+import org.example.coin_laundry_app_backend.geo.application.service.model.RoadGeoCoding;
+import org.example.coin_laundry_app_backend.geo.external.recrod.GetGeocodingResponse;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.ConstructorBinding;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.PropertySource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
@@ -14,24 +21,27 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Setter
 @Service
-public class NaverGeocodingAdapter implements GeocodingService {
+@ConfigurationProperties(prefix = "settings.external.geocoding-api.naver")
+public class NaverGeocodingService implements GeocodingService {
 
-    NaverGeocodingAdapter(
-        @Value("${naver.api.id}") final String naverApiKeyId,
-        @Value("${naver.api.key}") final String naverApiKey
-    ) {
+    private String baseUrl;
+    private String apiKeyId;
+    private String apiKey;
+    private WebClient webClient;
+
+    @PostConstruct
+    public void init() {
         this.webClient = WebClient.builder()
-            .baseUrl("https://naveropenapi.apigw.ntruss.com/map-geocode/v2/geocode")
-            .defaultHeaders((headers) -> {
-                    headers.add("X-NCP-APIGW-API-KEY-ID", naverApiKeyId);
-                    headers.add("X-NCP-APIGW-API-KEY", naverApiKey);
-                }
-            )
-            .build();
+                .baseUrl(baseUrl)
+                .defaultHeaders((headers) -> {
+                            headers.add("X-NCP-APIGW-API-KEY-ID", apiKeyId);
+                            headers.add("X-NCP-APIGW-API-KEY", apiKey);
+                        }
+                )
+                .build();
     }
-
-    private final WebClient webClient;
 
     @Override
     public Mono<List<GeoModel>> getGeocoding(String address) {

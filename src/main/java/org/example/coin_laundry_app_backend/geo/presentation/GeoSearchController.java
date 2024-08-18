@@ -1,14 +1,15 @@
-package org.example.coin_laundry_app_backend.geo.controller;
+package org.example.coin_laundry_app_backend.geo.presentation;
 
 import lombok.RequiredArgsConstructor;
 import org.example.coin_laundry_app_backend.geo.domain.model.EPSG4326Coordinate;
-import org.example.coin_laundry_app_backend.geo.service.GeocodingService;
-import org.example.coin_laundry_app_backend.geo.service.ReverseGeocodingService;
-import org.example.coin_laundry_app_backend.geo.service.model.GeoModel;
-import org.example.coin_laundry_app_backend.geo.service.model.JibunGeoModel;
-import org.example.coin_laundry_app_backend.geo.service.model.ReverseGeoModel;
-import org.example.coin_laundry_app_backend.geo.service.model.RoadGeoCoding;
+import org.example.coin_laundry_app_backend.geo.application.service.GeocodingService;
+import org.example.coin_laundry_app_backend.geo.application.service.ReverseGeocodingService;
+import org.example.coin_laundry_app_backend.geo.application.service.model.GeoModel;
+import org.example.coin_laundry_app_backend.geo.application.service.model.JibunGeoModel;
+import org.example.coin_laundry_app_backend.geo.application.service.model.ReverseGeoModel;
+import org.example.coin_laundry_app_backend.geo.application.service.model.RoadGeoCoding;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
@@ -21,7 +22,7 @@ import java.util.List;
 @RestController
 @RequestMapping
 @RequiredArgsConstructor
-public class GeoPocController {
+public class GeoSearchController {
 
     private final ReverseGeocodingService reverseGeocodingService;
     private final GeocodingService geocodingService;
@@ -36,8 +37,8 @@ public class GeoPocController {
         return geocodingService.getJibunGeocoding(address);
     }
 
-    @GetMapping("/gc/road")
-    Mono<List<RoadGeoCoding>> getRoadGeoCoding(String address) {
+    @GetMapping("/gc/road/{address}")
+    Mono<List<RoadGeoCoding>> getRoadGeoCoding(@PathVariable String address) {
         return geocodingService.getRoadGeocoding(address);
     }
 

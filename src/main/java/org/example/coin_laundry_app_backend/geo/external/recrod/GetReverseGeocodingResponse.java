@@ -1,4 +1,4 @@
-package org.example.coin_laundry_app_backend.geo.external;
+package org.example.coin_laundry_app_backend.geo.external.recrod;
 
 import java.util.List;
 

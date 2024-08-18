@@ -1,4 +1,4 @@
-package org.example.coin_laundry_app_backend.geo.service.model;
+package org.example.coin_laundry_app_backend.geo.application.service.model;
 
 public record ReverseGeoModel(
     String country,

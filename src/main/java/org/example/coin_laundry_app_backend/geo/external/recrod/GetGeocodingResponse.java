@@ -1,4 +1,4 @@
-package org.example.coin_laundry_app_backend.geo.external;
+package org.example.coin_laundry_app_backend.geo.external.recrod;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import org.slf4j.Logger;
@@ -64,7 +64,7 @@ public record GetGeocodingResponse(
         }
 
 
-        String getAddressElementNameOrNull(AddressType type) {
+        public String getAddressElementNameOrNull(AddressType type) {
             AddressElement element = addressElementMap.getOrDefault(type, AddressElement.emptyAddressElementsMap.get(type));
             if (element.isEmpty()) {
                 return null;
