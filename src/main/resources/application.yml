@@ -23,3 +23,13 @@ spring:
     password: ${db.mysql.password}
   config:
     import: classpath:naver-api-test.yaml
+
+springdoc:
+  swagger-ui:
+    path: /api-docs
+
+jwt:
+  issuer: coin-laundry
+  client-secret: secret
+  access-token-expiry-date: 1
+  refresh-token-expiry-date: 14

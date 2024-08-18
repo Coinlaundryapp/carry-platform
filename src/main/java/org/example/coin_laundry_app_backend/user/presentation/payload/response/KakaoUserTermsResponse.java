@@ -1,0 +1,30 @@
+package org.example.coin_laundry_app_backend.user.presentation.payload.response;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import java.util.ArrayList;
+import java.util.List;
+import lombok.Getter;
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class KakaoUserTermsResponse {
+
+    @Getter
+    private Long id;
+    private List<ServiceTerm> serviceTerms;
+
+
+    public List<ServiceTerm> getServiceTerms() {
+        return serviceTerms == null ? new ArrayList<>() : serviceTerms;
+    }
+
+    @Getter
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class ServiceTerm {
+
+        private String tag;
+        private Boolean required;
+        private Boolean agreed;
+        private Boolean revocable;
+    }
+
+}
