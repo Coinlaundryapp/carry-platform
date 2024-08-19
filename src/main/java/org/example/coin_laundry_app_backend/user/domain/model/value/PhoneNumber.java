@@ -1,8 +1,11 @@
 package org.example.coin_laundry_app_backend.user.domain.model.value;
 
+import static org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY;
+
 import java.util.regex.Pattern;
 import lombok.Getter;
 import org.example.coin_laundry_app_backend.user.domain.model.enums.RegionCode;
+import org.springframework.web.client.HttpClientErrorException;
 
 @Getter
 public class PhoneNumber {
@@ -24,6 +27,9 @@ public class PhoneNumber {
     }
 
     private void validatePhoneNumber(String phoneNumber) {
+        if (phoneNumber == null || phoneNumber.isBlank()) {
+            throw new HttpClientErrorException(UNPROCESSABLE_ENTITY, "전화번호가 없으면 서비스를 이용할 수 없습니다.");
+        }
         if (!PATTERN.matcher(phoneNumber).matches()) {
             throw new IllegalArgumentException("잘못된 전화번호 형식입니다.");
         }
