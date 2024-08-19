@@ -30,6 +30,7 @@ public class SecurityConfig {
                     exchanges.pathMatchers("/api-docs/**").permitAll();
                     exchanges.pathMatchers("/webjars/swagger-ui/**").permitAll();
                     exchanges.pathMatchers("/v3/api-docs/**").permitAll();
+                    exchanges.pathMatchers("/health").permitAll();
                     exchanges.anyExchange().authenticated();
                 }
             )
