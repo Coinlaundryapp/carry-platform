@@ -16,10 +16,6 @@ spring:
     user: ${settings.datasource.mysql.username}
     password: ${settings.datasource.mysql.password}
 
-logging:
-  level:
-    root: INFO
-
 # Environmental Variables
 settings:
   datasource:

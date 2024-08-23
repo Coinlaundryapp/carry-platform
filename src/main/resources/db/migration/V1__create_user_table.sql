@@ -63,3 +63,12 @@ CREATE TABLE shipping_addresses
     entrance_type ENUM ('PASSWORD', 'FREE_ACCESS', 'SECURITY_CALL', 'HOUSEHOLD_CALL', 'OTHER') NOT NULL,
     entrance_detail VARCHAR(255)
 );
+
+CREATE TABLE service_availability_notifications
+(
+    id        BIGINT AUTO_INCREMENT PRIMARY KEY,
+    city      VARCHAR(255) NOT NULL,
+    district  VARCHAR(255) NOT NULL,
+    notification_type ENUM ('ALARM_TALK', 'SMS') NOT NULL,
+    contact VARCHAR(255) NOT NULL
+);

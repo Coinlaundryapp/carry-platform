@@ -45,8 +45,8 @@ public class NaverReverseGeocodingService implements ReverseGeocodingService {
                 .queryParam("orders", "addr")
                 .queryParam("sourcecrs", "EPSG:4326")
                 .build()
-            )
-            .retrieve()
+            ).retrieve()
+
             .bodyToMono(GetReverseGeocodingResponse.class)
             .map(response -> {
                 var address = response.results().get(0).region();

@@ -12,6 +12,7 @@ import org.example.coin_laundry_app_backend.user.application.record.address.tran
 import org.example.coin_laundry_app_backend.user.presentation.payload.response.address.SearchAddressResponse;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 

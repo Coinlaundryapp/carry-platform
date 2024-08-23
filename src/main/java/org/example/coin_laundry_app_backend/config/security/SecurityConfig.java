@@ -41,6 +41,7 @@ public class SecurityConfig {
                         .pathMatchers("/health").permitAll()
                         .pathMatchers("/api/v1/sign/**").permitAll()
                         .pathMatchers("/api/v1/addresses/**").permitAll()
+                        .pathMatchers("/api/v1/service-availability/**").permitAll()
                         .anyExchange().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter(), SecurityWebFiltersOrder.AUTHENTICATION)

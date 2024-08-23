@@ -10,6 +10,7 @@ import org.example.coin_laundry_app_backend.user.presentation.payload.request.sh
 import org.example.coin_laundry_app_backend.user.repository.ShippingAddressRepository;
 import org.springframework.r2dbc.core.DatabaseClient;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
@@ -21,16 +22,19 @@ public class ShippingAddressService {
     private final DatabaseClient databaseClient;
     private final ShippingAddressRepository shippingAddressRepository;
 
+    @Transactional
     public Mono<List<ShippingSummary>> getAllShippingAddresses(Long userId) {
         return shippingAddressRepository.findByUserId(userId).map(ShippingAddressConverter::toDomain)
                 .map(ShippingSummary::of)
                 .collectList();
     }
 
+    @Transactional
     public Mono<ShippingAddress> getShippingAddressById(Long userId, Long addressId) {
         return shippingAddressRepository.findByIdAndUserId(addressId, userId).map(ShippingAddressConverter::toDomain);
     }
 
+    @Transactional
     public Mono<ShippingAddress> addShippingAddress(Long userId, CreateAddressRequest request) {
         return shippingAddressRepository.countByUserId(userId)
                 .flatMap(count -> {
@@ -47,6 +51,7 @@ public class ShippingAddressService {
                 }).map(ShippingAddressConverter::toDomain);
     }
 
+    @Transactional
     public Mono<ShippingAddress> updateShippingAddress(Long userId, Long addressId, UpdateAddressRequest request) {
         return shippingAddressRepository.findByIdAndUserId(addressId, userId)
                 .map(ShippingAddressConverter::toDomain)
@@ -58,9 +63,8 @@ public class ShippingAddressService {
                 .map(ShippingAddressConverter::toDomain);
     }
 
+    @Transactional
     public Mono<Void> deleteShippingAddress(Long userId, Long addressId) {
-
-
         return shippingAddressRepository.findByIdAndUserId(addressId, userId)
                 .map(ShippingAddressConverter::toDomain)
                 .flatMap(shippingAddress -> {
@@ -70,6 +74,7 @@ public class ShippingAddressService {
                 .flatMap(shippingAddressRepository::delete);
     }
 
+    @Transactional
     public Mono<Void> setDefaultShippingAddress(Long userId, Long newDefaultAddressId) {
         String query = "UPDATE shipping_addresses " +
                 "SET is_default_address = CASE WHEN id = :newDefaultAddressId THEN TRUE ELSE FALSE END " +
