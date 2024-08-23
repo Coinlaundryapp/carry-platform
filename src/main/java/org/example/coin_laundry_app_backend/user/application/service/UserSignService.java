@@ -14,11 +14,9 @@ import org.example.coin_laundry_app_backend.user.application.record.oauth.KakaoO
 import org.example.coin_laundry_app_backend.user.application.record.oauth.KakaoUserTermsResponse.ServiceTerm;
 import org.example.coin_laundry_app_backend.user.presentation.payload.response.LoginResponse;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Mono;
 
 @Service
-@Transactional
 @RequiredArgsConstructor
 public class UserSignService {
 
