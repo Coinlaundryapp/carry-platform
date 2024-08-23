@@ -59,8 +59,14 @@ public class ShippingAddressService {
     }
 
     public Mono<Void> deleteShippingAddress(Long userId, Long addressId) {
-        return shippingAddressRepository.findById(addressId)
-                .filter(address -> address.getUserId().equals(userId))
+
+
+        return shippingAddressRepository.findByIdAndUserId(addressId, userId)
+                .map(ShippingAddressConverter::toDomain)
+                .flatMap(shippingAddress -> {
+                    if(shippingAddress.getIsDefaultAddress()) return Mono.error(new RuntimeException("default shipping-address cannot be deleted"));
+                    return Mono.just(ShippingAddressConverter.toData(shippingAddress));
+                })
                 .flatMap(shippingAddressRepository::delete);
     }
 
