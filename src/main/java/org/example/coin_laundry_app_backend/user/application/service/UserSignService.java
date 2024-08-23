@@ -9,13 +9,9 @@ import org.example.coin_laundry_app_backend.user.domain.model.entity.domainmodel
 import org.example.coin_laundry_app_backend.user.domain.model.entity.domainmodel.TermAgree;
 import org.example.coin_laundry_app_backend.user.domain.model.entity.domainmodel.User;
 import org.example.coin_laundry_app_backend.user.domain.model.value.TermInfo;
-import org.example.coin_laundry_app_backend.user.domain.service.KakaoOAuthService;
-import org.example.coin_laundry_app_backend.user.domain.service.RefreshTokenService;
-import org.example.coin_laundry_app_backend.user.domain.service.TermAgreeService;
-import org.example.coin_laundry_app_backend.user.domain.service.TermService;
-import org.example.coin_laundry_app_backend.user.presentation.payload.response.KakaoAuthenticationResponse;
-import org.example.coin_laundry_app_backend.user.presentation.payload.response.KakaoUserResponse;
-import org.example.coin_laundry_app_backend.user.presentation.payload.response.KakaoUserTermsResponse.ServiceTerm;
+import org.example.coin_laundry_app_backend.user.application.record.oauth.KakaoOAuthToken;
+import org.example.coin_laundry_app_backend.user.application.record.oauth.KakaoOAuthResource;
+import org.example.coin_laundry_app_backend.user.application.record.oauth.KakaoUserTermsResponse.ServiceTerm;
 import org.example.coin_laundry_app_backend.user.presentation.payload.response.LoginResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,21 +29,12 @@ public class UserSignService {
     private final KakaoOAuthService kakaoOAuthService;
     private final JWTHelper jwtHelper;
 
-
-    /*login -> manageUser Rename
-    authorizationCode -> accessToken 획득 -> KakaoUserInfo 획득 -> User 조회 -> 분기 발생
-    Case1: Carry 서비스에 등록된 사용자가 없다! (회원가입 Case)
-    -> User 생성 -> KakaoTermAgree 조회 -> TermAgree 생성 -> JWTToken 발급 -> RefreshToken 발급 -> LoginResponse 반환
-    Case2: Carry 서비스에 등록된 사용자가 있다! (로그인 Case)
-    -> User 조회 -> JWTToken 발급 -> RefreshToken 발급 -> LoginResponse 반환
-    */
-    public Mono<LoginResponse> manageUser(String authenticationCode) {
-        return kakaoOAuthService.getKakaoAccessToken(authenticationCode)
+    public Mono<LoginResponse> trySignIn(String authorizationCode) {
+        return kakaoOAuthService.getKakaoAccessToken(authorizationCode)
             .flatMap(this::processKakaoAuthentication);
     }
 
-    private Mono<LoginResponse> processKakaoAuthentication(
-        KakaoAuthenticationResponse kakaoAuthResponse) {
+    private Mono<LoginResponse> processKakaoAuthentication(KakaoOAuthToken kakaoAuthResponse) {
         return kakaoOAuthService.getKakaoUserInfo(kakaoAuthResponse.getAccessToken())
             .flatMap(kakaoUserResponse ->
                 userService.getUserByKakaoId(kakaoUserResponse.getId())
@@ -62,9 +49,8 @@ public class UserSignService {
         return generateLoginResponse(user.getId());
     }
 
-    private Mono<LoginResponse> handleNewUser(KakaoUserResponse kakaoUserResponse,
-        String accessToken) {
-        return userService.addUser(User.from(kakaoUserResponse))
+    private Mono<LoginResponse> handleNewUser(KakaoOAuthResource kakaoOAuthResource, String accessToken) {
+        return userService.addUser(User.create(kakaoOAuthResource))
             .flatMap(newUser -> processKakaoTerms(newUser, accessToken)
                 .then(generateLoginResponse(newUser.getId())));
     }

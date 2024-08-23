@@ -50,6 +50,4 @@ public class ApiCommonResponse<T> {
     public static <T> ApiCommonResponse<T> createSuccessResponse(T data) {
         return new ApiCommonResponse<>(HttpStatus.OK.value(), "Success", data);
     }
-
-
 }

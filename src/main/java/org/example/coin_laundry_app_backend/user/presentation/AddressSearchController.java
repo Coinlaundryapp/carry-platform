@@ -1,11 +1,24 @@
 package org.example.coin_laundry_app_backend.user.presentation;
 
+import lombok.RequiredArgsConstructor;
+import org.example.coin_laundry_app_backend.common.presentation.payload.ApiCommonResponse;
+import org.example.coin_laundry_app_backend.user.application.service.AddressSearchService;
+import org.example.coin_laundry_app_backend.user.presentation.payload.request.address.AddressSearchRequest;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import reactor.core.publisher.Mono;
 
 @RestController
+@RequestMapping("/api/v1/addresses")
+@RequiredArgsConstructor
 public class AddressSearchController {
-    // TODO 주소 검색 기능
 
+    final private AddressSearchService addressSearchService;
 
-    // 서비스 가능 지역
+    @GetMapping
+    public Mono<ApiCommonResponse<?>> searchAddresses(AddressSearchRequest request) {
+        return addressSearchService.fetchAndTransformData(request.query(), request.pageNumber(), request.pageSize())
+                .map(ApiCommonResponse::createSuccessResponse);
+    }
 }

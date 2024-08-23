@@ -1,4 +1,4 @@
-package org.example.coin_laundry_app_backend.user.presentation.payload.response;
+package org.example.coin_laundry_app_backend.user.application.record.oauth;
 
 import lombok.Getter;
 

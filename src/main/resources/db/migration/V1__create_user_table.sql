@@ -48,3 +48,18 @@ CREATE TABLE refresh_tokens
     value     VARCHAR(255) NOT NULL,
     expiry_at TIMESTAMP    NOT NULL
 );
+
+CREATE TABLE shipping_addresses
+(
+    id        BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id   BIGINT       NOT NULL,
+    is_default_address TINYINT(1) NOT NULL,
+    address_label VARCHAR(255) NOT NULL,
+    recipient_name VARCHAR(255) NOT NULL,
+    recipient_phone VARCHAR(255) NOT NULL,
+    base_address VARCHAR(255) NOT NULL,
+    detail_address VARCHAR(255),
+    delivery_notes VARCHAR(255),
+    entrance_type ENUM ('PASSWORD', 'FREE_ACCESS', 'SECURITY_CALL', 'HOUSEHOLD_CALL', 'OTHER') NOT NULL,
+    entrance_detail VARCHAR(255)
+);

@@ -9,7 +9,6 @@ import java.util.List;
 import org.example.coin_laundry_app_backend.user.domain.model.entity.domainmodel.Term;
 import org.example.coin_laundry_app_backend.user.domain.model.enums.TermType;
 import org.example.coin_laundry_app_backend.user.domain.model.value.TermInfo;
-import org.example.coin_laundry_app_backend.user.domain.service.TermService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

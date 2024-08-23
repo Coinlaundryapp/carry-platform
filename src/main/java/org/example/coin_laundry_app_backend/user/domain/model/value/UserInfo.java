@@ -5,9 +5,9 @@ import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.example.coin_laundry_app_backend.user.domain.model.entity.data.UserData;
-import org.example.coin_laundry_app_backend.user.presentation.payload.response.KakaoUserResponse;
-import org.example.coin_laundry_app_backend.user.presentation.payload.response.KakaoUserResponse.KakaoAccount;
-import org.example.coin_laundry_app_backend.user.presentation.payload.response.KakaoUserResponse.KakaoAccount.Profile;
+import org.example.coin_laundry_app_backend.user.application.record.oauth.KakaoOAuthResource;
+import org.example.coin_laundry_app_backend.user.application.record.oauth.KakaoOAuthResource.KakaoAccount;
+import org.example.coin_laundry_app_backend.user.application.record.oauth.KakaoOAuthResource.KakaoAccount.Profile;
 
 @Getter
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
@@ -29,7 +29,7 @@ public class UserInfo {
     private String ci;
     private LocalDateTime ciAuthenticatedAt;
 
-    public static UserInfo from(KakaoUserResponse response) {
+    public static UserInfo from(KakaoOAuthResource response) {
         KakaoAccount kakaoAccount = response.getKakaoAccount();
         Profile profile = kakaoAccount.getProfile();
         return new UserInfo(response.getId(), profile.getThumbnailImageUrl(),

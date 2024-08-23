@@ -1,4 +1,4 @@
-package org.example.coin_laundry_app_backend.user.domain.service;
+package org.example.coin_laundry_app_backend.user.application.service;
 
 import lombok.RequiredArgsConstructor;
 import org.example.coin_laundry_app_backend.user.domain.model.entity.domainmodel.TermAgree;

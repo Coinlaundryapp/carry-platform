@@ -22,7 +22,7 @@ public class UserSignController implements UserSignSwagger {
 
     @PostMapping("/login")
     public Mono<ApiCommonResponse<LoginResponse>> login(@RequestBody OAuthCodeRequest request) {
-        return userSignService.manageUser(request.getAuthorizationCode())
+        return userSignService.trySignIn(request.getAuthorizationCode())
             .map(ApiCommonResponse::createSuccessResponse);
     }
 
@@ -31,5 +31,4 @@ public class UserSignController implements UserSignSwagger {
         @CookieValue("refreshToken") String refreshToken) {
         return userSignService.reissue(refreshToken).map(ApiCommonResponse::createSuccessResponse);
     }
-
 }
