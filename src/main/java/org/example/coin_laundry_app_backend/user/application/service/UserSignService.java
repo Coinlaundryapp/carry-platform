@@ -40,7 +40,7 @@ public class UserSignService {
     -> User 조회 -> JWTToken 발급 -> RefreshToken 발급 -> LoginResponse 반환
     */
     public Mono<LoginResponse> manageUser(String authenticationCode, String redirectUri) {
-        return kakaoOAuthService.getKakaoAccessToken(authenticationCode)
+        return kakaoOAuthService.getKakaoAccessToken(authenticationCode, redirectUri)
             .flatMap(this::processKakaoAuthentication);
     }
 

@@ -17,17 +17,14 @@ public class KakaoOAuthService {
 
     private final String clientId;
     private final String clientSecret;
-    private final String redirectUri;
 
     public KakaoOAuthService(@Value("${oauth.kakao.client-id}") String clientId,
-        @Value("${oauth.kakao.client-secret}") String clientSecret,
-        @Value("${oauth.kakao.redirect-uri}") String redirectUri) {
+        @Value("${oauth.kakao.client-secret}") String clientSecret) {
         this.clientId = clientId;
         this.clientSecret = clientSecret;
-        this.redirectUri = redirectUri;
     }
 
-    public Mono<KakaoAuthenticationResponse> getKakaoAccessToken(String code) {
+    public Mono<KakaoAuthenticationResponse> getKakaoAccessToken(String code, String redirectUri) {
         return createWebClient("https://kauth.kakao.com/oauth/token")
             .post()
             .body(BodyInserters
