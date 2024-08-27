@@ -11,4 +11,7 @@ public class OAuthCodeRequest {
 
     @Schema(description = "OAuth 인증 코드", example = "123456")
     private String authorizationCode;
+
+    @Schema(description = "OAuth Redirect URI", example = "http://localhost:8080")
+    private String redirectUri;
 }
