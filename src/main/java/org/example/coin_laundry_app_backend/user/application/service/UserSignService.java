@@ -39,7 +39,7 @@ public class UserSignService {
     Case2: Carry 서비스에 등록된 사용자가 있다! (로그인 Case)
     -> User 조회 -> JWTToken 발급 -> RefreshToken 발급 -> LoginResponse 반환
     */
-    public Mono<LoginResponse> manageUser(String authenticationCode) {
+    public Mono<LoginResponse> manageUser(String authenticationCode, String redirectUri) {
         return kakaoOAuthService.getKakaoAccessToken(authenticationCode)
             .flatMap(this::processKakaoAuthentication);
     }
