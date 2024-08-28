@@ -1,9 +1,9 @@
-package org.example.coin_laundry_app_backend.user.domain.service;
+package org.example.coin_laundry_app_backend.user.application.service;
 
-import org.example.coin_laundry_app_backend.user.presentation.payload.response.KakaoAuthenticationResponse;
-import org.example.coin_laundry_app_backend.user.presentation.payload.response.KakaoUnlinkResponse;
-import org.example.coin_laundry_app_backend.user.presentation.payload.response.KakaoUserResponse;
-import org.example.coin_laundry_app_backend.user.presentation.payload.response.KakaoUserTermsResponse;
+import org.example.coin_laundry_app_backend.user.application.record.oauth.KakaoOAuthResource;
+import org.example.coin_laundry_app_backend.user.application.record.oauth.KakaoOAuthToken;
+import org.example.coin_laundry_app_backend.user.application.record.oauth.KakaoUnlinkResponse;
+import org.example.coin_laundry_app_backend.user.application.record.oauth.KakaoUserTermsResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -24,7 +24,7 @@ public class KakaoOAuthService {
         this.clientSecret = clientSecret;
     }
 
-    public Mono<KakaoAuthenticationResponse> getKakaoAccessToken(String code, String redirectUri) {
+    public Mono<KakaoOAuthToken> getKakaoAccessToken(String code, String redirectUri) {
         return createWebClient("https://kauth.kakao.com/oauth/token")
             .post()
             .body(BodyInserters
@@ -34,16 +34,16 @@ public class KakaoOAuthService {
                 .with("code", code)
                 .with("client_secret", clientSecret))
             .retrieve()
-            .bodyToMono(KakaoAuthenticationResponse.class)
+            .bodyToMono(KakaoOAuthToken.class)
             .transform(this::handleError);
     }
 
-    public Mono<KakaoUserResponse> getKakaoUserInfo(String accessToken) {
+    public Mono<KakaoOAuthResource> getKakaoUserInfo(String accessToken) {
         return createWebClient("https://kapi.kakao.com/v2/user/me", accessToken,
             MediaType.APPLICATION_FORM_URLENCODED)
             .get()
             .retrieve()
-            .bodyToMono(KakaoUserResponse.class)
+            .bodyToMono(KakaoOAuthResource.class)
             .transform(this::handleError);
     }
 
