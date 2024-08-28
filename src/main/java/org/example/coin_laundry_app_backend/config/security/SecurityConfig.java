@@ -47,9 +47,11 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthenticationFilter(), SecurityWebFiltersOrder.AUTHENTICATION)
                 .exceptionHandling(exceptionHandlingSpec -> exceptionHandlingSpec
                         .authenticationEntryPoint((exchange, ex) -> Mono.fromRunnable(() -> {
+                            // System.out.println("UNAUTHORIZED");
                             exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
                         }))
                         .accessDeniedHandler((exchange, denied) -> Mono.fromRunnable(() -> {
+                            // System.out.println("FORBIDDEN");
                             exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
                         })))
                 .build();

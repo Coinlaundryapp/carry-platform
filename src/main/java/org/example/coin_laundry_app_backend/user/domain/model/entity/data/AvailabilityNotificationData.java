@@ -17,6 +17,6 @@ public class AvailabilityNotificationData {
     private Long id;
     private String city;
     private String district;
-    private NotificationType notificationType; ;
+    private NotificationType notificationType;
     private String contact;
 }

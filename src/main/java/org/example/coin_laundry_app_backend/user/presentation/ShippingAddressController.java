@@ -25,8 +25,9 @@ public class ShippingAddressController {
     }
 
     @GetMapping("/shipping-addresses/{shippingAddressId}")
-    public Mono<ShippingAddress> getShippingAddressById(@AuthenticationPrincipal Long userId, @PathVariable Long shippingAddressId) {
-        return shippingAddressService.getShippingAddressById(userId, shippingAddressId);
+    public Mono<ApiCommonResponse<?>> getShippingAddressById(@AuthenticationPrincipal Long userId, @PathVariable Long shippingAddressId) {
+        return shippingAddressService.getShippingAddressById(userId, shippingAddressId)
+                .map(ApiCommonResponse::createSuccessResponse);
     }
 
     @PostMapping("/shipping-addresses")
