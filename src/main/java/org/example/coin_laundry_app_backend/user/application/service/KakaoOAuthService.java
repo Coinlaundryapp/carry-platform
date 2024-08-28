@@ -1,9 +1,9 @@
-package org.example.coin_laundry_app_backend.user.application.service;
+package org.example.coin_laundry_app_backend.user.domain.service;
 
-import org.example.coin_laundry_app_backend.user.application.record.oauth.KakaoOAuthToken;
-import org.example.coin_laundry_app_backend.user.application.record.oauth.KakaoUnlinkResponse;
-import org.example.coin_laundry_app_backend.user.application.record.oauth.KakaoOAuthResource;
-import org.example.coin_laundry_app_backend.user.application.record.oauth.KakaoUserTermsResponse;
+import org.example.coin_laundry_app_backend.user.presentation.payload.response.KakaoAuthenticationResponse;
+import org.example.coin_laundry_app_backend.user.presentation.payload.response.KakaoUnlinkResponse;
+import org.example.coin_laundry_app_backend.user.presentation.payload.response.KakaoUserResponse;
+import org.example.coin_laundry_app_backend.user.presentation.payload.response.KakaoUserTermsResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -12,21 +12,19 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 @Service
+// 고민 포인트: 추상화?
 public class KakaoOAuthService {
 
     private final String clientId;
     private final String clientSecret;
-    private final String redirectUri;
 
     public KakaoOAuthService(@Value("${oauth.kakao.client-id}") String clientId,
-        @Value("${oauth.kakao.client-secret}") String clientSecret,
-        @Value("${oauth.kakao.redirect-uri}") String redirectUri) {
+        @Value("${oauth.kakao.client-secret}") String clientSecret) {
         this.clientId = clientId;
         this.clientSecret = clientSecret;
-        this.redirectUri = redirectUri;
     }
 
-    public Mono<KakaoOAuthToken> getKakaoAccessToken(String code) {
+    public Mono<KakaoAuthenticationResponse> getKakaoAccessToken(String code, String redirectUri) {
         return createWebClient("https://kauth.kakao.com/oauth/token")
             .post()
             .body(BodyInserters
@@ -36,17 +34,17 @@ public class KakaoOAuthService {
                 .with("code", code)
                 .with("client_secret", clientSecret))
             .retrieve()
-            .bodyToMono(KakaoOAuthToken.class)
+            .bodyToMono(KakaoAuthenticationResponse.class)
             .transform(this::handleError);
     }
 
-    public Mono<KakaoOAuthResource> getKakaoUserInfo(String accessToken) {
+    public Mono<KakaoUserResponse> getKakaoUserInfo(String accessToken) {
         return createWebClient("https://kapi.kakao.com/v2/user/me", accessToken,
             MediaType.APPLICATION_FORM_URLENCODED)
-                .get()
-                .retrieve()
-                .bodyToMono(KakaoOAuthResource.class)
-                .transform(this::handleError);
+            .get()
+            .retrieve()
+            .bodyToMono(KakaoUserResponse.class)
+            .transform(this::handleError);
     }
 
     public Mono<KakaoUserTermsResponse> getUserAgreeTerms(String accessToken) {
