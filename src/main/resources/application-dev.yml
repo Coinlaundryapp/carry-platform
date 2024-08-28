@@ -20,9 +20,9 @@ spring:
 settings:
   datasource:
     mysql:
-      url: mysql://database:3306/coin_laundry
-      username: coin_laundry
-      password: coin_laundry!dev01!#
+      url: mysql://carry-db-dev.czw4640os8bp.ap-northeast-2.rds.amazonaws.com:3306/coin_laundry
+      username: admin
+      password: WglHyjJcLCP439lxZOpT
   external:
     geocoding-api:
       naver:
