@@ -1,29 +1,3 @@
-db:
-  mysql:
-    url: mysql://localhost:3306/coin_laundry
-    username: coin_laundry
-    password: coin_laundry!dev01!#
-spring:
-  r2dbc:
-    url: r2dbc:${db.mysql.url}
-    username: ${db.mysql.username}
-    password: ${db.mysql.password}
-    pool:
-      enabled: true
-      max-size: 20
-      initial-size: 10
-      max-idle-time: 30m
-      max-create-connection-time: 10s
-      validation-query: SELECT 1
-
-  flyway:
-    enabled: true
-    url: jdbc:${db.mysql.url}
-    user: ${db.mysql.username}
-    password: ${db.mysql.password}
-  config:
-    import: classpath:naver-api-test.yaml
-
 springdoc:
   swagger-ui:
     path: /api-docs
@@ -33,3 +7,9 @@ jwt:
   client-secret: secret
   access-token-expiry-date: 1
   refresh-token-expiry-date: 14
+
+oauth:
+  kakao:
+    client-id: 8c7e17af04af2a1fbb4a8b4d611b313c
+    client-secret: SDahbitHfJaWRE22X0Wxm7g3q9GEJUbI
+    redirect-uri: http://localhost:3000/api/kakao

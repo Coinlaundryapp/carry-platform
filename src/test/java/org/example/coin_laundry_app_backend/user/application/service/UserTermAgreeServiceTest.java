@@ -8,7 +8,6 @@ import static org.mockito.Mockito.verify;
 
 import java.time.LocalDateTime;
 import org.example.coin_laundry_app_backend.user.domain.model.entity.domainmodel.TermAgree;
-import org.example.coin_laundry_app_backend.user.domain.service.TermAgreeService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;

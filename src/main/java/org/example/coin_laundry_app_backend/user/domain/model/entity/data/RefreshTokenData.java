@@ -16,5 +16,4 @@ public class RefreshTokenData {
     private Long userId;
     private String value;
     private LocalDateTime expiryAt;
-
 }

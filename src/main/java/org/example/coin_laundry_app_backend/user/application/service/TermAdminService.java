@@ -7,7 +7,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.example.coin_laundry_app_backend.user.domain.model.entity.domainmodel.Term;
 import org.example.coin_laundry_app_backend.user.domain.model.value.TermInfo;
-import org.example.coin_laundry_app_backend.user.domain.service.TermService;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;

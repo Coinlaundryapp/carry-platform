@@ -4,6 +4,7 @@ import com.auth0.jwt.exceptions.JWTVerificationException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.lang.NonNull;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -34,8 +35,7 @@ public class JWTAuthenticationFilter implements WebFilter {
 
         return Mono.fromCallable(() -> jwtHelper.verify(extractedToken))
             .flatMap(userId -> {
-                JWTAuthenticationToken authentication = new JWTAuthenticationToken(userId,
-                    List.of(new SimpleGrantedAuthority("ROLE_USER")));
+                JWTAuthenticationToken authentication = new JWTAuthenticationToken(userId, List.of(new SimpleGrantedAuthority("ROLE_USER")));
                 return chain.filter(exchange)
                     .contextWrite(ReactiveSecurityContextHolder.withAuthentication(authentication));
             })
