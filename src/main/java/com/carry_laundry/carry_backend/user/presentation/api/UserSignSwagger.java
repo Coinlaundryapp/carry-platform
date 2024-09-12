@@ -1,7 +1,5 @@
 package com.carry_laundry.carry_backend.user.presentation.api;
 
-import static io.netty.handler.codec.http.HttpHeaders.Values.APPLICATION_JSON;
-
 import com.carry_laundry.carry_backend.common.presentation.payload.ApiCommonResponse;
 import com.carry_laundry.carry_backend.user.presentation.payload.request.OAuthCodeRequest;
 import com.carry_laundry.carry_backend.user.presentation.payload.response.LoginResponse;
@@ -38,7 +36,7 @@ public interface UserSignSwagger {
         responseCode = "200",
         description = "토큰 재발급 성공",
         content = @Content(
-            mediaType = APPLICATION_JSON,
+            mediaType = "application/json",
             schema = @Schema(implementation = LoginResponse.class)
         )
     )
