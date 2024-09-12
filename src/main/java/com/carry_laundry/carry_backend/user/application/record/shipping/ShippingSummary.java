@@ -1,0 +1,11 @@
+package com.carry_laundry.carry_backend.user.application.record.shipping;
+
+import com.carry_laundry.carry_backend.user.domain.model.entity.domainmodel.ShippingAddress;
+
+public record ShippingSummary(Long addressId, String addressLabel, String fullAddress, boolean isDefault) {
+    public static ShippingSummary of(ShippingAddress shippingAddress) {
+        return new ShippingSummary(shippingAddress.getId(), shippingAddress.getAddressLabel(),
+                shippingAddress.getBaseAddress() + shippingAddress.getDetailAddress(),
+                shippingAddress.getIsDefaultAddress());
+    }
+}
