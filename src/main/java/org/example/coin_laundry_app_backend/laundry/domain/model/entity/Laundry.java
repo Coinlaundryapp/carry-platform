@@ -2,9 +2,8 @@ package org.example.coin_laundry_app_backend.laundry.domain.model.entity;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
-import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 import org.locationtech.jts.geom.Point;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
@@ -13,7 +12,7 @@ import org.springframework.data.relational.core.mapping.Table;
 
 @Getter
 @Table("laundries")
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
 public class Laundry {
 
     @Id
