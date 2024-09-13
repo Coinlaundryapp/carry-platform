@@ -6,7 +6,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import org.example.coin_laundry_app_backend.common.presentation.payload.ApiCommonResponse;
-import org.example.coin_laundry_app_backend.laundry.presentation.payload.request.LaundryLocationRequest;
 import org.example.coin_laundry_app_backend.laundry.presentation.payload.response.LaundryCommonResponse;
 import reactor.core.publisher.Mono;
 
@@ -22,5 +21,7 @@ public interface LaundrySwagger {
         description = "성공적으로 조회됨"
     )
     Mono<ApiCommonResponse<List<LaundryCommonResponse>>> getLaundryList(
-        @Parameter(description = "위치 정보", required = true) LaundryLocationRequest request);
+        @Parameter(description = "사용자의 위도", example = "37.123456", required = true) Double latitude,
+        @Parameter(description = "사용자의 경도", example = "127.123456", required = true) Double longitude
+    );
 }

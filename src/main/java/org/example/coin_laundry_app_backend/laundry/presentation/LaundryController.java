@@ -1,16 +1,14 @@
 package org.example.coin_laundry_app_backend.laundry.presentation;
 
-import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.example.coin_laundry_app_backend.common.presentation.payload.ApiCommonResponse;
 import org.example.coin_laundry_app_backend.laundry.application.LaundryService;
 import org.example.coin_laundry_app_backend.laundry.presentation.api.LaundrySwagger;
-import org.example.coin_laundry_app_backend.laundry.presentation.payload.request.LaundryLocationRequest;
 import org.example.coin_laundry_app_backend.laundry.presentation.payload.response.LaundryCommonResponse;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
 
@@ -25,9 +23,9 @@ public class LaundryController implements LaundrySwagger {
 
     @GetMapping
     public Mono<ApiCommonResponse<List<LaundryCommonResponse>>> getLaundryList(
-        @Valid @RequestBody LaundryLocationRequest request) {
-        return laundryService.findByLocationAndDistance(request.getLatitude(),
-                request.getLongitude(), DEFAULT_DISTANCE).collectList()
+        @RequestParam Double latitude, @RequestParam Double longitude) {
+        return laundryService.findByLocationAndDistance(latitude,
+                longitude, DEFAULT_DISTANCE).collectList()
             .map(ApiCommonResponse::createSuccessResponse);
     }
 }
