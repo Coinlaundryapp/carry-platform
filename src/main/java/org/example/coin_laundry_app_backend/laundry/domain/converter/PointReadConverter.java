@@ -1,20 +1,21 @@
 package org.example.coin_laundry_app_backend.laundry.domain.converter;
 
-import io.r2dbc.spi.Row;
 import org.locationtech.jts.geom.Point;
-import org.locationtech.jts.io.WKTReader;
+import org.locationtech.jts.io.WKBReader;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.data.convert.ReadingConverter;
+import org.springframework.lang.NonNull;
 
 @ReadingConverter
-public class PointReadConverter implements Converter<Row, Point> {
+public class PointReadConverter implements Converter<String, Point> {
+
+    private final WKBReader wkbReader = new WKBReader();
 
     @Override
-    public Point convert(Row source) {
-        String value = source.get("location_coordinate", String.class);
-        WKTReader wktReader = new WKTReader();
+    public Point convert(@NonNull String source) {
         try {
-            return (Point) wktReader.read(value);
+            byte[] wkb = WKBReader.hexToBytes(source);
+            return (Point) wkbReader.read(wkb);
         } catch (Exception e) {
             throw new IllegalStateException(e);
         }

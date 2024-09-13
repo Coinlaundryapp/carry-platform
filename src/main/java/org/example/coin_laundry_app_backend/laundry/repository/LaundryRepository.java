@@ -13,13 +13,14 @@ public interface LaundryRepository extends ReactiveCrudRepository<Laundry, Long>
 
     @NonNull
     @Override
-    @Query("INSERT INTO laundries (name, options, address, location_coordinate) VALUES (:#{#entity.name}, :#{#entity.options}::laundry_options[], :#{#entity.address}, ST_GeomFromText(:#{#entity.locationCoordinate}, 4326))")
+    @Query("INSERT INTO laundries (name, address, location_coordinate) VALUES (:#{#entity.name}, :#{#entity.address}, ST_MakePoint(:#{#entity.locationCoordinate.x}, :#{#entity.locationCoordinate.y})::geography) RETURNING *")
     <S extends Laundry> Mono<S> save(@NonNull S entity);
 
     @Query(
         """
-            SELECT *, st_dwithin(location_coordinate::geography, st_setsrid(st_makepoint(:latitude, :longitude), 4326), :distance) as dist
-            FROM laundries WHERE st_dwithin(location_coordinate::geography, st_setsrid(st_makepoint(:latitude, :longitude), 4326), :distance)
+            SELECT *, ST_DWithin(location_coordinate, ST_MakePoint(:longitude, :latitude)::geography, :distance) as dist
+            FROM laundries
+            WHERE ST_DWithin(location_coordinate, ST_MakePoint(:longitude, :latitude)::geography, :distance)
             ORDER BY dist""")
     Flux<Laundry> findByLocationAndDistance(double latitude, double longitude, double distance);
 }

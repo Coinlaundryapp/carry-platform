@@ -9,6 +9,6 @@ public class PointWriteConverter implements Converter<Point, String> {
 
     @Override
     public String convert(Point point) {
-        return String.format("POINT(%f %f)", point.getX(), point.getY());
+        return String.format("%f, %f", point.getX(), point.getY());
     }
 }
