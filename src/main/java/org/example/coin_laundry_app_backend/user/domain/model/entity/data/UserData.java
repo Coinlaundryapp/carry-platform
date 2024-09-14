@@ -1,15 +1,10 @@
 package org.example.coin_laundry_app_backend.user.domain.model.entity.data;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.Set;
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
-import org.example.coin_laundry_app_backend.user.domain.model.entity.domainmodel.ShippingAddress;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.relational.core.mapping.MappedCollection;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Getter

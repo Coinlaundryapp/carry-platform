@@ -3,8 +3,7 @@ package org.example.coin_laundry_app_backend.user.application.service;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.example.coin_laundry_app_backend.user.application.record.shipping.ShippingSummary;
-import org.example.coin_laundry_app_backend.user.domain.converter.ShippingAddressConverter;
-import org.example.coin_laundry_app_backend.user.domain.model.entity.domainmodel.ShippingAddress;
+import org.example.coin_laundry_app_backend.user.domain.model.entity.ShippingAddress;
 import org.example.coin_laundry_app_backend.user.presentation.payload.request.shipping.CreateAddressRequest;
 import org.example.coin_laundry_app_backend.user.presentation.payload.request.shipping.UpdateAddressRequest;
 import org.example.coin_laundry_app_backend.user.repository.ShippingAddressRepository;
@@ -21,59 +20,50 @@ public class ShippingAddressService {
 
     public Mono<List<ShippingSummary>> getAllShippingAddresses(Long userId) {
         return shippingAddressRepository.findByUserId(userId)
-            .map(ShippingAddressConverter::toDomain)
             .map(ShippingSummary::of)
             .collectList();
     }
 
     public Mono<ShippingAddress> getShippingAddressById(Long userId, Long addressId) {
-        return shippingAddressRepository.findByIdAndUserId(addressId, userId)
-            .map(ShippingAddressConverter::toDomain);
+        return shippingAddressRepository.findByIdAndUserId(addressId, userId);
     }
 
+    // TODO: How could we Calculate Coordinates using request.baseAddress()?
     public Mono<ShippingAddress> addShippingAddress(Long userId, CreateAddressRequest request) {
         return shippingAddressRepository.countByUserId(userId)
             .flatMap(count -> {
-                ShippingAddress shippingAddress = ShippingAddress.create(
-                    userId, request.addressLabel(), request.recipientName(),
-                    request.recipientPhone(),
-                    request.baseAddress(), request.detailAddress(), request.deliveryNotes(),
-                    request.entranceType(), request.entranceDetail()
-                );
+                ShippingAddress shippingAddress = request.toEntity(userId);
                 if (count == 0) {
                     shippingAddress.markAsDefaultAddress();
-                } else {
-                    shippingAddress.clearDefaultAddress();
                 }
-                return shippingAddressRepository.save(
-                    ShippingAddressConverter.toData(shippingAddress));
-            }).map(ShippingAddressConverter::toDomain);
+                return shippingAddressRepository.save(shippingAddress);
+            });
     }
 
     public Mono<ShippingAddress> updateShippingAddress(Long userId, Long addressId,
         UpdateAddressRequest request) {
         return shippingAddressRepository.findByIdAndUserId(addressId, userId)
-            .map(ShippingAddressConverter::toDomain)
             .flatMap(existingAddress -> {
-                existingAddress.overwrite(request.addressLabel(), request.recipientName(),
+                existingAddress.overwrite(request.addressLabel(),
+                    request.recipientName(),
                     request.recipientPhone(),
-                    request.baseAddress(), request.detailAddress(), request.deliveryNotes(),
-                    request.entranceType(), request.entranceDetail());
-                return shippingAddressRepository.save(
-                    ShippingAddressConverter.toData(existingAddress));
-            })
-            .map(ShippingAddressConverter::toDomain);
+                    request.baseAddress(),
+                    request.detailAddress(),
+                    request.deliveryNotes(),
+                    request.entranceType(),
+                    request.entranceDetail());
+                return shippingAddressRepository.save(existingAddress);
+            });
     }
 
     public Mono<Void> deleteShippingAddress(Long userId, Long addressId) {
         return shippingAddressRepository.findByIdAndUserId(addressId, userId)
-            .map(ShippingAddressConverter::toDomain)
             .flatMap(shippingAddress -> {
                 if (Boolean.TRUE.equals(shippingAddress.getIsDefaultAddress())) {
                     return Mono.error(
                         new RuntimeException("default shipping-address cannot be deleted"));
                 }
-                return Mono.just(ShippingAddressConverter.toData(shippingAddress));
+                return Mono.just(shippingAddress);
             })
             .flatMap(shippingAddressRepository::delete);
     }
