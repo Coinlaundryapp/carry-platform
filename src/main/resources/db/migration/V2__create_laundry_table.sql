@@ -36,3 +36,8 @@ CREATE TABLE laundry_images
 
 CREATE INDEX idx_laundry_images_laundry_id ON laundry_images (laundry_id);
 CREATE INDEX idx_laundry_images_laundry_id_image_url ON laundry_images (laundry_id, image_url);
+
+ALTER TABLE shipping_addresses
+    ADD COLUMN latitude DOUBLE PRECISION;
+ALTER TABLE shipping_addresses
+    ADD COLUMN longitude DOUBLE PRECISION;

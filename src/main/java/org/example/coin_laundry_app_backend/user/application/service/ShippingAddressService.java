@@ -33,6 +33,8 @@ public class ShippingAddressService {
         return shippingAddressRepository.countByUserId(userId)
             .flatMap(count -> {
                 ShippingAddress shippingAddress = request.toEntity(userId);
+                // TODO: Calculate Coordinates using request.baseAddress()
+                shippingAddress.updateCoordinates(0.0, 0.0);
                 if (count == 0) {
                     shippingAddress.markAsDefaultAddress();
                 }
@@ -44,6 +46,10 @@ public class ShippingAddressService {
         UpdateAddressRequest request) {
         return shippingAddressRepository.findByIdAndUserId(addressId, userId)
             .flatMap(existingAddress -> {
+                if (!request.baseAddress().equals(existingAddress.getBaseAddress())) {
+                    // TODO: Calculate Coordinates using request.baseAddress()
+                    existingAddress.updateCoordinates(0.0, 0.0);
+                }
                 existingAddress.overwrite(request.addressLabel(),
                     request.recipientName(),
                     request.recipientPhone(),

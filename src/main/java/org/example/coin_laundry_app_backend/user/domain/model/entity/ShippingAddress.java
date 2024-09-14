@@ -25,6 +25,8 @@ public class ShippingAddress {
 
     private String baseAddress;
     private String detailAddress;
+    private Double latitude;
+    private Double longitude;
 
     private String deliveryNotes;
     private EntranceType entranceType;
@@ -32,6 +34,11 @@ public class ShippingAddress {
 
     public void markAsDefaultAddress() {
         this.isDefaultAddress = true;
+    }
+
+    public void updateCoordinates(Double latitude, Double longitude) {
+        this.latitude = latitude;
+        this.longitude = longitude;
     }
 
     public void overwrite(String addressLabel, String recipientName, String recipientPhone,

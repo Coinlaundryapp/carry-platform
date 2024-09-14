@@ -24,6 +24,8 @@ public record CreateAddressRequest(
             recipientPhone,
             baseAddress,
             detailAddress,
+            0.0,
+            0.0,
             deliveryNotes,
             entranceType,
             entranceDetail
