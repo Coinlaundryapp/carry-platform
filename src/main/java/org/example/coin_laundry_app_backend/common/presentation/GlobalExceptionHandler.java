@@ -2,6 +2,7 @@ package org.example.coin_laundry_app_backend.common.presentation;
 
 import com.auth0.jwt.exceptions.JWTVerificationException;
 import java.util.Objects;
+import lombok.extern.slf4j.Slf4j;
 import org.example.coin_laundry_app_backend.common.presentation.payload.ApiCommonResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -9,6 +10,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.client.HttpClientErrorException;
 import reactor.core.publisher.Mono;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -37,6 +39,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(value = Exception.class)
     protected Mono<ApiCommonResponse<Void>> handleException(Exception e) {
+        log.error(e.getCause().getMessage());
+        log.error(e.getMessage());
         return Mono.just(
             ApiCommonResponse.createFailResponse(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage()));
     }
