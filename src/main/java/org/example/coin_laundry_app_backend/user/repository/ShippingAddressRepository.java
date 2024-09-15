@@ -26,4 +26,6 @@ public interface ShippingAddressRepository extends
     Mono<ShippingAddress> findByIdAndUserId(@NonNull Long id, @NonNull Long userId);
 
     Mono<Long> countByUserId(Long userId);
+
+    Mono<ShippingAddress> findByUserIdAndIsDefaultAddressTrue(@NonNull Long userId);
 }

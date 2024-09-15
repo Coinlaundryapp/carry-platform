@@ -32,6 +32,10 @@ public class ShippingAddressService {
         return shippingAddressRepository.findByIdAndUserId(addressId, userId);
     }
 
+    public Mono<ShippingAddress> getDefaultShippingAddress(Long userId) {
+        return shippingAddressRepository.findByUserIdAndIsDefaultAddressTrue(userId);
+    }
+
     public Mono<ShippingAddress> addShippingAddress(Long userId, CreateAddressRequest request) {
         return shippingAddressRepository.countByUserId(userId)
             .flatMap(count -> {
