@@ -1,7 +1,10 @@
 package org.example.coin_laundry_app_backend.user.application.service;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 import lombok.RequiredArgsConstructor;
+import org.example.coin_laundry_app_backend.geo.application.service.GeocodingService;
+import org.example.coin_laundry_app_backend.geo.domain.model.EPSG4326Coordinate;
 import org.example.coin_laundry_app_backend.user.application.record.shipping.ShippingSummary;
 import org.example.coin_laundry_app_backend.user.domain.model.entity.ShippingAddress;
 import org.example.coin_laundry_app_backend.user.presentation.payload.request.shipping.CreateAddressRequest;
@@ -17,6 +20,7 @@ import reactor.core.publisher.Mono;
 public class ShippingAddressService {
 
     private final ShippingAddressRepository shippingAddressRepository;
+    private final GeocodingService geocodingService;
 
     public Mono<List<ShippingSummary>> getAllShippingAddresses(Long userId) {
         return shippingAddressRepository.findByUserId(userId)
@@ -28,28 +32,31 @@ public class ShippingAddressService {
         return shippingAddressRepository.findByIdAndUserId(addressId, userId);
     }
 
-    // TODO: How could we Calculate Coordinates using request.baseAddress()?
     public Mono<ShippingAddress> addShippingAddress(Long userId, CreateAddressRequest request) {
         return shippingAddressRepository.countByUserId(userId)
             .flatMap(count -> {
                 ShippingAddress shippingAddress = request.toEntity(userId);
-                // TODO: Calculate Coordinates using request.baseAddress()
-                shippingAddress.updateCoordinates(0.0, 0.0);
                 if (count == 0) {
                     shippingAddress.markAsDefaultAddress();
                 }
-                return shippingAddressRepository.save(shippingAddress);
-            });
+                return geocodingService.getGeocoding(shippingAddress.getBaseAddress())
+                    .switchIfEmpty(Mono.error(new NoSuchElementException("Invalid Address")))
+                    .map(geoModels -> geoModels.get(0))
+                    .map(geoModel -> {
+                        EPSG4326Coordinate coordinates = geoModel.coordinate();
+                        shippingAddress.updateCoordinates(coordinates.latitude(),
+                            coordinates.longitude());
+                        return shippingAddress;
+                    });
+            })
+            .flatMap(shippingAddressRepository::save);
     }
 
     public Mono<ShippingAddress> updateShippingAddress(Long userId, Long addressId,
         UpdateAddressRequest request) {
         return shippingAddressRepository.findByIdAndUserId(addressId, userId)
             .flatMap(existingAddress -> {
-                if (!request.baseAddress().equals(existingAddress.getBaseAddress())) {
-                    // TODO: Calculate Coordinates using request.baseAddress()
-                    existingAddress.updateCoordinates(0.0, 0.0);
-                }
+                String previousBaseAddress = existingAddress.getBaseAddress();
                 existingAddress.overwrite(request.addressLabel(),
                     request.recipientName(),
                     request.recipientPhone(),
@@ -58,6 +65,18 @@ public class ShippingAddressService {
                     request.deliveryNotes(),
                     request.entranceType(),
                     request.entranceDetail());
+                if (!previousBaseAddress.equals(request.baseAddress())) {
+                    return geocodingService.getGeocoding(existingAddress.getBaseAddress())
+                        .switchIfEmpty(Mono.error(new NoSuchElementException("Invalid Address")))
+                        .map(geoModels -> geoModels.get(0))
+                        .map(geoModel -> {
+                            EPSG4326Coordinate coordinates = geoModel.coordinate();
+                            existingAddress.updateCoordinates(coordinates.latitude(),
+                                coordinates.longitude());
+                            return existingAddress;
+                        })
+                        .flatMap(shippingAddressRepository::save);
+                }
                 return shippingAddressRepository.save(existingAddress);
             });
     }
