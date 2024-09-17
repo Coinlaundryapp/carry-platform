@@ -33,7 +33,7 @@ public class SecurityConfig {
                 .pathMatchers("/webjars/swagger-ui/**").permitAll()
                 .pathMatchers("/v3/api-docs/**").permitAll()
                 .pathMatchers("/health").permitAll()
-                .pathMatchers("/api/v1/laundry/**").permitAll()
+                .pathMatchers("/api/v1/laundries/**").permitAll()
                 .pathMatchers("/api/v1/sign/**").permitAll()
                 .pathMatchers("/api/v1/addresses/**").permitAll()
                 .pathMatchers("/api/v1/service-availability/**").permitAll()
