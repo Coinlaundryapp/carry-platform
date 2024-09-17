@@ -34,11 +34,10 @@ public class LaundryCommonResponse {
     @Schema(description = "세탁소 이미지 URL 목록")
     private final List<String> imageUrls;
 
-    // TODO: Review
     @Schema(description = "리뷰 평균 평점", example = "4.5")
     private double reviewAverageRating;
     @Schema(description = "리뷰 개수", example = "100")
-    private int reviewCount;
+    private Long reviewCount;
 
     @Builder
     protected LaundryCommonResponse(Long id, String name, String address, double latitude,
@@ -51,6 +50,11 @@ public class LaundryCommonResponse {
         this.distance = distance;
         this.options = options;
         this.imageUrls = imageUrls;
+    }
+
+    public void setReviewMetadata(double reviewAverageRating, long reviewCount) {
+        this.reviewAverageRating = reviewAverageRating;
+        this.reviewCount = reviewCount;
     }
 
 }
