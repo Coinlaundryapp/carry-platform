@@ -4,6 +4,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.example.coin_laundry_app_backend.common.presentation.payload.ApiCommonResponse;
 import org.example.coin_laundry_app_backend.review.application.ReviewService;
+import org.example.coin_laundry_app_backend.review.presentation.api.ReviewFetchSwagger;
 import org.example.coin_laundry_app_backend.review.presentation.payload.response.ReviewCommonResponse;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -14,7 +15,7 @@ import reactor.core.publisher.Mono;
 @RestController
 @RequestMapping("/api/v1/reviews")
 @RequiredArgsConstructor
-public class ReviewFetchController {
+public class ReviewFetchController implements ReviewFetchSwagger {
 
     private final ReviewService reviewService;
 
