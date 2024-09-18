@@ -75,8 +75,8 @@ public class ReviewRepositoryImpl implements ReviewRepository {
                 Arrays.asList(row.get("image_urls", String[].class)),
                 row.get("comment", String.class),
                 row.get("rating", Integer.class),
-                row.get("created_at", LocalDateTime.class),
-                row.get("updated_at", LocalDateTime.class)
+                row.get("created_at", LocalDateTime.class).toString(),
+                row.get("updated_at", LocalDateTime.class).toString()
             ))
             .all();
     }

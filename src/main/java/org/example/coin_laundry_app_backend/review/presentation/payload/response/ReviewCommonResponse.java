@@ -1,6 +1,5 @@
 package org.example.coin_laundry_app_backend.review.presentation.payload.response;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 public record ReviewCommonResponse(
@@ -10,8 +9,8 @@ public record ReviewCommonResponse(
     List<String> images,
     String content,
     Integer rating,
-    LocalDateTime createdAt,
-    LocalDateTime updatedAt
+    String createdAt,
+    String updatedAt
 ) {
 
 }
