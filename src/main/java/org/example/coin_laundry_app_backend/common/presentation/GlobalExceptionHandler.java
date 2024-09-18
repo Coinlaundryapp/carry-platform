@@ -39,7 +39,6 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(value = Exception.class)
     protected Mono<ApiCommonResponse<Void>> handleException(Exception e) {
-        log.error(e.getCause().getMessage());
         log.error(e.getMessage());
         return Mono.just(
             ApiCommonResponse.createFailResponse(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage()));

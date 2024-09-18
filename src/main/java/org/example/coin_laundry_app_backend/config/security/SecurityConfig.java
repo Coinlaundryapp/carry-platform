@@ -1,6 +1,7 @@
 package org.example.coin_laundry_app_backend.config.security;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.example.coin_laundry_app_backend.config.security.jwt.JWTAuthenticationFilter;
 import org.example.coin_laundry_app_backend.config.security.jwt.JWTHelper;
 import org.springframework.context.annotation.Bean;
@@ -13,6 +14,7 @@ import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import reactor.core.publisher.Mono;
 
+@Slf4j
 @Configuration
 @EnableWebFluxSecurity
 @RequiredArgsConstructor
@@ -32,7 +34,7 @@ public class SecurityConfig {
                 .pathMatchers("/api-docs/**").permitAll()
                 .pathMatchers("/webjars/swagger-ui/**").permitAll()
                 .pathMatchers("/v3/api-docs/**").permitAll()
-                .pathMatchers("/health").permitAll()
+                .pathMatchers("/actuator/health").permitAll()
                 .pathMatchers("/api/v1/laundries/**").permitAll()
                 .pathMatchers("/api/v1/sign/**").permitAll()
                 .pathMatchers("/api/v1/addresses/**").permitAll()
@@ -42,11 +44,11 @@ public class SecurityConfig {
             .addFilterBefore(jwtAuthenticationFilter(), SecurityWebFiltersOrder.AUTHENTICATION)
             .exceptionHandling(exceptionHandlingSpec -> exceptionHandlingSpec
                 .authenticationEntryPoint((exchange, ex) -> Mono.fromRunnable(() -> {
-                    // System.out.println("UNAUTHORIZED");
+                    log.warn("UNAUTHORIZED");
                     exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
                 }))
                 .accessDeniedHandler((exchange, denied) -> Mono.fromRunnable(() -> {
-                    // System.out.println("FORBIDDEN");
+                    log.warn("FORBIDDEN");
                     exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
                 })))
             .build();

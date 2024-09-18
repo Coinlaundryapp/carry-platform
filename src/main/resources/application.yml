@@ -12,3 +12,15 @@ oauth:
   kakao:
     client-id: 8c7e17af04af2a1fbb4a8b4d611b313c
     client-secret: SDahbitHfJaWRE22X0Wxm7g3q9GEJUbI
+
+management:
+  server:
+    port: 31204
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
