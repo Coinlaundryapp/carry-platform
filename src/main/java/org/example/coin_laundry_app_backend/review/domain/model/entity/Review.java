@@ -17,7 +17,7 @@ public class Review {
 
     @Id
     private Long id;
-    private Long laundryId;
+    private Long laundromatId;
     private Long userId;
     private String comment;
     private ReviewRating reviewRating;

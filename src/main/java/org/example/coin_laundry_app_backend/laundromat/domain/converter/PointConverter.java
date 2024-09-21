@@ -1,4 +1,4 @@
-package org.example.coin_laundry_app_backend.laundry.domain.converter;
+package org.example.coin_laundry_app_backend.laundromat.domain.converter;
 
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.io.WKBReader;

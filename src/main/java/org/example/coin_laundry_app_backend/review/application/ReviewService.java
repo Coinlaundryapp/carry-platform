@@ -17,11 +17,11 @@ public class ReviewService {
 
     @Transactional(readOnly = true)
     public Mono<ReviewMetadataResponse> getReviewMetadataByLaundryId(Long laundryId) {
-        return reviewRepository.getReviewMetadataByLaundryId(laundryId);
+        return reviewRepository.getReviewMetadataByLaundromatId(laundryId);
     }
 
     @Transactional(readOnly = true)
     public Flux<ReviewCommonResponse> getReviewsByLaundryId(Long laundryId) {
-        return reviewRepository.getReviewsByLaundryId(laundryId);
+        return reviewRepository.getReviewsByLaundromatId(laundryId);
     }
 }

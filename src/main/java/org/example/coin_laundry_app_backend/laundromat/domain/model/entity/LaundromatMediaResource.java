@@ -1,4 +1,4 @@
-package org.example.coin_laundry_app_backend.laundry.domain.model.entity;
+package org.example.coin_laundry_app_backend.laundromat.domain.model.entity;
 
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -9,21 +9,21 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Getter
-@Table("laundry_images")
+@Table("laundromat_media_resources")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class LaundryImage {
+public class LaundromatMediaResource {
 
     @Id
     private Long id;
-    private Long laundryId;
-    private String imageUrl;
+    private Long laundromatId;
+    private String mediaUrl;
     @CreatedDate
     private String createdAt;
     @LastModifiedDate
     private String updatedAt;
 
-    public LaundryImage(Long laundryId, String imageUrl) {
-        this.laundryId = laundryId;
-        this.imageUrl = imageUrl;
+    public LaundromatMediaResource(Long laundromatId, String imageUrl) {
+        this.laundromatId = laundromatId;
+        this.mediaUrl = imageUrl;
     }
 }

@@ -1,14 +1,14 @@
-package org.example.coin_laundry_app_backend.laundry.presentation.payload.response;
+package org.example.coin_laundry_app_backend.laundromat.presentation.payload.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 import lombok.Builder;
 import lombok.Getter;
-import org.example.coin_laundry_app_backend.laundry.domain.model.enums.LaundryOption;
+import org.example.coin_laundry_app_backend.laundromat.domain.model.enums.LaundromatOption;
 
 @Getter
 @Schema(description = "세탁소 공통 응답")
-public class LaundryCommonResponse {
+public class LaundromatCommonResponse {
 
     // From Laundry Entity
     @Schema(description = "세탁소 ID", example = "1")
@@ -29,7 +29,7 @@ public class LaundryCommonResponse {
 
     // From LaundryOptionMapping Entity
     @Schema(description = "세탁소 옵션 목록")
-    private final List<LaundryOption> options;
+    private final List<LaundromatOption> options;
     // From LaundryImage Entity
     @Schema(description = "세탁소 이미지 URL 목록")
     private final List<String> imageUrls;
@@ -40,8 +40,8 @@ public class LaundryCommonResponse {
     private Long reviewCount;
 
     @Builder
-    protected LaundryCommonResponse(Long id, String name, String address, double latitude,
-        double longitude, double distance, List<LaundryOption> options, List<String> imageUrls) {
+    protected LaundromatCommonResponse(Long id, String name, String address, double latitude,
+        double longitude, double distance, List<LaundromatOption> options, List<String> imageUrls) {
         this.id = id;
         this.name = name;
         this.address = address;

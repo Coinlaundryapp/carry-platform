@@ -9,7 +9,7 @@ import reactor.core.publisher.Mono;
 @Repository
 public interface ReviewRepository {
 
-    Mono<ReviewMetadataResponse> getReviewMetadataByLaundryId(Long laundryId);
+    Mono<ReviewMetadataResponse> getReviewMetadataByLaundromatId(Long laundromatId);
 
-    Flux<ReviewCommonResponse> getReviewsByLaundryId(Long laundryId);
+    Flux<ReviewCommonResponse> getReviewsByLaundromatId(Long laundromatId);
 }

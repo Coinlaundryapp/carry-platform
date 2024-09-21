@@ -18,29 +18,29 @@ public class ReviewRepositoryImpl implements ReviewRepository {
     private final R2dbcEntityTemplate r2dbcEntityTemplate;
 
     @Override
-    public Mono<ReviewMetadataResponse> getReviewMetadataByLaundryId(Long laundryId) {
+    public Mono<ReviewMetadataResponse> getReviewMetadataByLaundromatId(Long laundromatId) {
         String selectQuery = """
             SELECT COUNT(rating) AS review_count, AVG(rating) AS average_rating
             FROM reviews
-            WHERE laundry_id = :laundryId
+            WHERE laundromat_id = :laundromatId
             """;
         return r2dbcEntityTemplate.getDatabaseClient().sql(selectQuery)
-            .bind("laundryId", laundryId)
+            .bind("laundromatId", laundromatId)
             .map((row, rowMetadata) -> {
                 Long reviewCount = row.get("review_count", Long.class);
                 Double averageRating = Optional.ofNullable(row.get("average_rating", Double.class))
                     .orElse(0.0);
-                return new ReviewMetadataResponse(laundryId, reviewCount, averageRating);
+                return new ReviewMetadataResponse(laundromatId, reviewCount, averageRating);
             }).one();
     }
 
     @Override
-    public Flux<ReviewCommonResponse> getReviewsByLaundryId(Long laundryId) {
+    public Flux<ReviewCommonResponse> getReviewsByLaundromatId(Long laundromatId) {
         String selectQuery = """
             WITH review_base AS (
                 SELECT r.*
                 FROM reviews r
-                WHERE r.laundry_id = :laundryId
+                WHERE r.laundromat_id = :laundromatId
             ),
             review_user AS (
                 SELECT u.id, u.nickname
@@ -49,7 +49,7 @@ public class ReviewRepositoryImpl implements ReviewRepository {
             ),
             review_laundry AS (
                 SELECT l.id, l.name
-                FROM laundries l
+                FROM laundromats l
                 WHERE l.id = :laundryId
             ),
             review_image AS (
@@ -63,11 +63,11 @@ public class ReviewRepositoryImpl implements ReviewRepository {
                    COALESCE(ri.image_urls, ARRAY[]::VARCHAR[]) as image_urls
             FROM review_base rb
             JOIN review_user ru ON rb.user_id = ru.id
-            JOIN review_laundry rl ON rb.laundry_id = rl.id
+            JOIN review_laundry rl ON rb.laundromat_id = rl.id
             LEFT JOIN review_image ri ON rb.id = ri.review_id
             """;
         return r2dbcEntityTemplate.getDatabaseClient().sql(selectQuery)
-            .bind("laundryId", laundryId)
+            .bind("laundromatId", laundromatId)
             .map((row, rowMetadata) -> new ReviewCommonResponse(
                 row.get("id", Long.class),
                 row.get("laundry_name", String.class),

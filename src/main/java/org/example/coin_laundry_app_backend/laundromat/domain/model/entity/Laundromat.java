@@ -1,4 +1,4 @@
-package org.example.coin_laundry_app_backend.laundry.domain.model.entity;
+package org.example.coin_laundry_app_backend.laundromat.domain.model.entity;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
@@ -13,7 +13,7 @@ import org.springframework.data.relational.core.mapping.Table;
 @Getter
 @Table("laundries")
 @AllArgsConstructor
-public class Laundry {
+public class Laundromat {
 
     @Id
     private Long id;
@@ -26,7 +26,7 @@ public class Laundry {
     private LocalDateTime updatedAt;
 
     // 생성용
-    public Laundry(String name, String address, Point locationCoordinate) {
+    public Laundromat(String name, String address, Point locationCoordinate) {
         this.name = Objects.requireNonNull(name, "세탁소 이름은 필수입니다.");
         this.address = Objects.requireNonNull(address, "세탁소 주소는 필수입니다.");
         this.locationCoordinate = Objects.requireNonNull(locationCoordinate, "세탁소 위치는 필수입니다.");
