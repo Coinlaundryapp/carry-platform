@@ -52,7 +52,7 @@ public class LaundromatCommonResponse {
         this.imageUrls = imageUrls;
     }
 
-    public void setReviewMetadata(double reviewAverageRating, long reviewCount) {
+    public void setReviewStatistic(double reviewAverageRating, long reviewCount) {
         this.reviewAverageRating = reviewAverageRating;
         this.reviewCount = reviewCount;
     }

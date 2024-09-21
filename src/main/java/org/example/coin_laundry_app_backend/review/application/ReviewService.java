@@ -2,7 +2,7 @@ package org.example.coin_laundry_app_backend.review.application;
 
 import lombok.RequiredArgsConstructor;
 import org.example.coin_laundry_app_backend.review.presentation.payload.response.ReviewCommonResponse;
-import org.example.coin_laundry_app_backend.review.presentation.payload.response.ReviewMetadataResponse;
+import org.example.coin_laundry_app_backend.review.presentation.payload.response.ReviewStatisticResponse;
 import org.example.coin_laundry_app_backend.review.repository.ReviewRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,8 +16,8 @@ public class ReviewService {
     private final ReviewRepository reviewRepository;
 
     @Transactional(readOnly = true)
-    public Mono<ReviewMetadataResponse> getReviewMetadataByLaundryId(Long laundryId) {
-        return reviewRepository.getReviewMetadataByLaundromatId(laundryId);
+    public Mono<ReviewStatisticResponse> getReviewStatisticByLaundryId(Long laundryId) {
+        return reviewRepository.getReviewStaticByLaundromatId(laundryId);
     }
 
     @Transactional(readOnly = true)
