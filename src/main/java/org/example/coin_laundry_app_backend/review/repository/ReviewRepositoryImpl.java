@@ -1,9 +1,9 @@
 package org.example.coin_laundry_app_backend.review.repository;
 
 import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.example.coin_laundry_app_backend.common.domain.MediaRowConverter;
 import org.example.coin_laundry_app_backend.review.presentation.payload.response.ReviewCommonResponse;
 import org.example.coin_laundry_app_backend.review.presentation.payload.response.ReviewStatisticResponse;
 import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
@@ -16,6 +16,7 @@ import reactor.core.publisher.Mono;
 public class ReviewRepositoryImpl implements ReviewRepository {
 
     private final R2dbcEntityTemplate r2dbcEntityTemplate;
+    private final MediaRowConverter mediaRowConverter;
 
     @Override
     public Mono<ReviewStatisticResponse> getReviewStaticByLaundromatId(Long laundromatId) {
@@ -47,37 +48,39 @@ public class ReviewRepositoryImpl implements ReviewRepository {
                 FROM users u
                 JOIN review_base rb ON rb.user_id = u.id
             ),
-            review_laundry AS (
+            review_laundromat AS (
                 SELECT l.id, l.name
                 FROM laundromats l
-                WHERE l.id = :laundryId
+                WHERE l.id = :laundromatId
             ),
-            review_image AS (
-                SELECT ri.review_id, array_agg(ri.image_url) as image_urls
-                FROM review_images ri
-                WHERE ri.review_id IN (SELECT id FROM review_base)
-                GROUP BY ri.review_id
+            review_media_resource AS (
+                SELECT rmr.review_id, array_agg(ROW(rmr.media_url, rmr.extension)) as media_resources
+                FROM review_media_resources rmr
+                WHERE rmr.review_id IN (SELECT id FROM review_base)
+                GROUP BY rmr.review_id
             )
-            SELECT rb.id, rb.rating, rb.comment, rb.created_at, rb.updated_at,\s
-                   ru.nickname as username, rl.name as laundry_name,\s
-                   COALESCE(ri.image_urls, ARRAY[]::VARCHAR[]) as image_urls
+            SELECT rb.id, rb.rating, rb.comment, rb.created_at, rb.updated_at,
+                   ru.nickname as username, rl.name as laundromat_name,
+                   COALESCE(ri.media_resources, ARRAY[]::RECORD[]) as media_resources
             FROM review_base rb
             JOIN review_user ru ON rb.user_id = ru.id
-            JOIN review_laundry rl ON rb.laundromat_id = rl.id
-            LEFT JOIN review_image ri ON rb.id = ri.review_id
+            JOIN review_laundromat rl ON rb.laundromat_id = rl.id
+            LEFT JOIN review_media_resource ri ON rb.id = ri.review_id
             """;
         return r2dbcEntityTemplate.getDatabaseClient().sql(selectQuery)
             .bind("laundromatId", laundromatId)
-            .map((row, rowMetadata) -> new ReviewCommonResponse(
-                row.get("id", Long.class),
-                row.get("laundry_name", String.class),
-                row.get("username", String.class),
-                Arrays.asList(row.get("image_urls", String[].class)),
-                row.get("comment", String.class),
-                row.get("rating", Integer.class),
-                row.get("created_at", LocalDateTime.class).toString(),
-                row.get("updated_at", LocalDateTime.class).toString()
-            ))
+            .map((row, rowMetadata) -> ReviewCommonResponse.builder()
+                .id(row.get("id", Long.class))
+                .laundromatName(row.get("laundromat_name", String.class))
+                .username(row.get("username", String.class))
+                .mediaResources(
+                    mediaRowConverter.readConvert(row.get("media_resources", String[].class)))
+                .content(row.get("comment", String.class))
+                .rating(row.get("rating", Integer.class))
+                .createdAt(row.get("created_at", LocalDateTime.class))
+                .updatedAt(row.get("updated_at", LocalDateTime.class))
+                .build()
+            )
             .all();
     }
 }

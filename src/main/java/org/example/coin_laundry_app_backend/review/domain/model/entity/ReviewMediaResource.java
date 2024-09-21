@@ -6,11 +6,12 @@ import lombok.NoArgsConstructor;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Getter
-@Table("review_images")
+@Table("review_media_resources")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class ReviewImage {
+public class ReviewMediaResource {
 
     private Long reviewId;
-    private String imageUrl;
+    private String mediaUrl;
+    private String extension;
 
 }
