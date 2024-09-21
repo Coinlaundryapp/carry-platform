@@ -1,5 +1,6 @@
 package org.example.coin_laundry_app_backend.laundromat.domain.model.entity;
 
+import java.util.Objects;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -17,13 +18,16 @@ public class LaundromatMediaResource {
     private Long id;
     private Long laundromatId;
     private String mediaUrl;
+    private String extension;
     @CreatedDate
     private String createdAt;
     @LastModifiedDate
     private String updatedAt;
 
-    public LaundromatMediaResource(Long laundromatId, String imageUrl) {
-        this.laundromatId = laundromatId;
-        this.mediaUrl = imageUrl;
+    public LaundromatMediaResource(Long laundromatId, String mediaUrl, String extension) {
+        this.laundromatId = Objects.requireNonNull(laundromatId, "laundromatId must be provided");
+        this.mediaUrl = Objects.requireNonNull(mediaUrl, "mediaUrl must be provided");
+        this.extension = Objects.requireNonNull(extension, "extension must be provided");
     }
+
 }

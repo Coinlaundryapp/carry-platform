@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 import lombok.Builder;
 import lombok.Getter;
+import org.example.coin_laundry_app_backend.common.presentation.payload.MediaCommonResponse;
 import org.example.coin_laundry_app_backend.laundromat.domain.model.enums.LaundromatOption;
 
 @Getter
@@ -32,7 +33,7 @@ public class LaundromatCommonResponse {
     private final List<LaundromatOption> options;
     // From LaundryImage Entity
     @Schema(description = "세탁소 이미지 URL 목록")
-    private final List<String> imageUrls;
+    private final List<MediaCommonResponse> mediaResources;
 
     @Schema(description = "리뷰 평균 평점", example = "4.5")
     private double reviewAverageRating;
@@ -40,8 +41,9 @@ public class LaundromatCommonResponse {
     private Long reviewCount;
 
     @Builder
-    protected LaundromatCommonResponse(Long id, String name, String address, double latitude,
-        double longitude, double distance, List<LaundromatOption> options, List<String> imageUrls) {
+    public LaundromatCommonResponse(Long id, String name, String address, double latitude,
+        double longitude, double distance, List<LaundromatOption> options,
+        List<MediaCommonResponse> mediaResources) {
         this.id = id;
         this.name = name;
         this.address = address;
@@ -49,7 +51,7 @@ public class LaundromatCommonResponse {
         this.longitude = longitude;
         this.distance = distance;
         this.options = options;
-        this.imageUrls = imageUrls;
+        this.mediaResources = mediaResources;
     }
 
     public void setReviewStatistic(double reviewAverageRating, long reviewCount) {

@@ -1,7 +1,7 @@
 package org.example.coin_laundry_app_backend.laundromat.repository;
 
-import java.util.Arrays;
 import lombok.RequiredArgsConstructor;
+import org.example.coin_laundry_app_backend.common.domain.MediaRowConverter;
 import org.example.coin_laundry_app_backend.laundromat.domain.converter.LaundromatOptionsConverter;
 import org.example.coin_laundry_app_backend.laundromat.domain.converter.PointConverter;
 import org.example.coin_laundry_app_backend.laundromat.presentation.payload.response.LaundromatCommonResponse;
@@ -16,8 +16,10 @@ import reactor.core.publisher.Flux;
 public class LaundromatRepositoryImpl implements LaundromatRepository {
 
     private final R2dbcEntityTemplate r2dbcEntityTemplate;
+    private final MediaRowConverter mediaRowConverter;
     private final PointConverter pointConverter = new PointConverter();
     private final LaundromatOptionsConverter laundromatOptionsConverter = new LaundromatOptionsConverter();
+
 
     @Override
     public Flux<LaundromatCommonResponse> findByLocationAndDistance(double latitude,
@@ -29,22 +31,22 @@ public class LaundromatRepositoryImpl implements LaundromatRepository {
                 FROM laundromats l
                 WHERE ST_DWithin(l.location_coordinate, ST_MakePoint(:longitude, :latitude)::geography, :dist)
             ),
-            laundromat_option_values AS (
-                SELECT lom.laundromat_id, array_agg(lom.laundromat_option) as options
-                FROM laundromat_option_mappings lom
-                JOIN laundromat_base lb ON lb.id = lom.laundromat_id
-                GROUP BY lom.laundromat_id
-            ),
-            laundromat_media_resource_values AS (
-                SELECT lmr.laundromat_id, array_agg(lmr.media_url) as media_urls
-                FROM laundromat_media_resources lmr
-                JOIN laundromat_base lb ON lb.id = lmr.laundromat_id
-                GROUP BY lmr.laundromat_id
-            )
-            SELECT lb.*, COALESCE(lov.options, ARRAY[]::laundromat_options[]) as options, COALESCE(lmrv.media_urls, ARRAY[]::varchar[]) as media_urls
+                 laundromat_option_values AS (
+                     SELECT lom.laundromat_id, array_agg(lom.laundromat_option) as options
+                     FROM laundromat_option_mappings lom
+                              JOIN laundromat_base lb ON lb.id = lom.laundromat_id
+                     GROUP BY lom.laundromat_id
+                 ),
+                 laundromat_media_resource_values AS (
+                     SELECT lmr.laundromat_id, array_agg(row(lmr.media_url, lmr.extension)) as media_resources
+                     FROM laundromat_media_resources lmr
+                              JOIN laundromat_base lb ON lb.id = lmr.laundromat_id
+                     GROUP BY lmr.laundromat_id
+                 )
+            SELECT lb.*, COALESCE(lov.options, ARRAY[]::laundromat_options[]) as options, COALESCE(lmrv.media_resources, ARRAY[]::record[]) as media_resources
             FROM laundromat_base lb
-            LEFT JOIN laundromat_option_values lov ON lb.id = lov.laundromat_id
-            LEFT JOIN laundromat_media_resource_values lmrv ON lb.id = lmrv.laundromat_id
+                     LEFT JOIN laundromat_option_values lov ON lb.id = lov.laundromat_id
+                     LEFT JOIN laundromat_media_resource_values lmrv ON lb.id = lmrv.laundromat_id
             ORDER BY lb.distance
             """;
         GenericExecuteSpec spec = r2dbcEntityTemplate.getDatabaseClient().sql(selectSQL)
@@ -63,7 +65,8 @@ public class LaundromatRepositoryImpl implements LaundromatRepository {
                 .longitude(locationCoordinate.getX())
                 .distance(row.get("distance", Double.class))
                 .options(laundromatOptionsConverter.readCovert(row.get("options", String.class)))
-                .imageUrls(Arrays.asList(row.get("media_urls", String[].class)))
+                .mediaResources(
+                    mediaRowConverter.readConvert(row.get("media_resources", String[].class)))
                 .build();
         }).all();
     }
