@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("RegionCode는")
-class RegionCodeTest {
+class PhoneNumberRegionCodeTest {
 
     @Nested
     @DisplayName("from 메소드로 조회할 때")
@@ -20,10 +20,10 @@ class RegionCodeTest {
             // Arrange
             String expectedRegionCode = "+82";
             // Act
-            RegionCode actualResult = RegionCode.from(expectedRegionCode);
+            PhoneNumberRegionCode actualResult = PhoneNumberRegionCode.from(expectedRegionCode);
             // Assert
             assertThat(actualResult)
-                .isEqualTo(RegionCode.SOUTH_KOREA);
+                .isEqualTo(PhoneNumberRegionCode.SOUTH_KOREA);
         }
 
         @Test
@@ -32,7 +32,7 @@ class RegionCodeTest {
             // Arrange
             String expectedRegionCode = "+81";
             // Act & Assert
-            assertThatThrownBy(() -> RegionCode.from(expectedRegionCode))
+            assertThatThrownBy(() -> PhoneNumberRegionCode.from(expectedRegionCode))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("지원하지 않는 국가 코드입니다.");
         }
@@ -45,7 +45,7 @@ class RegionCodeTest {
         // Arrange
         String expectedRegionCodeValue = "+82";
         // Act
-        String actualResult = RegionCode.SOUTH_KOREA.getValue();
+        String actualResult = PhoneNumberRegionCode.SOUTH_KOREA.getValue();
         // Assert
         assertThat(actualResult)
             .isEqualTo(expectedRegionCodeValue);

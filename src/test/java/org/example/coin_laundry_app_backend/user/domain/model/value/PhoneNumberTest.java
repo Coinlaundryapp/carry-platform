@@ -3,7 +3,7 @@ package org.example.coin_laundry_app_backend.user.domain.model.value;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import org.example.coin_laundry_app_backend.user.domain.model.enums.RegionCode;
+import org.example.coin_laundry_app_backend.user.domain.model.enums.PhoneNumberRegionCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -24,7 +24,7 @@ class PhoneNumberTest {
             PhoneNumber actualResult = PhoneNumber.from(expectedPhoneNumber);
             // Assert
             assertThat(actualResult)
-                .hasFieldOrPropertyWithValue("regionCode", RegionCode.SOUTH_KOREA)
+                .hasFieldOrPropertyWithValue("regionCode", PhoneNumberRegionCode.SOUTH_KOREA)
                 .hasFieldOrPropertyWithValue("value", "10-1234-5678");
         }
 

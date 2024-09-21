@@ -5,14 +5,14 @@ import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
-public enum RegionCode {
+public enum PhoneNumberRegionCode {
 
     SOUTH_KOREA("+82");
 
     private final String value;
 
-    public static RegionCode from(String value) {
-        for (RegionCode regionCode : RegionCode.values()) {
+    public static PhoneNumberRegionCode from(String value) {
+        for (PhoneNumberRegionCode regionCode : PhoneNumberRegionCode.values()) {
             if (regionCode.getValue().equals(value)) {
                 return regionCode;
             }
