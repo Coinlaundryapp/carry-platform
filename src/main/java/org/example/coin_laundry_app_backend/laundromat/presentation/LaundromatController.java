@@ -28,13 +28,11 @@ public class LaundromatController implements LaundromatSwagger {
         @RequestParam Double latitude, @RequestParam Double longitude) {
 
         return laundromatService.findByLocationAndDistance(latitude, longitude, DEFAULT_DISTANCE)
-            .flatMap(laundromatCommonResponse -> reviewService.getReviewStatisticByLaundryId(
-                    laundromatCommonResponse.getId())
-                .map(reviewMetadataResponse -> {
-                    laundromatCommonResponse.setReviewStatistic(
-                        reviewMetadataResponse.averageRating(),
-                        reviewMetadataResponse.reviewCount());
-                    return laundromatCommonResponse;
-                })).collectList().map(ApiCommonResponse::createSuccessResponse);
+            .concatMap(laundromatCommonResponse -> reviewService.getReviewStatisticByLaundryId(
+                laundromatCommonResponse.getId()).map(reviewStatisticResponse -> {
+                laundromatCommonResponse.setReviewStatistic(reviewStatisticResponse.averageRating(),
+                    reviewStatisticResponse.reviewCount());
+                return laundromatCommonResponse;
+            })).collectList().map(ApiCommonResponse::createSuccessResponse);
     }
 }
