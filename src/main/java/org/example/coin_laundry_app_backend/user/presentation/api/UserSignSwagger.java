@@ -1,7 +1,5 @@
 package org.example.coin_laundry_app_backend.user.presentation.api;
 
-import static io.netty.handler.codec.http.HttpHeaders.Values.APPLICATION_JSON;
-
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -38,7 +36,7 @@ public interface UserSignSwagger {
         responseCode = "200",
         description = "토큰 재발급 성공",
         content = @Content(
-            mediaType = APPLICATION_JSON,
+            mediaType = "application/json",
             schema = @Schema(implementation = LoginResponse.class)
         )
     )
