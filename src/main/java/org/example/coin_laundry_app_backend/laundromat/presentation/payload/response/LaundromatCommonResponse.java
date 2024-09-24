@@ -24,9 +24,12 @@ public class LaundromatCommonResponse {
     private final double longitude;
     @Schema(description = "사용자와의 거리 (단위: m)", example = "300.12345")
     private final double distance;
-    // TODO: How Could I get laundryPrice from db?
-    @Schema(description = "세탁 가격", example = "5000")
-    private int laundryPrice;
+    @Schema(description = "배송비", example = "5000")
+    private int laundryDeliveryFare;
+    @Schema(description = "단독 세탁 가격", example = "5000")
+    private int individualLaundryPrice;
+    @Schema(description = "팀 세탁 가격", example = "4000")
+    private int groupLaundryFare;
 
     // From LaundryOptionMapping Entity
     @Schema(description = "세탁소 옵션 목록")
