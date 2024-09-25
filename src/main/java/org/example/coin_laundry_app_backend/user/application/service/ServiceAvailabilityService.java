@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.example.coin_laundry_app_backend.geo.application.service.ReverseGeocodingService;
 import org.example.coin_laundry_app_backend.geo.application.service.model.ReverseGeoModel;
 import org.example.coin_laundry_app_backend.geo.domain.model.EPSG4326Coordinate;
+import org.example.coin_laundry_app_backend.user.application.record.availability.AvailableRegion;
 import org.example.coin_laundry_app_backend.user.application.record.availability.InspectionResult;
 import org.example.coin_laundry_app_backend.user.application.record.availability.RegionInfo;
 import org.example.coin_laundry_app_backend.user.domain.converter.AvailabilityNotificationConverter;
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
 import java.util.Set;
 
 @Service
@@ -26,6 +28,14 @@ public class ServiceAvailabilityService {
 
     private final ServiceAvailabilityNotificationRepository notificationRepository;
     private final ReverseGeocodingService reverseGeocodingService;
+
+    public Mono<List<AvailableRegion>> getAvailableRegions() {
+        // TODO Query from information table
+        return Mono.just(List.of(
+                new AvailableRegion(City.SEOUL_SI, District.EUNPYEONG_GU_SEOUL, 37.6027, 126.9291),
+                new AvailableRegion(City.INCHEON_SI, District.GYEYANG_GU_INCHEON, 37.5374, 126.7377)
+        ));
+    }
 
     @Transactional
     public Mono<InspectionResult> query(AvailabilityQueryRequest request) {

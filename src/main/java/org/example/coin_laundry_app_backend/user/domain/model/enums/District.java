@@ -4,8 +4,8 @@ import lombok.Getter;
 
 @Getter
 public enum District {
-    EUNPYEONG_GU("은평구"),
-    GYEYANG_GU("계양구");
+    EUNPYEONG_GU_SEOUL("은평구"),
+    GYEYANG_GU_INCHEON("계양구");
 
     private final String description;
 

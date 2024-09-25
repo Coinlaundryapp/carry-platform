@@ -17,6 +17,12 @@ public class ServiceAvailabilityController {
 
     final private ServiceAvailabilityService serviceAvailabilityService;
 
+    @GetMapping("/regions")
+    public Mono<ApiCommonResponse<?>> getAvailableRegions() {
+        return serviceAvailabilityService.getAvailableRegions()
+                .map(ApiCommonResponse::createSuccessResponse);
+    }
+
     @GetMapping
     public Mono<ApiCommonResponse<?>> queryAvailability(AvailabilityQueryRequest request) {
         return serviceAvailabilityService.query(request)
