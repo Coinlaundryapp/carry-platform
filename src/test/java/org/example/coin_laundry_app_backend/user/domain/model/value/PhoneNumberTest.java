@@ -3,7 +3,8 @@ package org.example.coin_laundry_app_backend.user.domain.model.value;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import org.example.coin_laundry_app_backend.user.domain.model.enums.PhoneNumberRegionCode;
+import org.example.coin_laundry_app_backend.user.domain.enums.PhoneNumberRegionCode;
+import org.example.coin_laundry_app_backend.user.domain.value.PhoneNumber;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;

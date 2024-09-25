@@ -8,11 +8,11 @@ import org.example.coin_laundry_app_backend.user.application.record.availability
 import org.example.coin_laundry_app_backend.user.application.record.availability.InspectionResult;
 import org.example.coin_laundry_app_backend.user.application.record.availability.RegionInfo;
 import org.example.coin_laundry_app_backend.user.domain.converter.AvailabilityNotificationConverter;
-import org.example.coin_laundry_app_backend.user.domain.model.entity.domainmodel.AvailabilityNotification;
-import org.example.coin_laundry_app_backend.user.domain.model.enums.City;
-import org.example.coin_laundry_app_backend.user.domain.model.enums.District;
-import org.example.coin_laundry_app_backend.user.domain.model.enums.ServiceAvailabilityLevel;
-import org.example.coin_laundry_app_backend.user.presentation.payload.request.availability.AvailabilityQueryRequest;
+import org.example.coin_laundry_app_backend.user.domain.entity.domainmodel.AvailabilityNotification;
+import org.example.coin_laundry_app_backend.user.domain.enums.City;
+import org.example.coin_laundry_app_backend.user.domain.enums.District;
+import org.example.coin_laundry_app_backend.user.domain.enums.ServiceAvailabilityLevel;
+import org.example.coin_laundry_app_backend.user.presentation.payload.request.availability.QueryAvailabilityRequest;
 import org.example.coin_laundry_app_backend.user.presentation.payload.request.availability.CreateNotificationRequest;
 import org.example.coin_laundry_app_backend.user.repository.ServiceAvailabilityNotificationRepository;
 import org.springframework.stereotype.Service;
@@ -38,7 +38,7 @@ public class ServiceAvailabilityService {
     }
 
     @Transactional
-    public Mono<InspectionResult> query(AvailabilityQueryRequest request) {
+    public Mono<InspectionResult> query(QueryAvailabilityRequest request) {
         return reverseGeocodingService.getReverseGeocoding(
                 new EPSG4326Coordinate(request.latitude(), request.longitude()))
                 .map(this::inspect);

@@ -1,7 +1,7 @@
 package org.example.coin_laundry_app_backend.user.domain.converter;
 
-import org.example.coin_laundry_app_backend.user.domain.model.entity.data.AvailabilityNotificationData;
-import org.example.coin_laundry_app_backend.user.domain.model.entity.domainmodel.AvailabilityNotification;
+import org.example.coin_laundry_app_backend.user.domain.entity.data.AvailabilityNotificationData;
+import org.example.coin_laundry_app_backend.user.domain.entity.domainmodel.AvailabilityNotification;
 
 public class AvailabilityNotificationConverter {
 

@@ -8,10 +8,10 @@ import org.example.coin_laundry_app_backend.config.security.jwt.JWTTokenResponse
 import org.example.coin_laundry_app_backend.user.application.record.oauth.KakaoOAuthResource;
 import org.example.coin_laundry_app_backend.user.application.record.oauth.KakaoOAuthToken;
 import org.example.coin_laundry_app_backend.user.application.record.oauth.KakaoUserTermsResponse;
-import org.example.coin_laundry_app_backend.user.domain.model.entity.domainmodel.RefreshToken;
-import org.example.coin_laundry_app_backend.user.domain.model.entity.domainmodel.TermAgree;
-import org.example.coin_laundry_app_backend.user.domain.model.entity.domainmodel.User;
-import org.example.coin_laundry_app_backend.user.domain.model.value.TermInfo;
+import org.example.coin_laundry_app_backend.user.domain.entity.domainmodel.RefreshToken;
+import org.example.coin_laundry_app_backend.user.domain.entity.domainmodel.TermAgree;
+import org.example.coin_laundry_app_backend.user.domain.entity.domainmodel.User;
+import org.example.coin_laundry_app_backend.user.domain.value.TermInfo;
 import org.example.coin_laundry_app_backend.user.presentation.payload.response.LoginResponse;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;

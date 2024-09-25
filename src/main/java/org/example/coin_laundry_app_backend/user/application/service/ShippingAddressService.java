@@ -5,10 +5,10 @@ import java.util.NoSuchElementException;
 import lombok.RequiredArgsConstructor;
 import org.example.coin_laundry_app_backend.geo.application.service.GeocodingService;
 import org.example.coin_laundry_app_backend.geo.domain.model.EPSG4326Coordinate;
-import org.example.coin_laundry_app_backend.user.application.record.shipping.ShippingSummary;
-import org.example.coin_laundry_app_backend.user.domain.model.entity.ShippingAddress;
-import org.example.coin_laundry_app_backend.user.presentation.payload.request.shipping.CreateAddressRequest;
-import org.example.coin_laundry_app_backend.user.presentation.payload.request.shipping.UpdateAddressRequest;
+import org.example.coin_laundry_app_backend.user.application.record.shippingaddress.ShippingAddressSummary;
+import org.example.coin_laundry_app_backend.user.domain.entity.ShippingAddress;
+import org.example.coin_laundry_app_backend.user.presentation.payload.request.shippingaddress.CreateAddressRequest;
+import org.example.coin_laundry_app_backend.user.presentation.payload.request.shippingaddress.UpdateAddressRequest;
 import org.example.coin_laundry_app_backend.user.repository.ShippingAddressRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,9 +22,9 @@ public class ShippingAddressService {
     private final ShippingAddressRepository shippingAddressRepository;
     private final GeocodingService geocodingService;
 
-    public Mono<List<ShippingSummary>> getAllShippingAddresses(Long userId) {
+    public Mono<List<ShippingAddressSummary>> getAllShippingAddresses(Long userId) {
         return shippingAddressRepository.findByUserId(userId)
-            .map(ShippingSummary::of)
+            .map(ShippingAddressSummary::of)
             .collectList();
     }
 

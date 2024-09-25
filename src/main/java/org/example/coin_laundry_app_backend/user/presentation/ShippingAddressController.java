@@ -3,12 +3,12 @@ package org.example.coin_laundry_app_backend.user.presentation;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.example.coin_laundry_app_backend.common.presentation.payload.ApiCommonResponse;
-import org.example.coin_laundry_app_backend.user.application.record.shipping.ShippingSummary;
+import org.example.coin_laundry_app_backend.user.application.record.shippingaddress.ShippingAddressSummary;
 import org.example.coin_laundry_app_backend.user.application.service.ShippingAddressService;
-import org.example.coin_laundry_app_backend.user.domain.model.entity.ShippingAddress;
+import org.example.coin_laundry_app_backend.user.domain.entity.ShippingAddress;
 import org.example.coin_laundry_app_backend.user.presentation.api.ShippingAddressSwagger;
-import org.example.coin_laundry_app_backend.user.presentation.payload.request.shipping.CreateAddressRequest;
-import org.example.coin_laundry_app_backend.user.presentation.payload.request.shipping.UpdateAddressRequest;
+import org.example.coin_laundry_app_backend.user.presentation.payload.request.shippingaddress.CreateAddressRequest;
+import org.example.coin_laundry_app_backend.user.presentation.payload.request.shippingaddress.UpdateAddressRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -39,7 +39,7 @@ public class ShippingAddressController implements ShippingAddressSwagger {
     }
 
     @GetMapping("/shipping-addresses")
-    public Mono<ApiCommonResponse<List<ShippingSummary>>> getAllShippingAddresses(
+    public Mono<ApiCommonResponse<List<ShippingAddressSummary>>> getAllShippingAddresses(
         @AuthenticationPrincipal Long userId) {
         return shippingAddressService.getAllShippingAddresses(userId)
             .map(ApiCommonResponse::createSuccessResponse);

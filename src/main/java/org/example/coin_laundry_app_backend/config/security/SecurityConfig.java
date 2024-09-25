@@ -39,6 +39,7 @@ public class SecurityConfig {
                 .pathMatchers("/api/v1/sign/**").permitAll()
                 .pathMatchers("/api/v1/addresses/**").permitAll()
                 .pathMatchers("/api/v1/service-availability/**").permitAll()
+                .pathMatchers("/api/v1/prices/**").permitAll()
                 .anyExchange().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter(), SecurityWebFiltersOrder.AUTHENTICATION)

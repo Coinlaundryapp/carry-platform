@@ -21,9 +21,9 @@ spring:
 settings:
   datasource:
     postgres:
-      url: postgresql://localhost:5432/carry
-      username: carry
-      password: carry!dev01!#
+      url: postgresql://localhost:5432/coin_laundry
+      username: postgres
+      password: coin_laundry!dev01!#
   external:
     geocoding-api:
       naver:

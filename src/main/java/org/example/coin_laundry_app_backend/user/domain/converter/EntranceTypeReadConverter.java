@@ -1,6 +1,6 @@
 package org.example.coin_laundry_app_backend.user.domain.converter;
 
-import org.example.coin_laundry_app_backend.user.domain.model.enums.EntranceType;
+import org.example.coin_laundry_app_backend.user.domain.enums.EntranceType;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.data.convert.ReadingConverter;
 import org.springframework.lang.NonNull;

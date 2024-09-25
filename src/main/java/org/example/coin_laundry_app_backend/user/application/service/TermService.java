@@ -1,8 +1,8 @@
 package org.example.coin_laundry_app_backend.user.application.service;
 
 import lombok.RequiredArgsConstructor;
-import org.example.coin_laundry_app_backend.user.domain.model.entity.domainmodel.Term;
-import org.example.coin_laundry_app_backend.user.domain.model.value.TermInfo;
+import org.example.coin_laundry_app_backend.user.domain.entity.domainmodel.Term;
+import org.example.coin_laundry_app_backend.user.domain.value.TermInfo;
 import org.example.coin_laundry_app_backend.user.repository.TermRepository;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;

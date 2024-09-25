@@ -8,7 +8,7 @@ import static org.mockito.Mockito.mock;
 import com.auth0.jwt.exceptions.JWTVerificationException;
 import java.util.List;
 import org.example.coin_laundry_app_backend.user.application.service.TermAdminService;
-import org.example.coin_laundry_app_backend.user.domain.model.entity.domainmodel.Term;
+import org.example.coin_laundry_app_backend.user.domain.entity.domainmodel.Term;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

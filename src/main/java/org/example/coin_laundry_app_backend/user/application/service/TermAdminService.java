@@ -5,9 +5,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import org.example.coin_laundry_app_backend.user.domain.model.entity.domainmodel.Term;
-import org.example.coin_laundry_app_backend.user.domain.model.value.TermInfo;
-import org.springframework.context.annotation.Lazy;
+import org.example.coin_laundry_app_backend.user.domain.entity.domainmodel.Term;
+import org.example.coin_laundry_app_backend.user.domain.value.TermInfo;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -15,15 +14,11 @@ import reactor.core.publisher.Mono;
 @Service
 public class TermAdminService {
 
-    private Map<String, Term> requiredTerms;
+    private final Map<String, Term> requiredTerms;
     private final TermService termService;
 
     public TermAdminService(TermService termService) {
         this.termService = termService;
-    }
-
-    @Lazy
-    public void init() {
         this.requiredTerms = verityRequiredTerms();
     }
 
