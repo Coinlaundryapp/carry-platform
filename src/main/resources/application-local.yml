@@ -15,18 +15,15 @@ spring:
     url: jdbc:${settings.datasource.postgres.url}
     user: ${settings.datasource.postgres.username}
     password: ${settings.datasource.postgres.password}
+    baselineOnMigrate: true
 
 # Environmental Variables
 settings:
   datasource:
-    mysql:
-      url: mysql://localhost:3306/coin_laundry
-      username: coin_laundry
-      password: coin_laundry!dev01!#
     postgres:
-      url: postgresql://localhost:5432/coin_laundry
-      username: postgres
-      password: coin_laundry!dev01!#
+      url: postgresql://localhost:5432/carry
+      username: carry
+      password: carry!dev01!#
   external:
     geocoding-api:
       naver:
