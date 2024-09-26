@@ -11,7 +11,7 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Getter
-@Table("laundries")
+@Table("laundromats")
 @AllArgsConstructor
 public class Laundromat {
 
