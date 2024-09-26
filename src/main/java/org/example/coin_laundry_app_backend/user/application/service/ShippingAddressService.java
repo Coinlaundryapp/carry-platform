@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import lombok.RequiredArgsConstructor;
 import org.example.coin_laundry_app_backend.geo.application.service.GeocodingService;
+import org.example.coin_laundry_app_backend.geo.application.service.record.GeoCoordinate;
 import org.example.coin_laundry_app_backend.geo.domain.model.EPSG4326Coordinate;
 import org.example.coin_laundry_app_backend.user.application.record.shippingaddress.ShippingAddressSummary;
 import org.example.coin_laundry_app_backend.user.domain.entity.ShippingAddress;
@@ -97,9 +98,14 @@ public class ShippingAddressService {
             .flatMap(shippingAddressRepository::delete);
     }
 
-
     public Mono<Void> setDefaultShippingAddress(Long userId, Long newDefaultAddressId) {
         return shippingAddressRepository.updateShippingAddressToDefault(userId,
             newDefaultAddressId);
+    }
+
+    public Mono<GeoCoordinate> getCoordinateById(Long Id) {
+        return shippingAddressRepository.findById(Id).map(
+                shippingAddress -> new GeoCoordinate(shippingAddress.getLongitude(), shippingAddress.getLatitude())
+        );
     }
 }

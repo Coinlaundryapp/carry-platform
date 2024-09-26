@@ -13,13 +13,12 @@ import reactor.core.publisher.Flux;
 
 @Component
 @RequiredArgsConstructor
-public class LaundromatRepositoryImpl implements LaundromatRepository {
+public class LaundromatRepositoryImpl implements LaundromatCustomRepository {
 
     private final R2dbcEntityTemplate r2dbcEntityTemplate;
     private final MediaRowConverter mediaRowConverter;
     private final PointConverter pointConverter = new PointConverter();
     private final LaundromatOptionsConverter laundromatOptionsConverter = new LaundromatOptionsConverter();
-
 
     @Override
     public Flux<LaundromatCommonResponse> findByLocationAndDistance(double latitude,
