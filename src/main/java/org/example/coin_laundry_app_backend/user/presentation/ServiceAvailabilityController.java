@@ -30,7 +30,6 @@ public class ServiceAvailabilityController {
     @PostMapping("/notifications")
     public Mono<ApiCommonResponse<?>> registerNotification(@RequestBody CreateNotificationRequest request) {
         return serviceAvailabilityService.register(request)
-                .then(Mono.empty())
                 .map(ApiCommonResponse::createSuccessResponse);
     }
 }

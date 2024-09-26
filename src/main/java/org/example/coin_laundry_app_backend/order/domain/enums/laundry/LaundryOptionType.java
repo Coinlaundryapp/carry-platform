@@ -1,6 +1,7 @@
 package org.example.coin_laundry_app_backend.order.domain.enums.laundry;
 
-public enum LaundrySpec {
-    SHOE_PAIRS,
-    LAUNDRY_WEIGHT
+public enum LaundryOptionType {
+    WASH,
+    DRY,
+    ADDITIONAL,
 }

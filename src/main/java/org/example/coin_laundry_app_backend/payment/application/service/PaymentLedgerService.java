@@ -7,4 +7,14 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class PaymentLedgerService {
 
+    private final PaymentGatewayService gatewayService;
+
+    public void recordPayment() {
+
+    }
+
+    public void approvePayment() {
+
+    }
+
 }

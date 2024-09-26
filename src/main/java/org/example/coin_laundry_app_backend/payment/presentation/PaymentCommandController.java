@@ -19,10 +19,11 @@ import reactor.core.publisher.Mono;
 public class PaymentCommandController {
 
     private final PaymentLedgerService ledgerService;
-    private final PaymentGatewayService gatewayService;
 
     @PostMapping
     public Mono<ApiCommonResponse<?>> approvePayment(@RequestBody PaymentApprovalRequest request) {
+        ledgerService.recordPayment();
+        ledgerService.approvePayment();
         return null;
     }
 }

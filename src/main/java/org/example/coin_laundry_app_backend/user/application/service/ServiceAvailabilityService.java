@@ -7,8 +7,7 @@ import org.example.coin_laundry_app_backend.geo.domain.model.EPSG4326Coordinate;
 import org.example.coin_laundry_app_backend.user.application.record.availability.AvailableRegion;
 import org.example.coin_laundry_app_backend.user.application.record.availability.InspectionResult;
 import org.example.coin_laundry_app_backend.user.application.record.availability.RegionInfo;
-import org.example.coin_laundry_app_backend.user.domain.converter.AvailabilityNotificationConverter;
-import org.example.coin_laundry_app_backend.user.domain.entity.domainmodel.AvailabilityNotification;
+import org.example.coin_laundry_app_backend.user.domain.entity.AvailabilityNotification;
 import org.example.coin_laundry_app_backend.user.domain.enums.City;
 import org.example.coin_laundry_app_backend.user.domain.enums.District;
 import org.example.coin_laundry_app_backend.user.domain.enums.ServiceAvailabilityLevel;
@@ -44,6 +43,7 @@ public class ServiceAvailabilityService {
                 .map(this::inspect);
     }
 
+    // FIXME Move to Domain Services
     private InspectionResult inspect(ReverseGeoModel geoModel) {
         Set<String> validCityNameSet = Set.of("서울특별시", "인천광역시", "안양시", "김포시", "부천시", "광명시", "성남시", "구리시");
         Set<String> districtNameSet = Set.of("은평구", "계양구");
@@ -78,7 +78,6 @@ public class ServiceAvailabilityService {
 
     @Transactional
     public Mono<AvailabilityNotification> register(CreateNotificationRequest request) {
-        AvailabilityNotification availabilityNotification = AvailabilityNotification.create(request.region().city().toString(), request.region().district().toString(), request.notificationType(), request.contact());
-        return notificationRepository.save(AvailabilityNotificationConverter.toData(availabilityNotification)).map(AvailabilityNotificationConverter::toDomain);
+        return notificationRepository.save(AvailabilityNotification.create(request));
     }
 }

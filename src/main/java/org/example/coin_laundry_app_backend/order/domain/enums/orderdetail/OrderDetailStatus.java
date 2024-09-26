@@ -13,5 +13,4 @@ public enum OrderDetailStatus {
     public boolean isPriceConfirmed() {
         return !this.equals(OrderDetailStatus.ORDER_COMPLETED) && !this.equals(OrderDetailStatus.ORDER_CANCELED);
     }
-
 }

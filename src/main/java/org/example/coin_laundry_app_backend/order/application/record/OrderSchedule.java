@@ -4,5 +4,5 @@ import jakarta.validation.constraints.NotNull;
 
 public record OrderSchedule(
         @NotNull String desiredPickupDateTime,
-        @NotNull String desiredDeliveryDate
+        @NotNull String desiredDeliveryDateTime
 ) {}
