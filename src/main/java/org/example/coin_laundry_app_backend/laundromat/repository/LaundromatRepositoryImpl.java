@@ -1,15 +1,19 @@
 package org.example.coin_laundry_app_backend.laundromat.repository;
 
+import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import org.example.coin_laundry_app_backend.common.domain.MediaRowConverter;
 import org.example.coin_laundry_app_backend.laundromat.domain.converter.LaundromatOptionsConverter;
 import org.example.coin_laundry_app_backend.laundromat.domain.converter.PointConverter;
+import org.example.coin_laundry_app_backend.laundromat.domain.model.entity.Laundromat;
 import org.example.coin_laundry_app_backend.laundromat.presentation.payload.response.LaundromatCommonResponse;
 import org.locationtech.jts.geom.Point;
 import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
+import org.springframework.lang.NonNull;
 import org.springframework.r2dbc.core.DatabaseClient.GenericExecuteSpec;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @Component
 @RequiredArgsConstructor
@@ -69,5 +73,22 @@ public class LaundromatRepositoryImpl implements LaundromatRepository {
                     mediaRowConverter.readConvert(row.get("media_resources", String[].class)))
                 .build();
         }).all();
+    }
+
+    @Override
+    public Mono<Laundromat> findById(@NonNull Long id) {
+        String selectQuery = "SELECT id, name, address, location_coordinate, created_at, updated_at FROM laundromats WHERE id = :id";
+        GenericExecuteSpec spec = r2dbcEntityTemplate.getDatabaseClient().sql(selectQuery)
+            .bind("id", id);
+        return spec.map((row, rowMetadata) -> {
+            Point locationCoordinate = pointConverter.readConvert(
+                row.get("location_coordinate", String.class));
+            return new Laundromat(row.get("id", Long.class),
+                row.get("name", String.class),
+                row.get("address", String.class),
+                locationCoordinate,
+                row.get("created_at", LocalDateTime.class),
+                row.get("updated_at", LocalDateTime.class));
+        }).one();
     }
 }
