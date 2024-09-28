@@ -22,8 +22,8 @@ public class OrderQueryController {
     @GetMapping("/{orderId}/details")
     public Mono<ApiCommonResponse<?>> queryOrderDetail(@AuthenticationPrincipal Long userId,
                                                        @PathVariable Long orderId) {
-        orderDetailService.getDetail(orderId, userId);
-        return Mono.just(ApiCommonResponse.createSuccessResponse());
+        return orderDetailService.getDetail(orderId, userId)
+                .map(ApiCommonResponse::createSuccessResponse);
     }
 
     @GetMapping("/{orderId}/invoices")

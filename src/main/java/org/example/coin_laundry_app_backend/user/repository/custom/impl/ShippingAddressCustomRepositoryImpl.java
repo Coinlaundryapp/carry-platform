@@ -1,17 +1,17 @@
-package org.example.coin_laundry_app_backend.user.repository;
+package org.example.coin_laundry_app_backend.user.repository.custom.impl;
 
-import lombok.RequiredArgsConstructor;
+import org.example.coin_laundry_app_backend.user.repository.custom.ShippingAddressCustomRepository;
 import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
-import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
-@Component
-@RequiredArgsConstructor
 public class ShippingAddressCustomRepositoryImpl implements ShippingAddressCustomRepository {
 
     private final R2dbcEntityTemplate r2dbcEntityTemplate;
 
-    @Override
+    public ShippingAddressCustomRepositoryImpl(R2dbcEntityTemplate r2dbcEntityTemplate) {
+        this.r2dbcEntityTemplate = r2dbcEntityTemplate;
+    }
+
     public Mono<Void> updateShippingAddressToDefault(Long userId, Long addressId) {
         String updateQuery = """
             UPDATE shipping_addresses

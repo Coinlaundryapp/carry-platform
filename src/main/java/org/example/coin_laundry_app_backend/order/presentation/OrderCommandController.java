@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.example.coin_laundry_app_backend.common.presentation.payload.ApiCommonResponse;
 import org.example.coin_laundry_app_backend.order.application.service.OrderRequestService;
 import org.example.coin_laundry_app_backend.order.presentation.payload.request.CreateOrderRequest;
+import org.example.coin_laundry_app_backend.order.presentation.payload.response.CreateOrderResponse;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
@@ -18,6 +19,7 @@ public class OrderCommandController {
     @PostMapping
     public Mono<ApiCommonResponse<?>> createOrder(@AuthenticationPrincipal Long userId,
                                                   @RequestBody CreateOrderRequest request) {
-        return orderRequestService.createOrder(request, userId).then(Mono.just(ApiCommonResponse.createSuccessResponse()));
+        return orderRequestService.createOrder(request, userId)
+                .map(CreateOrderResponse::create).map(ApiCommonResponse::createSuccessResponse);
     }
 }

@@ -5,4 +5,9 @@ import jakarta.validation.constraints.NotNull;
 public record OrderSchedule(
         @NotNull String desiredPickupDateTime,
         @NotNull String desiredDeliveryDateTime
-) {}
+) {
+
+    public static OrderSchedule create(String desiredPickupDateTime, String desiredDeliveryDateTime) {
+        return new OrderSchedule(desiredPickupDateTime, desiredDeliveryDateTime);
+    }
+}

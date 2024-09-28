@@ -13,7 +13,6 @@ CREATE TABLE orders
     laundromat_name           VARCHAR(100)                           NOT NULL,
     desired_pickup_datetime   VARCHAR(100)                           NOT NULL,
     desired_delivery_datetime VARCHAR(100)                           NOT NULL,
-    estimated_amount          BIGINT                                 NOT NULL,
     ordered_at                TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
     created_at                TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
     updated_at                TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL

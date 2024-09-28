@@ -4,9 +4,11 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import org.example.coin_laundry_app_backend.order.application.record.OrderContent;
 import org.example.coin_laundry_app_backend.order.domain.enums.laundry.LaundryItemType;
 import org.example.coin_laundry_app_backend.order.domain.enums.order.OrderRequestType;
 import org.example.coin_laundry_app_backend.order.domain.enums.order.OrderUnitType;
+import org.example.coin_laundry_app_backend.order.presentation.payload.request.CreateOrderRequest;
 import org.example.coin_laundry_app_backend.order.presentation.payload.request.QueryPricePolicyRequest;
 import org.springframework.stereotype.Service;
 
@@ -39,5 +41,10 @@ public class OptionCondition {
 
     public static OptionCondition of(QueryPricePolicyRequest request) {
         return new OptionCondition(request.getOrderUnitType(), request.getOrderRequestType(), request.getLaundryItemType());
+    }
+
+    public static OptionCondition of(OrderContent content){
+        return new OptionCondition(content.orderUnitType(),
+                content.orderRequestType(), content.laundryItemType());
     }
 }

@@ -1,20 +1,26 @@
 package org.example.coin_laundry_app_backend.order.domain.entity;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import org.example.coin_laundry_app_backend.common.entity.AbstractBaseEntity;
+import lombok.*;
+import org.example.coin_laundry_app_backend.order.application.record.OrderContent;
+import org.example.coin_laundry_app_backend.order.application.record.OrderSchedule;
+import org.example.coin_laundry_app_backend.order.domain.enums.orderdetail.OrderDetailStatus;
+import org.example.coin_laundry_app_backend.order.presentation.payload.request.CreateOrderRequest;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.relational.core.mapping.Table;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Builder
 @Getter
+@Setter
 @Table("orders")
 @AllArgsConstructor
 @NoArgsConstructor
-public class Order extends AbstractBaseEntity {
+public class Order {
 
     @Id
     private Long id;
@@ -27,22 +33,34 @@ public class Order extends AbstractBaseEntity {
     private String laundromatName;
     private String desiredPickupDatetime;
     private String desiredDeliveryDatetime;
-    private Long estimatedAmount;
     @CreatedDate
     private String orderedAt;
+    @CreatedDate
+    private String createdAt;
+    @LastModifiedDate
+    private String updatedAt;
+    @Transient
+    private Invoice invoice;
+    @Transient
+    private OrderShippingAddress orderShippingAddress;
+    @Transient
+    private List<OrderOption> orderOptions = new ArrayList<>();
+    @Transient
+    private List<OrderSpecification> orderSpecifications = new ArrayList<>();
 
-    public static Order create() {
+    public static Order create(CreateOrderRequest request, Long customerId, String laundromatName) {
+        OrderContent orderContent = request.getOrderContent();
+        OrderSchedule orderSchedule = request.getOrderSchedule();
         return Order.builder()
-                .status("sample")
-                .customerId(1L)
-                .laundromatId(1L)
-                .laundromatName("하늘이 세탁소")
-                .desiredPickupDatetime("2~")
-                .desiredDeliveryDatetime("1~")
-                .orderUnitType("SOLO")
-                .orderRequestType("NEW")
-                .laundryItemType("REGULAR")
-                .estimatedAmount(0L)
+                .status(String.valueOf(OrderDetailStatus.ORDER_COMPLETED))
+                .customerId(customerId)
+                .orderUnitType(String.valueOf(orderContent.orderUnitType()))
+                .orderRequestType(String.valueOf(orderContent.orderRequestType()))
+                .laundryItemType(String.valueOf(orderContent.laundryItemType()))
+                .laundromatId(request.getLaundromatId())
+                .laundromatName(laundromatName)
+                .desiredPickupDatetime(orderSchedule.desiredPickupDateTime())
+                .desiredDeliveryDatetime(orderSchedule.desiredDeliveryDateTime())
                 .build();
     }
 }

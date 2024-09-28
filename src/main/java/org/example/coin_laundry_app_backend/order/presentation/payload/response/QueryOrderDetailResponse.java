@@ -4,9 +4,9 @@ import lombok.Builder;
 import lombok.Data;
 import org.example.coin_laundry_app_backend.order.application.record.OrderContent;
 import org.example.coin_laundry_app_backend.order.application.record.OrderSchedule;
-import org.example.coin_laundry_app_backend.order.application.record.payment.PaymentDetail;
+import org.example.coin_laundry_app_backend.order.application.record.ShippingAddressView;
+import org.example.coin_laundry_app_backend.order.application.record.invoice.InvoiceDetail;
 import org.example.coin_laundry_app_backend.order.domain.enums.orderdetail.OrderDetailStatus;
-import org.example.coin_laundry_app_backend.user.domain.entity.ShippingAddress;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -18,29 +18,29 @@ public class QueryOrderDetailResponse {
     OrderDetailStatus status;
     OrderContent orderContent;
     String laundromatName;
-    ShippingAddress shippingAddress;
+    ShippingAddressView shippingAddressView;
     OrderSchedule orderSchedule;
-    Map<String, PaymentDetail> paymentDetails;
+    Map<String, InvoiceDetail> paymentDetails;
 
     public static QueryOrderDetailResponse of(Long id, OrderDetailStatus status,
-                                              OrderContent orderContent, String laundromatName, ShippingAddress shippingAddress,
-                                              OrderSchedule orderSchedule, PaymentDetail paymentDetail
+                                              OrderContent orderContent, String laundromatName, ShippingAddressView shippingAddressView,
+                                              OrderSchedule orderSchedule, InvoiceDetail invoiceDetail
     ) {
-        Map<String, PaymentDetail> paymentDetails = new HashMap<>();
+        Map<String, InvoiceDetail> paymentDetails = new HashMap<>();
         if (status.isPriceConfirmed()) {
-            paymentDetails.put("confirmedPayment", paymentDetail);
+            paymentDetails.put("confirmedPayment", invoiceDetail);
             paymentDetails.put("estimatedPayment", null);
         } else {
             paymentDetails.put("confirmedPayment", null);
-            paymentDetails.put("estimatedPayment", paymentDetail);
+            paymentDetails.put("estimatedPayment", invoiceDetail);
         }
         return QueryOrderDetailResponse.builder()
                 .id(id)
                 .status(status)
-                .orderContent(orderContent)
                 .laundromatName(laundromatName)
+                .orderContent(orderContent)
                 .orderSchedule(orderSchedule)
-                .shippingAddress(shippingAddress)
+                .shippingAddressView(shippingAddressView)
                 .paymentDetails(paymentDetails)
                 .build();
     }
