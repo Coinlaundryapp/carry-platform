@@ -10,7 +10,6 @@ public class PriceInitializationService {
     // TODO Load Data From Datasource
 
     public PriceInitializationService() {
-        System.out.println("");
     }
 
     @Bean
