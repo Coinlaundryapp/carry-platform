@@ -25,12 +25,15 @@ public class OrderCustomRepositoryImpl implements OrderCustomRepository {
     public Mono<Order> getOrderDetail(Long orderId, Long userId) {
         String selectSQL = """
                 SELECT to_jsonb(ord) as base,
-                       json_agg(DISTINCT to_jsonb(ors)) as specs,
-                       json_agg(DISTINCT to_jsonb(odo)) as options,
+                       CASE
+                            WHEN COUNT(ors) > 0 THEN jsonb_agg(DISTINCT to_jsonb(ors))
+                            ELSE '[]'::jsonb
+                       END as specs,
+                       jsonb_agg(DISTINCT to_jsonb(odo)) as options,
                        to_jsonb(osa) as address,
                        to_jsonb(inv) as invoice,
                        (
-                            SELECT json_agg(to_jsonb(invc))
+                            SELECT jsonb_agg(to_jsonb(invc))
                               FROM invoice_charges invc
                              WHERE inv.id = invc.invoice_id
                        ) AS charges
