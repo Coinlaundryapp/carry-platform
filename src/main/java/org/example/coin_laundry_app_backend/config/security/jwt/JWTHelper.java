@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.example.coin_laundry_app_backend.user.application.service.TermAdminService;
-import org.example.coin_laundry_app_backend.user.domain.model.entity.domainmodel.Term;
+import org.example.coin_laundry_app_backend.user.domain.entity.domainmodel.Term;
 import org.springframework.stereotype.Component;
 
 @Component

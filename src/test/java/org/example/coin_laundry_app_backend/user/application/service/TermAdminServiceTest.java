@@ -6,9 +6,9 @@ import static org.mockito.BDDMockito.given;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import org.example.coin_laundry_app_backend.user.domain.model.entity.domainmodel.Term;
-import org.example.coin_laundry_app_backend.user.domain.model.enums.TermType;
-import org.example.coin_laundry_app_backend.user.domain.model.value.TermInfo;
+import org.example.coin_laundry_app_backend.user.domain.entity.domainmodel.Term;
+import org.example.coin_laundry_app_backend.user.domain.enums.TermType;
+import org.example.coin_laundry_app_backend.user.domain.value.TermInfo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -34,25 +34,25 @@ class TermAdminServiceTest {
         String expectedTitle = "testTitle";
         LocalDateTime expectedCreatedAt = LocalDateTime.now();
         List<Term> expectedTerms = List.of(
-            Term.of(TermType.MANDATORY, TermInfo.of(expectedTitle, 2), "testContext",
-                expectedCreatedAt),
-            Term.of(TermType.MANDATORY, TermInfo.of(expectedTitle + 1, 1), "testContext",
-                expectedCreatedAt)
+                Term.of(TermType.MANDATORY, TermInfo.of(expectedTitle, 2), "testContext",
+                        expectedCreatedAt),
+                Term.of(TermType.MANDATORY, TermInfo.of(expectedTitle + 1, 1), "testContext",
+                        expectedCreatedAt)
         );
         Flux<Term> terms = Flux.just(
-            Term.of(TermType.MANDATORY, TermInfo.of(expectedTitle, 1), "testContext",
-                expectedCreatedAt),
-            expectedTerms.get(0),
-            expectedTerms.get(1),
-            Term.of(TermType.OPTIONAL, TermInfo.of(expectedTitle + 2, 1), "testContext",
-                expectedCreatedAt)
+                Term.of(TermType.MANDATORY, TermInfo.of(expectedTitle, 1), "testContext",
+                        expectedCreatedAt),
+                expectedTerms.get(0),
+                expectedTerms.get(1),
+                Term.of(TermType.OPTIONAL, TermInfo.of(expectedTitle + 2, 1), "testContext",
+                        expectedCreatedAt)
         );
         given(termService.getAllTerms()).willReturn(terms);
         // Act
         TermAdminService actualResult = new TermAdminService(termService);
         // Assert
         assertThat(actualResult.getRequiredTerms())
-            .contains(expectedTerms.get(0), expectedTerms.get(1));
+                .contains(expectedTerms.get(0), expectedTerms.get(1));
     }
 
     @Nested
@@ -76,13 +76,13 @@ class TermAdminServiceTest {
             void testCreateNewTermWithAlreadyExist() {
                 // Arrange
                 Term term = Term.of(TermType.MANDATORY, TermInfo.of("testTitle", 1), "testContext",
-                    LocalDateTime.now());
+                        LocalDateTime.now());
                 given(termService.getTermsByTitle(term.getTermInfo().getTitle()))
-                    .willReturn(Flux.just(term));
+                        .willReturn(Flux.just(term));
                 // Act & Assert
                 StepVerifier.create(termAdminService.createNewTerm(term))
-                    .expectError(IllegalArgumentException.class)
-                    .verify();
+                        .expectError(IllegalArgumentException.class)
+                        .verify();
             }
 
 
@@ -95,17 +95,17 @@ class TermAdminServiceTest {
                 String expectedContext = "testContext";
                 LocalDateTime expectedCreatedAt = LocalDateTime.now();
                 Term term = Term.of(expectedTermType, expectedTermInfo, expectedContext,
-                    expectedCreatedAt);
+                        expectedCreatedAt);
                 given(termService.getTermsByTitle(any(String.class))).willReturn(Flux.empty());
                 given(termService.addTerm(term)).willReturn(Mono.just(term));
                 // Act & Assert
                 StepVerifier.create(termAdminService.createNewTerm(term))
-                    .assertNext(response -> assertThat(response)
-                        .extracting(Term::getTermType, Term::getTermInfo, Term::getContext,
-                            Term::getCreatedAt)
-                        .contains(expectedTermType, expectedTermInfo, expectedContext,
-                            expectedCreatedAt))
-                    .verifyComplete();
+                        .assertNext(response -> assertThat(response)
+                                .extracting(Term::getTermType, Term::getTermInfo, Term::getContext,
+                                        Term::getCreatedAt)
+                                .contains(expectedTermType, expectedTermInfo, expectedContext,
+                                        expectedCreatedAt))
+                        .verifyComplete();
             }
 
         }
@@ -115,20 +115,20 @@ class TermAdminServiceTest {
         class whenUpdateTerm {
 
             private final Term expectedTerm = Term.of(TermType.MANDATORY,
-                TermInfo.of("testTitle", 1), "testContext",
-                LocalDateTime.now());
+                    TermInfo.of("testTitle", 1), "testContext",
+                    LocalDateTime.now());
 
             @Test
             @DisplayName("업데이트할 약관이 존재하지 않으면 예외를 던진다.")
             void testUpdateTermWithNotExist() {
                 // Arrange
                 given(
-                    termService.getTermsByTitle(expectedTerm.getTermInfo().getTitle())).willReturn(
-                    Flux.empty());
+                        termService.getTermsByTitle(expectedTerm.getTermInfo().getTitle())).willReturn(
+                        Flux.empty());
                 // Act & Assert
                 StepVerifier.create(termAdminService.updateTerm(expectedTerm))
-                    .expectError(IllegalArgumentException.class)
-                    .verify();
+                        .expectError(IllegalArgumentException.class)
+                        .verify();
             }
 
             @Test
@@ -136,14 +136,14 @@ class TermAdminServiceTest {
             void testUpdateTermWithAlreadyExist() {
                 // Arrange
                 Term existTerm = Term.of(TermType.MANDATORY, TermInfo.of("testTitle", 1),
-                    "testContext",
-                    LocalDateTime.now());
+                        "testContext",
+                        LocalDateTime.now());
                 given(termService.getTermsByTitle(expectedTerm.getTermInfo().getTitle()))
-                    .willReturn(Flux.just(existTerm));
+                        .willReturn(Flux.just(existTerm));
                 // Act & Assert
                 StepVerifier.create(termAdminService.updateTerm(expectedTerm))
-                    .expectError(IllegalArgumentException.class)
-                    .verify();
+                        .expectError(IllegalArgumentException.class)
+                        .verify();
             }
 
             @Test
@@ -151,19 +151,19 @@ class TermAdminServiceTest {
             void testUpdateTerm() {
                 // Arrange
                 Term existTerm = Term.of(TermType.MANDATORY, TermInfo.of("testTitle", 0),
-                    "testContext",
-                    LocalDateTime.now());
+                        "testContext",
+                        LocalDateTime.now());
                 given(termService.getTermsByTitle(expectedTerm.getTermInfo().getTitle()))
-                    .willReturn(Flux.just(existTerm));
+                        .willReturn(Flux.just(existTerm));
                 given(termService.addTerm(expectedTerm)).willReturn(Mono.just(expectedTerm));
                 // Act & Assert
                 StepVerifier.create(termAdminService.updateTerm(expectedTerm))
-                    .assertNext(response -> assertThat(response)
-                        .extracting(Term::getTermType, Term::getTermInfo, Term::getContext,
-                            Term::getCreatedAt)
-                        .contains(expectedTerm.getTermType(), expectedTerm.getTermInfo(),
-                            expectedTerm.getContext(), expectedTerm.getCreatedAt()))
-                    .verifyComplete();
+                        .assertNext(response -> assertThat(response)
+                                .extracting(Term::getTermType, Term::getTermInfo, Term::getContext,
+                                        Term::getCreatedAt)
+                                .contains(expectedTerm.getTermType(), expectedTerm.getTermInfo(),
+                                        expectedTerm.getContext(), expectedTerm.getCreatedAt()))
+                        .verifyComplete();
             }
         }
 

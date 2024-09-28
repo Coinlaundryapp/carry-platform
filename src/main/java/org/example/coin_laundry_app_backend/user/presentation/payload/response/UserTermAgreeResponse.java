@@ -3,7 +3,7 @@ package org.example.coin_laundry_app_backend.user.presentation.payload.response;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 import lombok.Getter;
-import org.example.coin_laundry_app_backend.user.domain.model.entity.domainmodel.TermAgree;
+import org.example.coin_laundry_app_backend.user.domain.entity.domainmodel.TermAgree;
 
 @Getter
 @Schema(description = "사용자 약관 동의 정보 응답")

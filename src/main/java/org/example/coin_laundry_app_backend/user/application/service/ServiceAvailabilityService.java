@@ -4,20 +4,21 @@ import lombok.RequiredArgsConstructor;
 import org.example.coin_laundry_app_backend.geo.application.service.ReverseGeocodingService;
 import org.example.coin_laundry_app_backend.geo.application.service.model.ReverseGeoModel;
 import org.example.coin_laundry_app_backend.geo.domain.model.EPSG4326Coordinate;
+import org.example.coin_laundry_app_backend.user.application.record.availability.AvailableRegion;
 import org.example.coin_laundry_app_backend.user.application.record.availability.InspectionResult;
 import org.example.coin_laundry_app_backend.user.application.record.availability.RegionInfo;
-import org.example.coin_laundry_app_backend.user.domain.converter.AvailabilityNotificationConverter;
-import org.example.coin_laundry_app_backend.user.domain.model.entity.domainmodel.AvailabilityNotification;
-import org.example.coin_laundry_app_backend.user.domain.model.enums.City;
-import org.example.coin_laundry_app_backend.user.domain.model.enums.District;
-import org.example.coin_laundry_app_backend.user.domain.model.enums.ServiceAvailabilityLevel;
-import org.example.coin_laundry_app_backend.user.presentation.payload.request.availability.AvailabilityQueryRequest;
+import org.example.coin_laundry_app_backend.user.domain.entity.AvailabilityNotification;
+import org.example.coin_laundry_app_backend.user.domain.enums.City;
+import org.example.coin_laundry_app_backend.user.domain.enums.District;
+import org.example.coin_laundry_app_backend.user.domain.enums.ServiceAvailabilityLevel;
+import org.example.coin_laundry_app_backend.user.presentation.payload.request.availability.QueryAvailabilityRequest;
 import org.example.coin_laundry_app_backend.user.presentation.payload.request.availability.CreateNotificationRequest;
 import org.example.coin_laundry_app_backend.user.repository.ServiceAvailabilityNotificationRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
 import java.util.Set;
 
 @Service
@@ -27,13 +28,22 @@ public class ServiceAvailabilityService {
     private final ServiceAvailabilityNotificationRepository notificationRepository;
     private final ReverseGeocodingService reverseGeocodingService;
 
+    public Mono<List<AvailableRegion>> getAvailableRegions() {
+        // TODO Query from information table
+        return Mono.just(List.of(
+                new AvailableRegion(City.SEOUL_SI, District.EUNPYEONG_GU_SEOUL, 37.6027, 126.9291),
+                new AvailableRegion(City.INCHEON_SI, District.GYEYANG_GU_INCHEON, 37.5374, 126.7377)
+        ));
+    }
+
     @Transactional
-    public Mono<InspectionResult> query(AvailabilityQueryRequest request) {
+    public Mono<InspectionResult> query(QueryAvailabilityRequest request) {
         return reverseGeocodingService.getReverseGeocoding(
                 new EPSG4326Coordinate(request.latitude(), request.longitude()))
                 .map(this::inspect);
     }
 
+    // FIXME Move to Domain Services
     private InspectionResult inspect(ReverseGeoModel geoModel) {
         Set<String> validCityNameSet = Set.of("서울특별시", "인천광역시", "안양시", "김포시", "부천시", "광명시", "성남시", "구리시");
         Set<String> districtNameSet = Set.of("은평구", "계양구");
@@ -68,7 +78,6 @@ public class ServiceAvailabilityService {
 
     @Transactional
     public Mono<AvailabilityNotification> register(CreateNotificationRequest request) {
-        AvailabilityNotification availabilityNotification = AvailabilityNotification.create(request.region().city().toString(), request.region().district().toString(), request.notificationType(), request.contact());
-        return notificationRepository.save(AvailabilityNotificationConverter.toData(availabilityNotification)).map(AvailabilityNotificationConverter::toDomain);
+        return notificationRepository.save(AvailabilityNotification.create(request));
     }
 }

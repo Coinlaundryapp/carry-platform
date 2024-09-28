@@ -5,7 +5,7 @@ import java.util.List;
 import lombok.Builder;
 import lombok.Getter;
 import org.example.coin_laundry_app_backend.common.presentation.payload.MediaCommonResponse;
-import org.example.coin_laundry_app_backend.laundromat.domain.model.enums.LaundromatOption;
+import org.example.coin_laundry_app_backend.laundromat.domain.enums.LaundromatOption;
 
 @Getter
 @Schema(description = "세탁소 공통 응답")

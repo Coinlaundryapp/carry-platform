@@ -1,9 +1,9 @@
 package org.example.coin_laundry_app_backend.user.domain.converter;
 
-import org.example.coin_laundry_app_backend.user.domain.model.entity.data.UserData;
-import org.example.coin_laundry_app_backend.user.domain.model.entity.domainmodel.User;
-import org.example.coin_laundry_app_backend.user.domain.model.value.PhoneNumber;
-import org.example.coin_laundry_app_backend.user.domain.model.value.UserInfo;
+import org.example.coin_laundry_app_backend.user.domain.entity.data.UserData;
+import org.example.coin_laundry_app_backend.user.domain.entity.domainmodel.User;
+import org.example.coin_laundry_app_backend.user.domain.value.PhoneNumber;
+import org.example.coin_laundry_app_backend.user.domain.value.UserInfo;
 
 public class UserConverter {
 

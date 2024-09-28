@@ -5,7 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.example.coin_laundry_app_backend.common.domain.MediaRowConverter;
 import org.example.coin_laundry_app_backend.laundromat.domain.converter.LaundromatOptionsConverter;
 import org.example.coin_laundry_app_backend.laundromat.domain.converter.PointConverter;
-import org.example.coin_laundry_app_backend.laundromat.domain.model.entity.Laundromat;
+import org.example.coin_laundry_app_backend.laundromat.domain.entity.Laundromat;
 import org.example.coin_laundry_app_backend.laundromat.presentation.payload.response.LaundromatCommonResponse;
 import org.locationtech.jts.geom.Point;
 import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
@@ -24,35 +24,34 @@ public class LaundromatRepositoryImpl implements LaundromatRepository {
     private final PointConverter pointConverter = new PointConverter();
     private final LaundromatOptionsConverter laundromatOptionsConverter = new LaundromatOptionsConverter();
 
-
     @Override
     public Flux<LaundromatCommonResponse> findByLocationAndDistance(double latitude,
         double longitude,
         double distance) {
         String selectSQL = """
-            WITH laundromat_base AS (
-                SELECT l.*, ST_Distance(l.location_coordinate, ST_MakePoint(:longitude, :latitude)::geography) as distance
-                FROM laundromats l
-                WHERE ST_DWithin(l.location_coordinate, ST_MakePoint(:longitude, :latitude)::geography, :dist)
-            ),
-                 laundromat_option_values AS (
-                     SELECT lom.laundromat_id, array_agg(lom.laundromat_option) as options
-                     FROM laundromat_option_mappings lom
-                              JOIN laundromat_base lb ON lb.id = lom.laundromat_id
-                     GROUP BY lom.laundromat_id
-                 ),
-                 laundromat_media_resource_values AS (
-                     SELECT lmr.laundromat_id, array_agg(row(lmr.media_url, lmr.extension)) as media_resources
-                     FROM laundromat_media_resources lmr
-                              JOIN laundromat_base lb ON lb.id = lmr.laundromat_id
-                     GROUP BY lmr.laundromat_id
-                 )
-            SELECT lb.*, COALESCE(lov.options, ARRAY[]::laundromat_options[]) as options, COALESCE(lmrv.media_resources, ARRAY[]::record[]) as media_resources
-            FROM laundromat_base lb
-                     LEFT JOIN laundromat_option_values lov ON lb.id = lov.laundromat_id
-                     LEFT JOIN laundromat_media_resource_values lmrv ON lb.id = lmrv.laundromat_id
-            ORDER BY lb.distance
-            """;
+                WITH laundromat_base AS (
+                    SELECT l.*, ST_Distance(l.location_coordinate, ST_MakePoint(:longitude, :latitude)::geography) as distance
+                    FROM laundromats l
+                    WHERE ST_DWithin(l.location_coordinate, ST_MakePoint(:longitude, :latitude)::geography, :dist)
+                    ),
+                     laundromat_option_values AS (
+                         SELECT lom.laundromat_id, array_agg(lom.laundromat_option) as options
+                         FROM laundromat_option_mappings lom
+                                  JOIN laundromat_base lb ON lb.id = lom.laundromat_id
+                         GROUP BY lom.laundromat_id
+                     ),
+                     laundromat_media_resource_values AS (
+                         SELECT lmr.laundromat_id, array_agg(row(lmr.media_url, lmr.extension)) as media_resources
+                         FROM laundromat_media_resources lmr
+                                  JOIN laundromat_base lb ON lb.id = lmr.laundromat_id
+                         GROUP BY lmr.laundromat_id
+                     )
+                SELECT lb.*, COALESCE(lov.options, ARRAY[]::laundromat_options[]) as options, COALESCE(lmrv.media_resources, ARRAY[]::record[]) as media_resources
+                FROM laundromat_base lb
+                         LEFT JOIN laundromat_option_values lov ON lb.id = lov.laundromat_id
+                         LEFT JOIN laundromat_media_resource_values lmrv ON lb.id = lmrv.laundromat_id
+                ORDER BY lb.distance
+                """;
         GenericExecuteSpec spec = r2dbcEntityTemplate.getDatabaseClient().sql(selectSQL)
             .bind("latitude", latitude)
             .bind("longitude", longitude)

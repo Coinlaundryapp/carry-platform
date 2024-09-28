@@ -1,6 +1,7 @@
 package org.example.coin_laundry_app_backend.user.repository;
 
-import org.example.coin_laundry_app_backend.user.domain.model.entity.ShippingAddress;
+import org.example.coin_laundry_app_backend.user.domain.entity.ShippingAddress;
+import org.example.coin_laundry_app_backend.user.repository.custom.ShippingAddressCustomRepository;
 import org.springframework.data.r2dbc.repository.Query;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import org.springframework.lang.NonNull;

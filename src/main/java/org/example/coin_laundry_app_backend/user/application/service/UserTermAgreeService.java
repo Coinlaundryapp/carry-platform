@@ -3,7 +3,7 @@ package org.example.coin_laundry_app_backend.user.application.service;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.example.coin_laundry_app_backend.user.domain.model.entity.domainmodel.TermAgree;
+import org.example.coin_laundry_app_backend.user.domain.entity.domainmodel.TermAgree;
 import org.example.coin_laundry_app_backend.user.presentation.payload.response.UserTermAgreeResponse;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;

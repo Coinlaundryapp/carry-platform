@@ -9,10 +9,10 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import org.example.coin_laundry_app_backend.common.presentation.payload.ApiCommonResponse;
-import org.example.coin_laundry_app_backend.user.application.record.shipping.ShippingSummary;
-import org.example.coin_laundry_app_backend.user.domain.model.entity.ShippingAddress;
-import org.example.coin_laundry_app_backend.user.presentation.payload.request.shipping.CreateAddressRequest;
-import org.example.coin_laundry_app_backend.user.presentation.payload.request.shipping.UpdateAddressRequest;
+import org.example.coin_laundry_app_backend.user.application.record.shippingaddress.ShippingAddressSummary;
+import org.example.coin_laundry_app_backend.user.domain.entity.ShippingAddress;
+import org.example.coin_laundry_app_backend.user.presentation.payload.request.shippingaddress.CreateAddressRequest;
+import org.example.coin_laundry_app_backend.user.presentation.payload.request.shippingaddress.UpdateAddressRequest;
 import reactor.core.publisher.Mono;
 
 @Tag(name = "Shipping Address", description = "배송지 관리 API")
@@ -38,7 +38,7 @@ public interface ShippingAddressSwagger {
         responseCode = "200",
         description = "성공적으로 조회됨"
     )
-    Mono<ApiCommonResponse<List<ShippingSummary>>> getAllShippingAddresses(
+    Mono<ApiCommonResponse<List<ShippingAddressSummary>>> getAllShippingAddresses(
         @Parameter(hidden = true) Long userId);
 
     @Operation(
