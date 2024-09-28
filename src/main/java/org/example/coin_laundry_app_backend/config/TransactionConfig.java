@@ -2,10 +2,12 @@ package org.example.coin_laundry_app_backend.config;
 
 import io.r2dbc.spi.ConnectionFactory;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.r2dbc.connection.R2dbcTransactionManager;
 import org.springframework.transaction.ReactiveTransactionManager;
 import org.springframework.transaction.reactive.TransactionalOperator;
 
+@Configuration
 public class TransactionConfig {
 
     @Bean
@@ -14,7 +16,8 @@ public class TransactionConfig {
     }
 
     @Bean
-    public TransactionalOperator transactionalOperator(ReactiveTransactionManager transactionManager) {
+    public TransactionalOperator transactionalOperator(
+        ReactiveTransactionManager transactionManager) {
         return TransactionalOperator.create(transactionManager);
     }
 }
