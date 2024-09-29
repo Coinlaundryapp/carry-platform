@@ -6,8 +6,7 @@ plugins {
     id("io.spring.dependency-management") version "1.1.5"
 }
 
-// TODO: Should Change to CarryLaundry
-group = "org.example"
+group = "com.carry_laundry"
 version = "0.0.1-SNAPSHOT"
 
 java {
