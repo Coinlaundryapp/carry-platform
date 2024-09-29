@@ -28,6 +28,7 @@ val springdocOpenApiVersion = "2.6.0"
 val jwtVersion = "4.4.0"
 val jtsVersion = "1.20.0"
 val spotbugsVersion = "4.8.6"
+val awsSdkVersion = "2.28.11"
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-actuator")
@@ -41,6 +42,8 @@ dependencies {
     implementation("com.auth0:java-jwt:$jwtVersion")
     implementation("org.locationtech.jts:jts-core:$jtsVersion")
     implementation("com.github.spotbugs:spotbugs-annotations:$spotbugsVersion")
+    implementation(platform("software.amazon.awssdk:bom:$awsSdkVersion"))
+    implementation("software.amazon.awssdk:s3")
     compileOnly("org.projectlombok:lombok")
     runtimeOnly("org.postgresql:postgresql")
     runtimeOnly("org.postgresql:r2dbc-postgresql")
