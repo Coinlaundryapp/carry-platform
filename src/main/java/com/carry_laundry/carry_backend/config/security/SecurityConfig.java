@@ -31,15 +31,17 @@ public class SecurityConfig {
             .logout(ServerHttpSecurity.LogoutSpec::disable)
             .authorizeExchange(exchanges -> exchanges
                 .pathMatchers(HttpMethod.OPTIONS).permitAll()
-                .pathMatchers("/api-docs/**").permitAll()
-                .pathMatchers("/webjars/swagger-ui/**").permitAll()
-                .pathMatchers("/v3/api-docs/**").permitAll()
-                .pathMatchers("/actuator/health").permitAll()
-                .pathMatchers("/api/v1/laundromats/**").permitAll()
-                .pathMatchers("/api/v1/sign/**").permitAll()
-                .pathMatchers("/api/v1/addresses/**").permitAll()
-                .pathMatchers("/api/v1/service-availability/**").permitAll()
-                .pathMatchers("/api/v1/prices/**").permitAll()
+                .pathMatchers("/api-docs/**",
+                    "/webjars/swagger-ui/**",
+                    "/v3/api-docs/**",
+                    "/actuator/health",
+                    "/api/v1/laundromats/**",
+                    "/api/v1/laundromats/**",
+                    "/api/v1/sign/**",
+                    "/api/v1/addresses/**",
+                    "/api/v1/service-availability/**",
+                    "/api/v1/prices/**",
+                    "/api/v1/media/*").permitAll()
                 .anyExchange().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter(), SecurityWebFiltersOrder.AUTHENTICATION)

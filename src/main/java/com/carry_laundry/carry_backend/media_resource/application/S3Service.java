@@ -4,11 +4,16 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
+import software.amazon.awssdk.core.async.AsyncResponseTransformer;
+import software.amazon.awssdk.core.async.ResponsePublisher;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 
@@ -26,8 +31,11 @@ public class S3Service {
     }
 
     public Flux<Mono<PutObjectResponse>> uploadFile(Flux<DataBuffer> dataBufferFlux,
-        String filename) {
-        PutObjectRequest putObjectRequest = PutObjectRequest.builder().bucket(bucket).key(filename)
+        String filename, MediaType contentType) {
+        PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+            .bucket(bucket)
+            .key(filename)
+            .contentType(contentType.toString())
             .build();
         return dataBufferFlux.map(buffer -> Mono.fromFuture(
             s3AsyncClient.putObject(putObjectRequest, AsyncRequestBody.fromInputStream(builder -> {
@@ -35,6 +43,15 @@ public class S3Service {
                 builder.inputStream(buffer.asInputStream());
                 builder.executor(executorService);
             }))));
+    }
+
+    public Mono<ResponsePublisher<GetObjectResponse>> downloadFile(String key) {
+        GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+            .bucket(bucket)
+            .key(key)
+            .build();
+        return Mono.fromFuture(
+            s3AsyncClient.getObject(getObjectRequest, AsyncResponseTransformer.toPublisher()));
     }
 
 }
