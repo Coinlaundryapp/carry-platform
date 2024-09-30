@@ -20,7 +20,8 @@ public class ResourceMetadata {
 
     @Id
     private UUID id;
-    private String filename;
+    private String folderName;
+    private String extension;
     private ResourceStatus status;
     @CreatedDate
     private LocalDateTime createdAt;
@@ -28,13 +29,14 @@ public class ResourceMetadata {
     private LocalDateTime updatedAt;
 
     @Builder
-    private ResourceMetadata(String filename, ResourceStatus status) {
+    private ResourceMetadata(String folderName, String extension, ResourceStatus status) {
         this.id = UUID.randomUUID();
-        this.filename = Objects.requireNonNull(filename, "fileName must not be null");
+        this.folderName = Objects.requireNonNull(folderName, "folder name must not be null");
+        this.extension = Objects.requireNonNull(extension, "extension must not be null");
         this.status = Objects.requireNonNull(status, "status must not be null");
     }
 
-    public void complete() {
-        this.status = ResourceStatus.COMPLETE;
+    public String getFilePath() {
+        return folderName + "/" + id.toString() + "." + extension;
     }
 }
