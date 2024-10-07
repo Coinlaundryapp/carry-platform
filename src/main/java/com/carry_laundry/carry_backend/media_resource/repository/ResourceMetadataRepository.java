@@ -22,6 +22,7 @@ public interface ResourceMetadataRepository extends ReactiveCrudRepository<Resou
 
     Mono<ResourceMetadata> findByFolderNameAndAccessKey(String folderName, UUID accessKey);
 
-    @Query("UPDATE resource_metadata SET is_valid=:isValid WHERE id=:id")
-    Mono<Void> updateIsValidById(@NonNull UUID id, @NonNull Boolean isValid);
+    @Query("UPDATE resource_metadata SET is_valid=:isValid WHERE folder_name=:folderName AND access_key=:accessKey RETURNING *")
+    Mono<ResourceMetadata> updateIsValidByFolderNameAndAccessKey(@NonNull String folderName,
+        @NonNull UUID accessKey, @NonNull Boolean isValid);
 }

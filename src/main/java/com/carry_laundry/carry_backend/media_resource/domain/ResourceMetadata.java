@@ -38,4 +38,5 @@ public class ResourceMetadata {
     public String getFilePath() {
         return folderName + "/" + accessKey.toString() + "." + extension;
     }
+
 }
