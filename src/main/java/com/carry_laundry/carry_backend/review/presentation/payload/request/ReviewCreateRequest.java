@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.Nulls;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import java.util.List;
+import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -17,10 +18,10 @@ public class ReviewCreateRequest {
     @Min(value = 1, message = "리뷰 평점은 1점 이상이어야 합니다.")
     @Max(value = 5, message = "리뷰 평점은 5점 이하여야 합니다.")
     private Integer reviewRating;
-    private List<String> mediaAccessKeys;
+    private List<UUID> mediaAccessKeys;
 
     @JsonSetter(nulls = Nulls.AS_EMPTY)
-    public void setMediaAccessKeys(List<String> mediaAccessKeys) {
+    public void setMediaAccessKeys(List<UUID> mediaAccessKeys) {
         this.mediaAccessKeys = mediaAccessKeys != null ? mediaAccessKeys : List.of();
     }
 }
