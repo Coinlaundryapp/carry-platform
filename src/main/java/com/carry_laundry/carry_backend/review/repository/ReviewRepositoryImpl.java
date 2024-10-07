@@ -101,4 +101,17 @@ public class ReviewRepositoryImpl implements ReviewRepository {
             )
             .all();
     }
+
+    @Override
+    public Mono<Void> deleteById(Long reviewId) {
+        String deleteQuery = """
+            DELETE FROM reviews
+            WHERE id = :reviewId
+            """;
+        return r2dbcEntityTemplate.getDatabaseClient().sql(deleteQuery)
+            .bind("reviewId", reviewId)
+            .fetch()
+            .rowsUpdated()
+            .then();
+    }
 }

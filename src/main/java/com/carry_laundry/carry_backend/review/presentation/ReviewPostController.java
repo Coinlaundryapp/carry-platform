@@ -34,6 +34,8 @@ public class ReviewPostController {
                 request.getReviewRating())
             .flatMap(review -> resourceMetadataService.updateValidations("review",
                     request.getMediaAccessKeys(), Boolean.TRUE)
+                .onErrorResume(throwable -> reviewService.deleteReview(review.getId())
+                    .then(Mono.error(throwable)))
                 .flatMap(uris -> reviewMediaResourceService.saveAll(review.getId(), uris).then()))
             .then(Mono.just(ResponseEntity.status(HttpStatus.CREATED).build()));
 

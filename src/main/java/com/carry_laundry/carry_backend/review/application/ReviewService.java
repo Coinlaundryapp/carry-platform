@@ -27,6 +27,10 @@ public class ReviewService {
             .build());
     }
 
+    public Mono<Void> deleteReview(Long reviewId) {
+        return reviewRepository.deleteById(reviewId);
+    }
+
     @Transactional(readOnly = true)
     public Mono<ReviewStatisticResponse> getReviewStatisticByLaundryId(Long laundryId) {
         return reviewRepository.getReviewStaticByLaundromatId(laundryId);

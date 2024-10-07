@@ -16,4 +16,6 @@ public interface ReviewRepository {
     Mono<ReviewStatisticResponse> getReviewStaticByLaundromatId(Long laundromatId);
 
     Flux<ReviewCommonResponse> getReviewsByLaundromatId(Long laundromatId);
+
+    Mono<Void> deleteById(Long reviewId);
 }
