@@ -13,3 +13,6 @@ CREATE TABLE resource_metadata
 
 CREATE INDEX idx_resource_metadata_folder_name_access_key ON resource_metadata (folder_name, access_key);
 CREATE INDEX idx_resource_metadata_is_valid ON resource_metadata (is_valid);
+
+ALTER TABLE review_media_resources
+    RENAME COLUMN media_url TO media_uri;
