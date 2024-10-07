@@ -10,7 +10,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Getter
@@ -19,24 +18,24 @@ import org.springframework.data.relational.core.mapping.Table;
 public class ResourceMetadata {
 
     @Id
-    private UUID id;
+    private Long id;
     private String folderName;
+    private UUID accessKey;
     private String extension;
     private ResourceStatus status;
+    private Boolean isValid;
     @CreatedDate
     private LocalDateTime createdAt;
-    @LastModifiedDate
-    private LocalDateTime updatedAt;
 
     @Builder
     private ResourceMetadata(String folderName, String extension, ResourceStatus status) {
-        this.id = UUID.randomUUID();
+        this.accessKey = UUID.randomUUID();
         this.folderName = Objects.requireNonNull(folderName, "folder name must not be null");
         this.extension = Objects.requireNonNull(extension, "extension must not be null");
         this.status = Objects.requireNonNull(status, "status must not be null");
     }
 
     public String getFilePath() {
-        return folderName + "/" + id.toString() + "." + extension;
+        return folderName + "/" + accessKey.toString() + "." + extension;
     }
 }

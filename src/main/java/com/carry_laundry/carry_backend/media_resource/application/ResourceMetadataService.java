@@ -23,11 +23,11 @@ public class ResourceMetadataService {
         );
     }
 
-    public Mono<ResourceMetadata> findById(UUID id) {
-        return resourceMetadataRepository.findById(id);
+    public Mono<ResourceMetadata> findByFolderNameAndAccessKey(String folder, UUID accessKey) {
+        return resourceMetadataRepository.findByFolderNameAndAccessKey(folder, accessKey);
     }
 
-    public Mono<Void> updateStatus(UUID id, ResourceStatus status) {
+    public Mono<Void> updateStatus(Long id, ResourceStatus status) {
         return resourceMetadataRepository.updateStatusById(id, status);
     }
 

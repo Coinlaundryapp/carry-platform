@@ -10,14 +10,18 @@ import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Mono;
 
 @Repository
-public interface ResourceMetadataRepository extends ReactiveCrudRepository<ResourceMetadata, UUID> {
+public interface ResourceMetadataRepository extends ReactiveCrudRepository<ResourceMetadata, Long> {
 
     @Override
     @NonNull
-    @Query("INSERT INTO resource_metadata (id, folder_name, extension, status) VALUES (:#{#entity.id}, :#{#entity.folderName}, :#{#entity.extension},:#{#entity.status}::resource_status) RETURNING *")
+    @Query("INSERT INTO resource_metadata (folder_name, access_key, extension, status) VALUES (:#{#entity.folderName},:#{#entity.accessKey}, :#{#entity.extension}, :#{#entity.status}::resource_status) RETURNING *")
     <S extends ResourceMetadata> Mono<S> save(@NonNull S entity);
 
-    @Query("UPDATE resource_metadata SET status=:status::resource_status, updated_at=NOW() WHERE id=:id")
-    Mono<Void> updateStatusById(UUID id, ResourceStatus resourceStatus);
+    @Query("UPDATE resource_metadata SET status=:status::resource_status WHERE id=:id")
+    Mono<Void> updateStatusById(@NonNull Long id, @NonNull ResourceStatus resourceStatus);
 
+    Mono<ResourceMetadata> findByFolderNameAndAccessKey(String folderName, UUID accessKey);
+
+    @Query("UPDATE resource_metadata SET is_valid=:isValid WHERE id=:id")
+    Mono<Void> updateIsValidById(@NonNull UUID id, @NonNull Boolean isValid);
 }

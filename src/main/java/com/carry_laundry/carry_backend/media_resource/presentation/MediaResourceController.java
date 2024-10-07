@@ -42,9 +42,10 @@ public class MediaResourceController {
             });
     }
 
-    @GetMapping("/{id}")
-    public Mono<ResponseEntity<Flux<DataBuffer>>> downloadMedia(@PathVariable UUID id) {
-        return mediaResourceDownloadService.downloadFile(id)
+    @GetMapping("/{folder}/{accessKey}")
+    public Mono<ResponseEntity<Flux<DataBuffer>>> downloadMedia(
+        @PathVariable String folder, @PathVariable UUID accessKey) {
+        return mediaResourceDownloadService.downloadFile(folder, accessKey)
             .map(objects -> {
                 FileMetadata metadata = objects.getT1();
                 Flux<DataBuffer> dataBufferFlux = objects.getT2();

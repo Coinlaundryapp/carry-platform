@@ -26,7 +26,7 @@ public class MediaResourceUploadService {
                         contentType)
                     .then(resourceMetadataService.updateStatus(resourceMetadata.getId(),
                         ResourceStatus.COMPLETE))
-                    .thenReturn(resourceMetadata.getId().toString())
+                    .thenReturn(resourceMetadata.getAccessKey().toString())
                     .onErrorResume(
                         throwable -> resourceMetadataService.updateStatus(resourceMetadata.getId(),
                             ResourceStatus.ERROR).then(Mono.error(throwable))));

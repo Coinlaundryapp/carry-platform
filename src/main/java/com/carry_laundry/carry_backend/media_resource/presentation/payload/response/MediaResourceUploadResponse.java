@@ -8,6 +8,6 @@ import lombok.Getter;
 @AllArgsConstructor
 public class MediaResourceUploadResponse {
 
-    private List<String> urls;
+    private List<String> accessKeys;
 
 }

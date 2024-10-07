@@ -20,8 +20,9 @@ public class MediaResourceDownloadService {
     private final S3Service s3Service;
     private final ResourceMetadataService resourceMetadataService;
 
-    public Mono<Tuple2<FileMetadata, Flux<DataBuffer>>> downloadFile(UUID id) {
-        return resourceMetadataService.findById(id)
+    public Mono<Tuple2<FileMetadata, Flux<DataBuffer>>> downloadFile(String folder,
+        UUID accessKey) {
+        return resourceMetadataService.findByFolderNameAndAccessKey(folder, accessKey)
             .flatMap(resourceMetadata -> s3Service.downloadFile(resourceMetadata.getFilePath())
                 .map(getObjectResponseResponsePublisher -> {
                     String contentType = getObjectResponseResponsePublisher.response()
