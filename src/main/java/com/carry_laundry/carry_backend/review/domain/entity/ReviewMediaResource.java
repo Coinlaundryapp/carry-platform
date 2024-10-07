@@ -23,7 +23,7 @@ public class ReviewMediaResource {
     private ReviewMediaResource(Long reviewId, String mediaUri) {
         this.reviewId = Objects.requireNonNull(reviewId, "reviewId must not be null");
         this.mediaUri = Objects.requireNonNull(mediaUri, "mediaUri must not be null");
-        this.extension = mediaUri.substring(mediaUri.lastIndexOf("."));
+        this.extension = mediaUri.substring(mediaUri.lastIndexOf(".") + 1);
     }
 
 }
