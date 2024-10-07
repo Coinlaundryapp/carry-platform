@@ -1,12 +1,14 @@
 package com.carry_laundry.carry_backend.review.repository;
 
 import com.carry_laundry.carry_backend.common.domain.MediaRowConverter;
+import com.carry_laundry.carry_backend.review.domain.entity.Review;
 import com.carry_laundry.carry_backend.review.presentation.payload.response.ReviewCommonResponse;
 import com.carry_laundry.carry_backend.review.presentation.payload.response.ReviewStatisticResponse;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -17,6 +19,22 @@ public class ReviewRepositoryImpl implements ReviewRepository {
 
     private final R2dbcEntityTemplate r2dbcEntityTemplate;
     private final MediaRowConverter mediaRowConverter;
+
+    @Override
+    public Mono<Review> save(@NonNull Review review) {
+        String insertQuery = """
+            INSERT INTO reviews (laundromat_id, user_id, comment, rating)
+            VALUES (:laundromatId, :userId, :comment, :rating)
+            RETURNING *
+            """;
+        return r2dbcEntityTemplate.getDatabaseClient().sql(insertQuery)
+            .bind("laundromatId", review.getLaundromatId())
+            .bind("userId", review.getUserId())
+            .bind("comment", review.getComment())
+            .bind("rating", review.getReviewRating().getValue())
+            .map((row, rowMetadata) -> Review.fromRow(row))
+            .one();
+    }
 
     @Override
     public Mono<ReviewStatisticResponse> getReviewStaticByLaundromatId(Long laundromatId) {
