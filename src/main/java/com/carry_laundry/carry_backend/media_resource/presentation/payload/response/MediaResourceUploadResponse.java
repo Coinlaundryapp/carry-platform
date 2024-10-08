@@ -1,5 +1,6 @@
 package com.carry_laundry.carry_backend.media_resource.presentation.payload.response;
 
+import com.carry_laundry.carry_backend.media_resource.application.record.FileUploadStatus;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -8,6 +9,6 @@ import lombok.Getter;
 @AllArgsConstructor
 public class MediaResourceUploadResponse {
 
-    private List<String> accessKeys;
+    private List<FileUploadStatus> uploadStatuses;
 
 }

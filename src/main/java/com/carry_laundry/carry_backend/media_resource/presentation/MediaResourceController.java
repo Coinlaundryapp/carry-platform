@@ -36,8 +36,9 @@ public class MediaResourceController {
         @RequestPart("files") Flux<FilePart> fileParts) {
         return mediaResourceUploadService.uploadFiles(fileParts, folder)
             .collectList()
-            .map(ids -> {
-                MediaResourceUploadResponse response = new MediaResourceUploadResponse(ids);
+            .map(uploadStatuses -> {
+                MediaResourceUploadResponse response = new MediaResourceUploadResponse(
+                    uploadStatuses);
                 return ApiCommonResponse.createSuccessResponse(response);
             });
     }
