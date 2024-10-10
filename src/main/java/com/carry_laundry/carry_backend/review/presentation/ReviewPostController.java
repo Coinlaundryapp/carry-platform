@@ -3,6 +3,7 @@ package com.carry_laundry.carry_backend.review.presentation;
 import com.carry_laundry.carry_backend.media_resource.application.ResourceMetadataService;
 import com.carry_laundry.carry_backend.review.application.ReviewMediaResourceService;
 import com.carry_laundry.carry_backend.review.application.ReviewService;
+import com.carry_laundry.carry_backend.review.presentation.api.ReviewPostSwagger;
 import com.carry_laundry.carry_backend.review.presentation.payload.request.ReviewCreateRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +20,7 @@ import reactor.core.publisher.Mono;
 @RestController
 @RequestMapping("/api/v1/reviews/post")
 @RequiredArgsConstructor
-public class ReviewPostController {
+public class ReviewPostController implements ReviewPostSwagger {
 
     private final ReviewService reviewService;
     private final ReviewMediaResourceService reviewMediaResourceService;
