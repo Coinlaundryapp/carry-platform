@@ -1,6 +1,7 @@
 package com.carry_laundry.carry_backend.review.domain.entity;
 
 import java.util.Objects;
+import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -24,6 +25,10 @@ public class ReviewMediaResource {
         this.reviewId = Objects.requireNonNull(reviewId, "reviewId must not be null");
         this.mediaUri = Objects.requireNonNull(mediaUri, "mediaUri must not be null");
         this.extension = mediaUri.substring(mediaUri.lastIndexOf(".") + 1);
+    }
+
+    public UUID getAccessKey() {
+        return UUID.fromString(mediaUri.substring(7, mediaUri.lastIndexOf(".")));
     }
 
 }
