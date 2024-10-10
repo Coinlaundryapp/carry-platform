@@ -69,7 +69,8 @@ public class LaundromatRepositoryImpl implements LaundromatRepository {
                 .distance(row.get("distance", Double.class))
                 .options(laundromatOptionsConverter.readCovert(row.get("options", String.class)))
                 .mediaResources(
-                    mediaRowConverter.readConvert(row.get("media_resources", String[].class)))
+                    mediaRowConverter.convertToCommonResponse(
+                        row.get("media_resources", String[].class)))
                 .build();
         }).all();
     }

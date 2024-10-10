@@ -1,5 +1,6 @@
 package com.carry_laundry.carry_backend.review.repository;
 
+import com.carry_laundry.carry_backend.review.application.record.ReviewDetailData;
 import com.carry_laundry.carry_backend.review.domain.entity.Review;
 import com.carry_laundry.carry_backend.review.presentation.payload.response.ReviewCommonResponse;
 import com.carry_laundry.carry_backend.review.presentation.payload.response.ReviewStatisticResponse;
@@ -12,6 +13,8 @@ import reactor.core.publisher.Mono;
 public interface ReviewRepository {
 
     Mono<Review> save(@NonNull Review review);
+
+    Mono<ReviewDetailData> findDetailDataById(Long reviewId);
 
     Mono<ReviewStatisticResponse> getReviewStaticByLaundromatId(Long laundromatId);
 
