@@ -10,6 +10,7 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
 import org.springframework.lang.NonNull;
+import org.springframework.r2dbc.core.DatabaseClient.GenericExecuteSpec;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -55,8 +56,33 @@ public class ReviewRepositoryImpl implements ReviewRepository {
     }
 
     @Override
-    public Flux<ReviewCommonResponse> getReviewsByLaundromatId(Long laundromatId) {
-        String selectQuery = """
+    public Flux<ReviewCommonResponse> getReviewsByLaundromatId(@NonNull Long laundromatId,
+        @NonNull Long reviewId, @NonNull Integer size) {
+        String selectQuery = generateSelectQuery(reviewId);
+        GenericExecuteSpec executeSpec = r2dbcEntityTemplate.getDatabaseClient()
+            .sql(selectQuery)
+            .bind("laundromatId", laundromatId)
+            .bind("size", size + 1);
+        if (reviewId > 0) {
+            executeSpec = executeSpec.bind("reviewId", reviewId);
+        }
+        return executeSpec.map((row, rowMetadata) -> ReviewCommonResponse.builder()
+                .id(row.get("id", Long.class))
+                .laundromatName(row.get("laundromat_name", String.class))
+                .username(row.get("username", String.class))
+                .mediaResources(
+                    mediaRowConverter.convertToCommonResponse(row.get("media_resources", String[].class)))
+                .content(row.get("comment", String.class))
+                .rating(row.get("rating", Integer.class))
+                .createdAt(row.get("created_at", LocalDateTime.class))
+                .updatedAt(row.get("updated_at", LocalDateTime.class))
+                .build()
+            )
+            .all();
+    }
+
+    private String generateSelectQuery(Long reviewId) {
+        StringBuilder queryBuilder = new StringBuilder("""
             WITH review_base AS (
                 SELECT r.*
                 FROM reviews r
@@ -78,30 +104,19 @@ public class ReviewRepositoryImpl implements ReviewRepository {
                 WHERE rmr.review_id IN (SELECT id FROM review_base)
                 GROUP BY rmr.review_id
             )
-            SELECT rb.id, rb.rating, rb.comment, rb.created_at, rb.updated_at,
+            SELECT DISTINCT rb.id, rb.rating, rb.comment, rb.created_at, rb.updated_at,
                    ru.nickname as username, rl.name as laundromat_name,
                    COALESCE(ri.media_resources, ARRAY[]::RECORD[]) as media_resources
             FROM review_base rb
             JOIN review_user ru ON rb.user_id = ru.id
             JOIN review_laundromat rl ON rb.laundromat_id = rl.id
             LEFT JOIN review_media_resource ri ON rb.id = ri.review_id
-            """;
-        return r2dbcEntityTemplate.getDatabaseClient().sql(selectQuery)
-            .bind("laundromatId", laundromatId)
-            .map((row, rowMetadata) -> ReviewCommonResponse.builder()
-                .id(row.get("id", Long.class))
-                .laundromatName(row.get("laundromat_name", String.class))
-                .username(row.get("username", String.class))
-                .mediaResources(
-                    mediaRowConverter.convertToCommonResponse(
-                        row.get("media_resources", String[].class)))
-                .content(row.get("comment", String.class))
-                .rating(row.get("rating", Integer.class))
-                .createdAt(row.get("created_at", LocalDateTime.class))
-                .updatedAt(row.get("updated_at", LocalDateTime.class))
-                .build()
-            )
-            .all();
+            """);
+        if (reviewId > 0) {
+            queryBuilder.append(" WHERE rb.id < :reviewId");
+        }
+        queryBuilder.append(" ORDER BY rb.id DESC LIMIT :size");
+        return queryBuilder.toString();
     }
 
     @Override

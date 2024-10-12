@@ -1,6 +1,7 @@
 package com.carry_laundry.carry_backend.review.presentation.api;
 
 import com.carry_laundry.carry_backend.common.presentation.payload.ApiCommonResponse;
+import com.carry_laundry.carry_backend.common.presentation.payload.CursorPaginationResponse;
 import com.carry_laundry.carry_backend.review.presentation.payload.response.ReviewCommonResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -8,7 +9,6 @@ import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import java.util.List;
 import reactor.core.publisher.Mono;
 
 @Tag(name = "Review", description = "리뷰 관련 API")
@@ -30,6 +30,9 @@ public interface ReviewFetchSwagger {
             )
         }
     )
-    Mono<ApiCommonResponse<List<ReviewCommonResponse>>> getReviewsByLaundryId(
-        @Parameter(in = ParameterIn.QUERY, description = "세탁소 ID", example = "1") Long laundryId);
+    Mono<ApiCommonResponse<CursorPaginationResponse<ReviewCommonResponse>>> getReviewsByLaundryId(
+        @Parameter(in = ParameterIn.PATH, description = "세탁소 ID", example = "1") Long laundromatId,
+        @Parameter(in = ParameterIn.QUERY, description = "커서", example = "1") Long cursor,
+        @Parameter(in = ParameterIn.QUERY, description = "페이지 크기", example = "10") Integer size
+    );
 }
