@@ -1,8 +1,12 @@
 package com.carry_laundry.carry_backend.review.domain.entity;
 
+import java.util.Objects;
+import java.util.UUID;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Getter
@@ -10,8 +14,21 @@ import org.springframework.data.relational.core.mapping.Table;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ReviewMediaResource {
 
+    @Id
+    private Long id;
     private Long reviewId;
-    private String mediaUrl;
+    private String mediaUri;
     private String extension;
+
+    @Builder
+    private ReviewMediaResource(Long reviewId, String mediaUri) {
+        this.reviewId = Objects.requireNonNull(reviewId, "reviewId must not be null");
+        this.mediaUri = Objects.requireNonNull(mediaUri, "mediaUri must not be null");
+        this.extension = mediaUri.substring(mediaUri.lastIndexOf(".") + 1);
+    }
+
+    public UUID getAccessKey() {
+        return UUID.fromString(mediaUri.substring(7, mediaUri.lastIndexOf(".")));
+    }
 
 }

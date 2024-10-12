@@ -2,6 +2,7 @@ package com.carry_laundry.carry_backend.common.presentation;
 
 import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.carry_laundry.carry_backend.common.presentation.payload.ApiCommonResponse;
+import java.io.FileNotFoundException;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -41,6 +42,13 @@ public class GlobalExceptionHandler {
                     Objects.requireNonNull(HttpStatus.resolve(e.getStatusCode().value())),
                     e.getMessage()))
         );
+    }
+
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    @ExceptionHandler(value = FileNotFoundException.class)
+    protected Mono<ApiCommonResponse<Void>> handleFileNotFoundException(FileNotFoundException e) {
+        return Mono.just(
+            ApiCommonResponse.createFailResponse(HttpStatus.NOT_FOUND, e.getMessage()));
     }
 
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)

@@ -1,6 +1,8 @@
 package com.carry_laundry.carry_backend.review.repository;
 
 import com.carry_laundry.carry_backend.common.domain.MediaRowConverter;
+import com.carry_laundry.carry_backend.review.application.record.ReviewDetailData;
+import com.carry_laundry.carry_backend.review.domain.entity.Review;
 import com.carry_laundry.carry_backend.review.presentation.payload.response.ReviewCommonResponse;
 import com.carry_laundry.carry_backend.review.presentation.payload.response.ReviewStatisticResponse;
 import java.time.LocalDateTime;
@@ -19,6 +21,22 @@ public class ReviewRepositoryImpl implements ReviewRepository {
 
     private final R2dbcEntityTemplate r2dbcEntityTemplate;
     private final MediaRowConverter mediaRowConverter;
+
+    @Override
+    public Mono<Review> save(@NonNull Review review) {
+        String insertQuery = """
+            INSERT INTO reviews (laundromat_id, user_id, comment, rating)
+            VALUES (:laundromatId, :userId, :comment, :rating)
+            RETURNING *
+            """;
+        return r2dbcEntityTemplate.getDatabaseClient().sql(insertQuery)
+            .bind("laundromatId", review.getLaundromatId())
+            .bind("userId", review.getUserId())
+            .bind("comment", review.getComment())
+            .bind("rating", review.getReviewRating().getValue())
+            .map((row, rowMetadata) -> Review.fromRow(row))
+            .one();
+    }
 
     @Override
     public Mono<ReviewStatisticResponse> getReviewStaticByLaundromatId(Long laundromatId) {
@@ -53,7 +71,7 @@ public class ReviewRepositoryImpl implements ReviewRepository {
                 .laundromatName(row.get("laundromat_name", String.class))
                 .username(row.get("username", String.class))
                 .mediaResources(
-                    mediaRowConverter.readConvert(row.get("media_resources", String[].class)))
+                    mediaRowConverter.convertToCommonResponse(row.get("media_resources", String[].class)))
                 .content(row.get("comment", String.class))
                 .rating(row.get("rating", Integer.class))
                 .createdAt(row.get("created_at", LocalDateTime.class))
@@ -99,5 +117,46 @@ public class ReviewRepositoryImpl implements ReviewRepository {
         }
         queryBuilder.append(" ORDER BY rb.id DESC LIMIT :size");
         return queryBuilder.toString();
+    }
+
+    @Override
+    public Mono<ReviewDetailData> findDetailDataById(Long reviewId) {
+        String selectQuery = """
+            SELECT r.*,
+                   json_agg(to_json(rmr)) AS media_resources
+            FROM reviews r
+                     LEFT JOIN review_media_resources rmr ON r.id = rmr.review_id
+            WHERE r.id = :reviewId
+            GROUP BY r.id
+            """;
+        return r2dbcEntityTemplate.getDatabaseClient().sql(selectQuery)
+            .bind("reviewId", reviewId)
+            .map((row, rowMetadata) ->
+                new ReviewDetailData(
+                    row.get("id", Long.class),
+                    row.get("laundromat_id", Long.class),
+                    row.get("user_id", Long.class),
+                    row.get("comment", String.class),
+                    row.get("rating", Integer.class),
+                    mediaRowConverter.convertToReviewMediaResource(
+                        row.get("media_resources", String.class)),
+                    row.get("created_at", LocalDateTime.class),
+                    row.get("updated_at", LocalDateTime.class)
+                )
+            )
+            .one();
+    }
+
+    @Override
+    public Mono<Void> deleteById(Long reviewId) {
+        String deleteQuery = """
+            DELETE FROM reviews
+            WHERE id = :reviewId
+            """;
+        return r2dbcEntityTemplate.getDatabaseClient().sql(deleteQuery)
+            .bind("reviewId", reviewId)
+            .fetch()
+            .rowsUpdated()
+            .then();
     }
 }

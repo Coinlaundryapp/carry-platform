@@ -13,6 +13,12 @@ oauth:
     client-id: 8c7e17af04af2a1fbb4a8b4d611b313c
     client-secret: SDahbitHfJaWRE22X0Wxm7g3q9GEJUbI
 
+aws:
+  s3:
+    access-key: AKIAU6GDW6VDLGZDBCMV
+    secret-key: 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
+    bucket: carry-media-s3
+
 management:
   server:
     port: 31204
