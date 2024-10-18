@@ -41,7 +41,8 @@ public class SecurityConfig {
                     "/api/v1/addresses/**",
                     "/api/v1/service-availability/**",
                     "/api/v1/prices/**",
-                    "/api/v1/media/*").permitAll()
+                    "/api/v1/media/*",
+                    "/api/v1/reviews/laundromat/*").permitAll()
                 .anyExchange().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter(), SecurityWebFiltersOrder.AUTHENTICATION)
