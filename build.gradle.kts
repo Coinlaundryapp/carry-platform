@@ -46,12 +46,9 @@ dependencies {
     implementation("com.github.spotbugs:spotbugs-annotations:$spotbugsVersion")
     implementation(platform("software.amazon.awssdk:bom:$awsSdkVersion"))
     implementation("software.amazon.awssdk:s3")
-    implementation("org.springframework.modulith:spring-modulith-starter-core")
     compileOnly("org.projectlombok:lombok")
     runtimeOnly("org.postgresql:postgresql")
     runtimeOnly("org.postgresql:r2dbc-postgresql")
-    runtimeOnly("org.springframework.modulith:spring-modulith-actuator")
-    runtimeOnly("org.springframework.modulith:spring-modulith-observability")
     if (System.getProperty("os.name").lowercase(Locale.getDefault()).contains("mac")) {
         runtimeOnly("io.netty:netty-resolver-dns-native-macos")
     }
@@ -60,15 +57,9 @@ dependencies {
     testImplementation("io.projectreactor:reactor-test")
     testImplementation("org.springframework.kafka:spring-kafka-test")
     testImplementation("org.springframework.security:spring-security-test")
-    testImplementation("org.springframework.modulith:spring-modulith-starter-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 tasks.named<Test>("test") {
     useJUnitPlatform()
-}
-dependencyManagement {
-    imports {
-        mavenBom("org.springframework.modulith:spring-modulith-bom:$springModulithVersion")
-    }
 }

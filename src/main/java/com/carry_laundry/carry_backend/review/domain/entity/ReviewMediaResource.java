@@ -1,5 +1,6 @@
 package com.carry_laundry.carry_backend.review.domain.entity;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Objects;
 import java.util.UUID;
 import lombok.AccessLevel;
@@ -16,7 +17,9 @@ public class ReviewMediaResource {
 
     @Id
     private Long id;
+    @JsonProperty("review_id")
     private Long reviewId;
+    @JsonProperty("media_uri")
     private String mediaUri;
     private String extension;
 

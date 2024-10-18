@@ -71,7 +71,8 @@ public class ReviewRepositoryImpl implements ReviewRepository {
                 .laundromatName(row.get("laundromat_name", String.class))
                 .username(row.get("username", String.class))
                 .mediaResources(
-                    mediaRowConverter.convertToCommonResponse(row.get("media_resources", String[].class)))
+                    mediaRowConverter.convertToCommonResponse(
+                        row.get("media_resources", String[].class)))
                 .content(row.get("comment", String.class))
                 .rating(row.get("rating", Integer.class))
                 .createdAt(row.get("created_at", LocalDateTime.class))
@@ -99,7 +100,7 @@ public class ReviewRepositoryImpl implements ReviewRepository {
                 WHERE l.id = :laundromatId
             ),
             review_media_resource AS (
-                SELECT rmr.review_id, array_agg(ROW(rmr.media_url, rmr.extension)) as media_resources
+                SELECT rmr.review_id, array_agg(ROW(rmr.media_uri, rmr.extension)) as media_resources
                 FROM review_media_resources rmr
                 WHERE rmr.review_id IN (SELECT id FROM review_base)
                 GROUP BY rmr.review_id

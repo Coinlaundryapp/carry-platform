@@ -8,11 +8,11 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class MediaCommonResponse {
 
-    private String mediaUrl;
+    private String mediaUri;
     private String extension;
 
-    public MediaCommonResponse(String mediaUrl, String extension) {
-        this.mediaUrl = mediaUrl;
+    public MediaCommonResponse(String mediaUri, String extension) {
+        this.mediaUri = mediaUri;
         this.extension = extension;
     }
 }
