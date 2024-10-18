@@ -29,11 +29,11 @@ public class MediaRowConverter {
     }
 
     public List<ReviewMediaResource> convertToReviewMediaResource(String json) {
-        if (json == null || json.isBlank()) {
+        if (json == null || json.equals("[null]")) {
             return List.of();
         }
         try {
-            return objectMapper.readValue(json, new TypeReference<>() {
+            return objectMapper.readValue(json, new TypeReference<List<ReviewMediaResource>>() {
             });
         } catch (JsonProcessingException e) {
             throw new IllegalArgumentException(e);
