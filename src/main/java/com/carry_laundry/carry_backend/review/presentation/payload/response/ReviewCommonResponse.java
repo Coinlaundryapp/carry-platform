@@ -38,6 +38,7 @@ public class ReviewCommonResponse {
         this.createdAt = createdAt.toString();
         this.updatedAt = updatedAt.toString();
     }
+
 }
 
 

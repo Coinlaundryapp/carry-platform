@@ -49,30 +49,15 @@ public class ReviewRepositoryImpl implements ReviewRepository {
     @Override
     public Flux<ReviewCommonResponse> getReviewsByLaundromatId(@NonNull Long laundromatId,
         @NonNull Long reviewId, @NonNull Integer size) {
-        String selectQuery = generateSelectQuery(reviewId);
-        GenericExecuteSpec executeSpec = r2dbcEntityTemplate.getDatabaseClient()
-            .sql(selectQuery)
-            .bind(LAUNDROMAT_ID, laundromatId)
-            .bind(SIZE, size + 1);
-        if (reviewId > 0) {
-            executeSpec = executeSpec.bind(REVIEW_ID, reviewId);
-        }
-        return executeSpec.map((row, rowMetadata) -> ReviewCommonResponse.builder()
-                .id(row.get(ID, Long.class))
-                .laundromatId(row.get(LAUNDROMAT_ID, Long.class))
-                .laundromatName(row.get(LAUNDROMAT_NAME, String.class))
-                .userId(row.get(USER_ID, Long.class))
-                .username(row.get(USERNAME, String.class))
-                .mediaResources(
-                    mediaRowConverter.convertToCommonResponse(
-                        row.get(REVIEW_MEDIA_RESOURCES, String[].class)))
-                .content(row.get(COMMENT, String.class))
-                .rating(row.get(RATING, Integer.class))
-                .createdAt(row.get(CREATED_AT, LocalDateTime.class))
-                .updatedAt(row.get(UPDATED_AT, LocalDateTime.class))
-                .build()
-            )
-            .all();
+        String selectQuery = generateReviewSelectQueryByLaundromatId(reviewId);
+        return getReviewCommonResponseFlux(LAUNDROMAT_ID, laundromatId, reviewId, size,
+            selectQuery);
+    }
+
+    @Override
+    public Flux<ReviewCommonResponse> getReviewsByUserId(Long userId, Long reviewId, Integer size) {
+        String selectQuery = generateReviewSelectQueryByUserId(reviewId);
+        return getReviewCommonResponseFlux(USER_ID, userId, reviewId, size, selectQuery);
     }
 
     @Override
@@ -104,12 +89,12 @@ public class ReviewRepositoryImpl implements ReviewRepository {
             .then();
     }
 
-    private String generateSelectQuery(Long reviewId) {
-        StringBuilder queryBuilder = new StringBuilder("""
+    private String generateReviewSelectQueryByLaundromatId(Long reviewId) {
+        return """
             WITH review_base AS (
                 SELECT r.*
                 FROM reviews r
-                WHERE r.laundromat_id = :laundromatId
+                WHERE r.laundromat_id = :laundromat_id
             ),
             review_user AS (
                 SELECT u.id, u.nickname
@@ -119,7 +104,7 @@ public class ReviewRepositoryImpl implements ReviewRepository {
             review_laundromat AS (
                 SELECT l.id, l.name
                 FROM laundromats l
-                WHERE l.id = :laundromatId
+                WHERE l.id = :laundromat_id
             ),
             review_media_resource AS (
                 SELECT rmr.review_id, array_agg(ROW(rmr.media_uri, rmr.extension)) as media_resources
@@ -135,28 +120,89 @@ public class ReviewRepositoryImpl implements ReviewRepository {
             JOIN review_user ru ON rb.user_id = ru.id
             JOIN review_laundromat rl ON rb.laundromat_id = rl.id
             LEFT JOIN review_media_resource ri ON rb.id = ri.review_id
-            """);
+            """
+            + (reviewId > 0 ? " WHERE rb.id < :review_id" : "")
+            + " ORDER BY rb.id DESC LIMIT :size";
+    }
+
+    private String generateReviewSelectQueryByUserId(Long reviewId) {
+        return """
+            WITH review_base AS (
+                SELECT r.*
+                FROM reviews r
+                WHERE r.user_id = :user_id
+            ),
+            review_user AS (
+                SELECT u.id, u.nickname
+                FROM users u
+                WHERE u.id = :user_id
+            ),
+            review_laundromat AS (
+                SELECT l.id, l.name
+                FROM laundromats l
+                JOIN review_base rb ON rb.laundromat_id = l.id
+            ),
+            review_media_resource AS (
+                SELECT rmr.review_id, array_agg(ROW(rmr.media_uri, rmr.extension)) as media_resources
+                FROM review_media_resources rmr
+                WHERE rmr.review_id IN (SELECT id FROM review_base)
+                GROUP BY rmr.review_id
+            )
+            SELECT DISTINCT rb.id, rb.rating, rb.comment, rb.created_at, rb.updated_at,
+                   ru.id as user_id, rl.id as laundromat_id,
+                   ru.nickname as username, rl.name as laundromat_name,
+                   COALESCE(ri.media_resources, ARRAY[]::RECORD[]) as media_resources
+            FROM review_base rb
+            JOIN review_user ru ON rb.user_id = ru.id
+            JOIN review_laundromat rl ON rb.laundromat_id = rl.id
+            LEFT JOIN review_media_resource ri ON rb.id = ri.review_id
+            """
+            + (reviewId > 0 ? " WHERE rb.id < :review_id" : "")
+            + " ORDER BY rb.id DESC LIMIT :size";
+    }
+
+    private Flux<ReviewCommonResponse> getReviewCommonResponseFlux(String bind, Long id,
+        Long reviewId,
+        Integer size, String selectQuery) {
+        GenericExecuteSpec executeSpec = r2dbcEntityTemplate.getDatabaseClient()
+            .sql(selectQuery)
+            .bind(bind, id)
+            .bind(SIZE, size + 1);
         if (reviewId > 0) {
-            queryBuilder.append(" WHERE rb.id < :reviewId");
+            executeSpec = executeSpec.bind(REVIEW_ID, reviewId);
         }
-        queryBuilder.append(" ORDER BY rb.id DESC LIMIT :size");
-        return queryBuilder.toString();
+        return executeSpec.map((row, rowMetadata) -> ReviewCommonResponse.builder()
+                .id(row.get(ID, Long.class))
+                .laundromatId(row.get(LAUNDROMAT_ID, Long.class))
+                .laundromatName(row.get(LAUNDROMAT_NAME, String.class))
+                .userId(row.get(USER_ID, Long.class))
+                .username(row.get(USERNAME, String.class))
+                .mediaResources(
+                    mediaRowConverter.convertToCommonResponse(
+                        row.get(REVIEW_MEDIA_RESOURCES, String[].class)))
+                .content(row.get(COMMENT, String.class))
+                .rating(row.get(RATING, Integer.class))
+                .createdAt(row.get(CREATED_AT, LocalDateTime.class))
+                .updatedAt(row.get(UPDATED_AT, LocalDateTime.class))
+                .build()
+            )
+            .all();
     }
 
     private static final String INSERT_REVIEW_QUERY = """
         INSERT INTO reviews (laundromat_id, user_id, comment, rating)
-        VALUES (:laundromatId, :userId, :comment, :rating)
+        VALUES (:laundromat_id, :user_id, :comment, :rating)
         RETURNING *
         """;
 
     private static final String SELECT_REVIEW_STATS_QUERY = """
         SELECT COUNT(rating) AS review_count, AVG(rating) AS average_rating
         FROM reviews
-        WHERE laundromat_id = :laundromatId
+        WHERE laundromat_id = :laundromat_id
         """;
     private static final String DELETE_REVIEW_QUERY = """
         DELETE FROM reviews
-        WHERE id = :reviewId
+        WHERE id = :review_id
         """;
 
     private static final String SELECT_DETAIL_DATA_QUERY = """
@@ -164,18 +210,18 @@ public class ReviewRepositoryImpl implements ReviewRepository {
                json_agg(to_json(rmr)) AS media_resources
         FROM reviews r
                  LEFT JOIN review_media_resources rmr ON r.id = rmr.review_id
-        WHERE r.id = :reviewId
+        WHERE r.id = :review_id
         GROUP BY r.id
         """;
 
-    private static final String LAUNDROMAT_ID = "laundromatId";
-    private static final String USER_ID = "userId";
+    private static final String LAUNDROMAT_ID = "laundromat_id";
+    private static final String USER_ID = "user_id";
     private static final String COMMENT = "comment";
     private static final String RATING = "rating";
     private static final String REVIEW_COUNT = "review_count";
     private static final String AVERAGE_RATING = "average_rating";
     private static final String SIZE = "size";
-    private static final String REVIEW_ID = "reviewId";
+    private static final String REVIEW_ID = "review_id";
     private static final String USERNAME = "username";
     private static final String LAUNDROMAT_NAME = "laundromat_name";
     private static final String ID = "id";
