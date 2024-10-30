@@ -30,6 +30,28 @@ public interface ReviewFetchSwagger {
             )
         }
     )
+    Mono<ApiCommonResponse<CursorPaginationResponse<ReviewCommonResponse>>> getReviewsByUserId(
+        @Parameter(hidden = true) Long userId,
+        @Parameter(in = ParameterIn.QUERY, description = "커서", example = "1") Long cursor,
+        @Parameter(in = ParameterIn.QUERY, description = "페이지 크기", example = "10") Integer size
+    );
+
+    @Operation(
+        summary = "사용자 리뷰 조회",
+        description = "특정 사용자에 대한 리뷰 목록을 조회합니다."
+    )
+    @ApiResponses(
+        value = {
+            @ApiResponse(
+                responseCode = "200",
+                description = "성공적으로 조회됨"
+            ),
+            @ApiResponse(
+                responseCode = "403",
+                description = "접근 권한이 없음"
+            )
+        }
+    )
     Mono<ApiCommonResponse<CursorPaginationResponse<ReviewCommonResponse>>> getReviewsByLaundryId(
         @Parameter(in = ParameterIn.PATH, description = "세탁소 ID", example = "1") Long laundromatId,
         @Parameter(in = ParameterIn.QUERY, description = "커서", example = "1") Long cursor,
