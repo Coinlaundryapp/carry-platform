@@ -21,6 +21,8 @@ public interface ReviewRepository {
     Flux<ReviewCommonResponse> getReviewsByLaundromatId(Long laundromatId, Long reviewId,
         Integer size);
 
+    Flux<ReviewCommonResponse> getReviewsByUserId(Long userId, Long reviewId, Integer size);
+
     Mono<Void> deleteById(Long reviewId);
 
 }
