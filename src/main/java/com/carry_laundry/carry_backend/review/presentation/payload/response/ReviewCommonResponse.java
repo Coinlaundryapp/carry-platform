@@ -13,7 +13,9 @@ import lombok.NoArgsConstructor;
 public class ReviewCommonResponse {
 
     private Long id;
+    private Long laundromatId;
     private String laundromatName;
+    private Long userId;
     private String username;
     private List<MediaCommonResponse> mediaResources;
     private String content;
@@ -22,11 +24,13 @@ public class ReviewCommonResponse {
     private String updatedAt;
 
     @Builder
-    protected ReviewCommonResponse(Long id, String laundromatName, String username,
-        List<MediaCommonResponse> mediaResources, String content, Integer rating,
+    protected ReviewCommonResponse(Long id, Long laundromatId, String laundromatName, Long userId,
+        String username, List<MediaCommonResponse> mediaResources, String content, Integer rating,
         LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
+        this.laundromatId = laundromatId;
         this.laundromatName = laundromatName;
+        this.userId = userId;
         this.username = username;
         this.mediaResources = mediaResources;
         this.content = content;

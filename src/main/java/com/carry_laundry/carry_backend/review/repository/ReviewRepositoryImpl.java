@@ -24,35 +24,26 @@ public class ReviewRepositoryImpl implements ReviewRepository {
 
     @Override
     public Mono<Review> save(@NonNull Review review) {
-        String insertQuery = """
-            INSERT INTO reviews (laundromat_id, user_id, comment, rating)
-            VALUES (:laundromatId, :userId, :comment, :rating)
-            RETURNING *
-            """;
-        return r2dbcEntityTemplate.getDatabaseClient().sql(insertQuery)
-            .bind("laundromatId", review.getLaundromatId())
-            .bind("userId", review.getUserId())
-            .bind("comment", review.getComment())
-            .bind("rating", review.getReviewRating().getValue())
+        return r2dbcEntityTemplate.getDatabaseClient().sql(INSERT_REVIEW_QUERY)
+            .bind(LAUNDROMAT_ID, review.getLaundromatId())
+            .bind(USER_ID, review.getUserId())
+            .bind(COMMENT, review.getComment())
+            .bind(RATING, review.getReviewRating().getValue())
             .map((row, rowMetadata) -> Review.fromRow(row))
             .one();
     }
 
     @Override
     public Mono<ReviewStatisticResponse> getReviewStaticByLaundromatId(Long laundromatId) {
-        String selectQuery = """
-            SELECT COUNT(rating) AS review_count, AVG(rating) AS average_rating
-            FROM reviews
-            WHERE laundromat_id = :laundromatId
-            """;
-        return r2dbcEntityTemplate.getDatabaseClient().sql(selectQuery)
-            .bind("laundromatId", laundromatId)
+        return r2dbcEntityTemplate.getDatabaseClient().sql(SELECT_REVIEW_STATS_QUERY)
+            .bind(LAUNDROMAT_ID, laundromatId)
             .map((row, rowMetadata) -> {
-                Long reviewCount = row.get("review_count", Long.class);
-                Double averageRating = Optional.ofNullable(row.get("average_rating", Double.class))
+                Long reviewCount = row.get(REVIEW_COUNT, Long.class);
+                Double averageRating = Optional.ofNullable(row.get(AVERAGE_RATING, Double.class))
                     .orElse(0.0);
                 return new ReviewStatisticResponse(laundromatId, reviewCount, averageRating);
-            }).one();
+            })
+            .one();
     }
 
     @Override
@@ -61,25 +52,56 @@ public class ReviewRepositoryImpl implements ReviewRepository {
         String selectQuery = generateSelectQuery(reviewId);
         GenericExecuteSpec executeSpec = r2dbcEntityTemplate.getDatabaseClient()
             .sql(selectQuery)
-            .bind("laundromatId", laundromatId)
-            .bind("size", size + 1);
+            .bind(LAUNDROMAT_ID, laundromatId)
+            .bind(SIZE, size + 1);
         if (reviewId > 0) {
-            executeSpec = executeSpec.bind("reviewId", reviewId);
+            executeSpec = executeSpec.bind(REVIEW_ID, reviewId);
         }
         return executeSpec.map((row, rowMetadata) -> ReviewCommonResponse.builder()
-                .id(row.get("id", Long.class))
-                .laundromatName(row.get("laundromat_name", String.class))
-                .username(row.get("username", String.class))
+                .id(row.get(ID, Long.class))
+                .laundromatId(row.get(LAUNDROMAT_ID, Long.class))
+                .laundromatName(row.get(LAUNDROMAT_NAME, String.class))
+                .userId(row.get(USER_ID, Long.class))
+                .username(row.get(USERNAME, String.class))
                 .mediaResources(
                     mediaRowConverter.convertToCommonResponse(
-                        row.get("media_resources", String[].class)))
-                .content(row.get("comment", String.class))
-                .rating(row.get("rating", Integer.class))
-                .createdAt(row.get("created_at", LocalDateTime.class))
-                .updatedAt(row.get("updated_at", LocalDateTime.class))
+                        row.get(REVIEW_MEDIA_RESOURCES, String[].class)))
+                .content(row.get(COMMENT, String.class))
+                .rating(row.get(RATING, Integer.class))
+                .createdAt(row.get(CREATED_AT, LocalDateTime.class))
+                .updatedAt(row.get(UPDATED_AT, LocalDateTime.class))
                 .build()
             )
             .all();
+    }
+
+    @Override
+    public Mono<ReviewDetailData> findDetailDataById(Long reviewId) {
+        return r2dbcEntityTemplate.getDatabaseClient().sql(SELECT_DETAIL_DATA_QUERY)
+            .bind(REVIEW_ID, reviewId)
+            .map((row, rowMetadata) ->
+                new ReviewDetailData(
+                    row.get(ID, Long.class),
+                    row.get(LAUNDROMAT_ID, Long.class),
+                    row.get(USER_ID, Long.class),
+                    row.get(COMMENT, String.class),
+                    row.get(RATING, Integer.class),
+                    mediaRowConverter.convertToReviewMediaResource(
+                        row.get(REVIEW_MEDIA_RESOURCES, String.class)),
+                    row.get(CREATED_AT, LocalDateTime.class),
+                    row.get(UPDATED_AT, LocalDateTime.class)
+                )
+            )
+            .one();
+    }
+
+    @Override
+    public Mono<Void> deleteById(Long reviewId) {
+        return r2dbcEntityTemplate.getDatabaseClient().sql(DELETE_REVIEW_QUERY)
+            .bind(REVIEW_ID, reviewId)
+            .fetch()
+            .rowsUpdated()
+            .then();
     }
 
     private String generateSelectQuery(Long reviewId) {
@@ -106,6 +128,7 @@ public class ReviewRepositoryImpl implements ReviewRepository {
                 GROUP BY rmr.review_id
             )
             SELECT DISTINCT rb.id, rb.rating, rb.comment, rb.created_at, rb.updated_at,
+                   ru.id as user_id, rl.id as laundromat_id,
                    ru.nickname as username, rl.name as laundromat_name,
                    COALESCE(ri.media_resources, ARRAY[]::RECORD[]) as media_resources
             FROM review_base rb
@@ -120,44 +143,43 @@ public class ReviewRepositoryImpl implements ReviewRepository {
         return queryBuilder.toString();
     }
 
-    @Override
-    public Mono<ReviewDetailData> findDetailDataById(Long reviewId) {
-        String selectQuery = """
-            SELECT r.*,
-                   json_agg(to_json(rmr)) AS media_resources
-            FROM reviews r
-                     LEFT JOIN review_media_resources rmr ON r.id = rmr.review_id
-            WHERE r.id = :reviewId
-            GROUP BY r.id
-            """;
-        return r2dbcEntityTemplate.getDatabaseClient().sql(selectQuery)
-            .bind("reviewId", reviewId)
-            .map((row, rowMetadata) ->
-                new ReviewDetailData(
-                    row.get("id", Long.class),
-                    row.get("laundromat_id", Long.class),
-                    row.get("user_id", Long.class),
-                    row.get("comment", String.class),
-                    row.get("rating", Integer.class),
-                    mediaRowConverter.convertToReviewMediaResource(
-                        row.get("media_resources", String.class)),
-                    row.get("created_at", LocalDateTime.class),
-                    row.get("updated_at", LocalDateTime.class)
-                )
-            )
-            .one();
-    }
+    private static final String INSERT_REVIEW_QUERY = """
+        INSERT INTO reviews (laundromat_id, user_id, comment, rating)
+        VALUES (:laundromatId, :userId, :comment, :rating)
+        RETURNING *
+        """;
 
-    @Override
-    public Mono<Void> deleteById(Long reviewId) {
-        String deleteQuery = """
-            DELETE FROM reviews
-            WHERE id = :reviewId
-            """;
-        return r2dbcEntityTemplate.getDatabaseClient().sql(deleteQuery)
-            .bind("reviewId", reviewId)
-            .fetch()
-            .rowsUpdated()
-            .then();
-    }
+    private static final String SELECT_REVIEW_STATS_QUERY = """
+        SELECT COUNT(rating) AS review_count, AVG(rating) AS average_rating
+        FROM reviews
+        WHERE laundromat_id = :laundromatId
+        """;
+    private static final String DELETE_REVIEW_QUERY = """
+        DELETE FROM reviews
+        WHERE id = :reviewId
+        """;
+
+    private static final String SELECT_DETAIL_DATA_QUERY = """
+        SELECT r.*,
+               json_agg(to_json(rmr)) AS media_resources
+        FROM reviews r
+                 LEFT JOIN review_media_resources rmr ON r.id = rmr.review_id
+        WHERE r.id = :reviewId
+        GROUP BY r.id
+        """;
+
+    private static final String LAUNDROMAT_ID = "laundromatId";
+    private static final String USER_ID = "userId";
+    private static final String COMMENT = "comment";
+    private static final String RATING = "rating";
+    private static final String REVIEW_COUNT = "review_count";
+    private static final String AVERAGE_RATING = "average_rating";
+    private static final String SIZE = "size";
+    private static final String REVIEW_ID = "reviewId";
+    private static final String USERNAME = "username";
+    private static final String LAUNDROMAT_NAME = "laundromat_name";
+    private static final String ID = "id";
+    private static final String REVIEW_MEDIA_RESOURCES = "media_resources";
+    private static final String CREATED_AT = "created_at";
+    private static final String UPDATED_AT = "updated_at";
 }
