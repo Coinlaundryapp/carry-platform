@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonSetter;
 import com.fasterxml.jackson.annotation.Nulls;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Positive;
 import java.util.List;
 import java.util.UUID;
 import lombok.AccessLevel;
@@ -14,6 +15,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ReviewCreateRequest {
 
+    @Positive(message = "세탁소 ID는 1 이상이어야 합니다.")
+    private Long laundromatId;
     private String comment;
     @Min(value = 1, message = "리뷰 평점은 1점 이상이어야 합니다.")
     @Max(value = 5, message = "리뷰 평점은 5점 이하여야 합니다.")

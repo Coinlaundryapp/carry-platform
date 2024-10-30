@@ -3,7 +3,6 @@ package com.carry_laundry.carry_backend.review.presentation.api;
 import com.carry_laundry.carry_backend.review.presentation.payload.request.ReviewCreateRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -31,6 +30,5 @@ public interface ReviewPostSwagger {
         }
     )
     Mono<ResponseEntity<Void>> postReview(@Parameter(hidden = true) Long userId,
-        @Parameter(in = ParameterIn.PATH, description = "세탁소 ID", example = "1") Long laundromatId,
         @RequestBody ReviewCreateRequest request);
 }

@@ -10,7 +10,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
 
 @RestController
-@RequestMapping("/api/v1/reviews/post")
+@RequestMapping("/api/v1/reviews")
 @RequiredArgsConstructor
 public class ReviewPostController implements ReviewPostSwagger {
 
@@ -27,10 +26,10 @@ public class ReviewPostController implements ReviewPostSwagger {
     // TODO: Must changed to Event Listening
     private final ResourceMetadataService resourceMetadataService;
 
-    @PostMapping("/{laundromatId}")
+    @PostMapping()
     public Mono<ResponseEntity<Void>> postReview(@AuthenticationPrincipal Long userId,
-        @PathVariable Long laundromatId,
         @Valid @RequestBody ReviewCreateRequest request) {
+        Long laundromatId = request.getLaundromatId();
         return reviewService.saveReview(userId, laundromatId, request.getComment(),
                 request.getReviewRating())
             .flatMap(review -> resourceMetadataService.updateValidations("review",
