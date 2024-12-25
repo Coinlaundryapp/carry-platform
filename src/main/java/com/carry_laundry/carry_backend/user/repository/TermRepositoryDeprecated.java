@@ -7,8 +7,9 @@ import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+@Deprecated(since = "2024-12-25", forRemoval = true)
 @Repository
-public interface TermRepository extends ReactiveCrudRepository<TermData, Long> {
+public interface TermRepositoryDeprecated extends ReactiveCrudRepository<TermData, Long> {
 
     Flux<TermData> findByTermInfoTitleOrderByTermInfoVersionDesc(@NonNull String termInfoTitle);
 
