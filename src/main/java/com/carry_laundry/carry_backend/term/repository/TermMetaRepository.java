@@ -1,6 +1,7 @@
 package com.carry_laundry.carry_backend.term.repository;
 
 import com.carry_laundry.carry_backend.term.domain.entity.TermMeta;
+import com.carry_laundry.carry_backend.term.domain.enums.TermType;
 import org.springframework.data.r2dbc.repository.Query;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import org.springframework.lang.NonNull;
@@ -18,4 +19,6 @@ public interface TermMetaRepository extends ReactiveCrudRepository<TermMeta, Lon
                 RETURNING *
         """)
     <S extends TermMeta> Mono<S> save(@NonNull S entity);
+
+    Mono<Boolean> existsByCodeAndTermType(String code, TermType termType);
 }
