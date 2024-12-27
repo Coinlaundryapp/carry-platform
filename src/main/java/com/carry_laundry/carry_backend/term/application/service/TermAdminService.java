@@ -38,7 +38,7 @@ public class TermAdminService {
         return validateTermInputs(termMeta, content)
             .then(Mono.fromSupplier(LocalDate::now))
             .flatMap(currentDate ->
-                termRepository.findFirstByTermMetaIdAndCreatedAt(termMeta.getId(), currentDate)
+                termRepository.findByTermMetaIdAndCreatedAt(termMeta.getId(), currentDate)
                     .flatMap(term -> {
                         int nextVersion = term.getVersionCount() + 1;
                         return termRepository.save(

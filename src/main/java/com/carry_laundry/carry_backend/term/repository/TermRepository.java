@@ -21,7 +21,7 @@ public interface TermRepository extends ReactiveCrudRepository<Term, Long> {
         ORDER BY id DESC
         LIMIT 1
         """)
-    Mono<Term> findFirstByTermMetaIdAndCreatedAt(@NonNull Long termMetaId,
+    Mono<Term> findByTermMetaIdAndCreatedAt(@NonNull Long termMetaId,
         @NonNull LocalDate createdAt);
 
     @Query("""
