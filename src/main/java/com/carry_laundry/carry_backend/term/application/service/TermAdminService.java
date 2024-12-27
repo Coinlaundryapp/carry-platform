@@ -10,6 +10,7 @@ import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Slf4j
@@ -36,31 +37,33 @@ public class TermAdminService {
             );
     }
 
-    public Mono<Term> createTerm(TermMeta termMeta, String content) {
-        return validateTermInputs(termMeta, content)
-            .then(Mono.fromSupplier(LocalDate::now))
-            .flatMap(currentDate ->
-                termRepository.findByTermMetaIdAndCreatedAt(termMeta.getId(), currentDate)
-                    .flatMap(term -> {
-                        int nextVersion = term.getVersionCount() + 1;
-                        return termRepository.save(
-                            Term.of(termMeta.getId(), content, nextVersion, currentDate));
-                    })
-                    .switchIfEmpty(
-                        Mono.defer(() -> termRepository.save(
-                            Term.of(termMeta.getId(), content, 1, currentDate)))
-                    )
-            ).doOnNext(term -> termInMemoryCache.updateCache(termMeta, term));
+    public Flux<TermMeta> getTermMetas() {
+        return termMetaRepository.findAll();
     }
 
-    private Mono<Void> validateTermInputs(TermMeta termMeta, String content) {
-        if (termMeta == null) {
-            return Mono.error(new IllegalArgumentException("termMeta should not be null"));
+    public Mono<Term> createTerm(Long termMetaId, String content) {
+        return validateTermInputs(termMetaId, content).flatMap(termMeta -> {
+            LocalDate currentDate = LocalDate.now();
+            return termRepository.findByTermMetaIdAndCreatedAt(termMeta.getId(), currentDate)
+                .flatMap(term -> {
+                    int nextVersion = term.getVersionCount() + 1;
+                    return termRepository.save(
+                        Term.of(termMeta.getId(), content, nextVersion, currentDate));
+                }).switchIfEmpty(Mono.defer(
+                    () -> termRepository.save(Term.of(termMeta.getId(), content, 1, currentDate))))
+                .doOnNext(term -> termInMemoryCache.updateCache(termMeta, term));
+        });
+    }
+
+    private Mono<TermMeta> validateTermInputs(Long termMetaId, String content) {
+        if (termMetaId == null) {
+            return Mono.error(new IllegalArgumentException("termMetaId should not be null"));
         }
         if (content == null || content.isBlank()) {
             return Mono.error(new IllegalArgumentException("content should not be blank"));
         }
-        return Mono.empty();
+        return termMetaRepository.findById(termMetaId)
+            .switchIfEmpty(Mono.error(new IllegalArgumentException("termMeta not found")));
     }
 
     private Mono<TermType> validateTermMetaInputs(String title, String code, String termType) {
