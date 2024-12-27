@@ -12,12 +12,13 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Service
-public class TermAdminService {
+@Deprecated(since = "2024-12-27", forRemoval = true)
+public class TermAdminServiceDeprecated {
 
     private final Map<String, Term> requiredTerms;
     private final TermService termService;
 
-    public TermAdminService(TermService termService) {
+    public TermAdminServiceDeprecated(TermService termService) {
         this.termService = termService;
         this.requiredTerms = verityRequiredTerms();
     }

@@ -49,7 +49,7 @@ class TermAdminServiceTest {
         );
         given(termService.getAllTerms()).willReturn(terms);
         // Act
-        TermAdminService actualResult = new TermAdminService(termService);
+        TermAdminServiceDeprecated actualResult = new TermAdminServiceDeprecated(termService);
         // Assert
         assertThat(actualResult.getRequiredTerms())
             .contains(expectedTerms.get(0), expectedTerms.get(1));
@@ -59,12 +59,12 @@ class TermAdminServiceTest {
     @DisplayName("생성 후")
     class afterCreation {
 
-        private TermAdminService termAdminService;
+        private TermAdminServiceDeprecated termAdminService;
 
         @BeforeEach
         void setUp() {
             given(termService.getAllTerms()).willReturn(Flux.empty());
-            termAdminService = new TermAdminService(termService);
+            termAdminService = new TermAdminServiceDeprecated(termService);
         }
 
         @Nested
