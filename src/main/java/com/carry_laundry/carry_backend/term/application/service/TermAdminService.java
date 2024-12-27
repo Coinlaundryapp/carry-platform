@@ -3,6 +3,7 @@ package com.carry_laundry.carry_backend.term.application.service;
 import com.carry_laundry.carry_backend.term.domain.entity.Term;
 import com.carry_laundry.carry_backend.term.domain.entity.TermMeta;
 import com.carry_laundry.carry_backend.term.domain.enums.TermType;
+import com.carry_laundry.carry_backend.term.repository.TermInMemoryCache;
 import com.carry_laundry.carry_backend.term.repository.TermMetaRepository;
 import com.carry_laundry.carry_backend.term.repository.TermRepository;
 import java.time.LocalDate;
@@ -18,13 +19,14 @@ public class TermAdminService {
 
     private final TermRepository termRepository;
     private final TermMetaRepository termMetaRepository;
+    private final TermInMemoryCache termInMemoryCache;
 
     public Mono<TermMeta> createTermMeta(String title, String code, String termType) {
         return validateTermMetaInputs(title, code, termType)
             .flatMap(termTypeEnum ->
                 termMetaRepository.existsByCodeAndTermType(code, termTypeEnum)
                     .flatMap(exists -> {
-                        if (exists) {
+                        if (Boolean.TRUE.equals(exists)) {
                             log.error("이미 존재하는 약관 코드입니다: {}", code);
                             return Mono.error(
                                 new IllegalArgumentException("이미 존재하는 약관 코드입니다: " + code));
@@ -48,7 +50,7 @@ public class TermAdminService {
                         Mono.defer(() -> termRepository.save(
                             Term.of(termMeta.getId(), content, 1, currentDate)))
                     )
-            );
+            ).doOnNext(term -> termInMemoryCache.updateCache(termMeta, term));
     }
 
     private Mono<Void> validateTermInputs(TermMeta termMeta, String content) {

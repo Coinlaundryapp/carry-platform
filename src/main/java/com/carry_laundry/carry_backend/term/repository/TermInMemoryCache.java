@@ -1,6 +1,8 @@
 package com.carry_laundry.carry_backend.term.repository;
 
 import com.carry_laundry.carry_backend.term.application.record.TermDetail;
+import com.carry_laundry.carry_backend.term.domain.entity.Term;
+import com.carry_laundry.carry_backend.term.domain.entity.TermMeta;
 import jakarta.annotation.PostConstruct;
 import java.util.List;
 import java.util.Map;
@@ -18,11 +20,10 @@ public class TermInMemoryCache {
         this.termRepository = termRepository;
     }
 
-    @PostConstruct
-    public void init() {
-        termRepository.findTermDetailsByLastVersion()
-            .doOnNext(termDetail -> map.put(termDetail.code(), termDetail))
-            .subscribe();
+    public void updateCache(TermMeta termMeta, Term term) {
+        TermDetail termDetail = new TermDetail(term.getId(), termMeta.getCode(),
+            termMeta.getTermType(), term.getVersionCount(), term.getCreatedAt());
+        map.put(termMeta.getCode(), termDetail);
     }
 
     public List<TermDetail> getMandatoryTerms() {
@@ -30,4 +31,12 @@ public class TermInMemoryCache {
             .filter(TermDetail::isMandatory)
             .toList();
     }
+
+    @PostConstruct
+    protected void init() {
+        termRepository.findTermDetailsByLastVersion()
+            .doOnNext(termDetail -> map.put(termDetail.code(), termDetail))
+            .subscribe();
+    }
+
 }
