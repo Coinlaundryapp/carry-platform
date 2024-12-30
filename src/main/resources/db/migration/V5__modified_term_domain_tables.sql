@@ -32,3 +32,16 @@ CREATE TABLE terms
 
 CREATE INDEX idx_terms_term_meta_id ON terms (term_meta_id);
 CREATE INDEX idx_terms_created_at_and_version_count ON terms (created_at, version_count);
+
+-- create term_agreements table
+CREATE TABLE term_agreements
+(
+    id         BIGSERIAL PRIMARY KEY,
+    term_id    BIGINT                                 NOT NULL,
+    user_id    BIGINT                                 NOT NULL,
+    agree_yn   BOOLEAN                                NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
+);
+
+CREATE INDEX idx_term_agreements_term_id ON term_agreements (term_id);
+CREATE INDEX idx_term_agreements_user_id ON term_agreements (user_id);
