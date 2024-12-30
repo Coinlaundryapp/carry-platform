@@ -9,8 +9,9 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Service
+@Deprecated(forRemoval = true, since = "2024-12-30")
 @RequiredArgsConstructor
-public class TermService {
+public class TermServiceDeprecated {
 
     private final TermRepositoryDeprecated termRepository;
 

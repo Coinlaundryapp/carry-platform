@@ -25,7 +25,7 @@ import reactor.test.StepVerifier;
 class TermAdminServiceTest {
 
     @Mock
-    private TermService termService;
+    private TermServiceDeprecated termServiceDeprecated;
 
     @Test
     @DisplayName("생성시 최신 필수 약관 정보를 조회한다.")
@@ -47,9 +47,10 @@ class TermAdminServiceTest {
             Term.of(TermType.OPTIONAL, TermInfo.of(expectedTitle + 2, 1), "testContext",
                 expectedCreatedAt)
         );
-        given(termService.getAllTerms()).willReturn(terms);
+        given(termServiceDeprecated.getAllTerms()).willReturn(terms);
         // Act
-        TermAdminServiceDeprecated actualResult = new TermAdminServiceDeprecated(termService);
+        TermAdminServiceDeprecated actualResult = new TermAdminServiceDeprecated(
+            termServiceDeprecated);
         // Assert
         assertThat(actualResult.getRequiredTerms())
             .contains(expectedTerms.get(0), expectedTerms.get(1));
@@ -63,8 +64,8 @@ class TermAdminServiceTest {
 
         @BeforeEach
         void setUp() {
-            given(termService.getAllTerms()).willReturn(Flux.empty());
-            termAdminService = new TermAdminServiceDeprecated(termService);
+            given(termServiceDeprecated.getAllTerms()).willReturn(Flux.empty());
+            termAdminService = new TermAdminServiceDeprecated(termServiceDeprecated);
         }
 
         @Nested
@@ -77,7 +78,7 @@ class TermAdminServiceTest {
                 // Arrange
                 Term term = Term.of(TermType.MANDATORY, TermInfo.of("testTitle", 1), "testContext",
                     LocalDateTime.now());
-                given(termService.getTermsByTitle(term.getTermInfo().getTitle()))
+                given(termServiceDeprecated.getTermsByTitle(term.getTermInfo().getTitle()))
                     .willReturn(Flux.just(term));
                 // Act & Assert
                 StepVerifier.create(termAdminService.createNewTerm(term))
@@ -96,8 +97,9 @@ class TermAdminServiceTest {
                 LocalDateTime expectedCreatedAt = LocalDateTime.now();
                 Term term = Term.of(expectedTermType, expectedTermInfo, expectedContext,
                     expectedCreatedAt);
-                given(termService.getTermsByTitle(any(String.class))).willReturn(Flux.empty());
-                given(termService.addTerm(term)).willReturn(Mono.just(term));
+                given(termServiceDeprecated.getTermsByTitle(any(String.class))).willReturn(
+                    Flux.empty());
+                given(termServiceDeprecated.addTerm(term)).willReturn(Mono.just(term));
                 // Act & Assert
                 StepVerifier.create(termAdminService.createNewTerm(term))
                     .assertNext(response -> assertThat(response)
@@ -123,7 +125,8 @@ class TermAdminServiceTest {
             void testUpdateTermWithNotExist() {
                 // Arrange
                 given(
-                    termService.getTermsByTitle(expectedTerm.getTermInfo().getTitle())).willReturn(
+                    termServiceDeprecated.getTermsByTitle(
+                        expectedTerm.getTermInfo().getTitle())).willReturn(
                     Flux.empty());
                 // Act & Assert
                 StepVerifier.create(termAdminService.updateTerm(expectedTerm))
@@ -138,7 +141,7 @@ class TermAdminServiceTest {
                 Term existTerm = Term.of(TermType.MANDATORY, TermInfo.of("testTitle", 1),
                     "testContext",
                     LocalDateTime.now());
-                given(termService.getTermsByTitle(expectedTerm.getTermInfo().getTitle()))
+                given(termServiceDeprecated.getTermsByTitle(expectedTerm.getTermInfo().getTitle()))
                     .willReturn(Flux.just(existTerm));
                 // Act & Assert
                 StepVerifier.create(termAdminService.updateTerm(expectedTerm))
@@ -153,9 +156,10 @@ class TermAdminServiceTest {
                 Term existTerm = Term.of(TermType.MANDATORY, TermInfo.of("testTitle", 0),
                     "testContext",
                     LocalDateTime.now());
-                given(termService.getTermsByTitle(expectedTerm.getTermInfo().getTitle()))
+                given(termServiceDeprecated.getTermsByTitle(expectedTerm.getTermInfo().getTitle()))
                     .willReturn(Flux.just(existTerm));
-                given(termService.addTerm(expectedTerm)).willReturn(Mono.just(expectedTerm));
+                given(termServiceDeprecated.addTerm(expectedTerm)).willReturn(
+                    Mono.just(expectedTerm));
                 // Act & Assert
                 StepVerifier.create(termAdminService.updateTerm(expectedTerm))
                     .assertNext(response -> assertThat(response)
