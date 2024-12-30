@@ -43,6 +43,8 @@ public class SecurityConfig {
                     "/api/v1/prices/**",
                     "/api/v1/media/*",
                     "/api/v1/reviews/laundromat/*").permitAll()
+                .pathMatchers("/api/v1/terms/agreements/**").authenticated()
+                .pathMatchers("/api/v1/terms/**").permitAll()
                 .anyExchange().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter(), SecurityWebFiltersOrder.AUTHENTICATION)
