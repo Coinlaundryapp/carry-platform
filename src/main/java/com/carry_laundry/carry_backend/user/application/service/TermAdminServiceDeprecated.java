@@ -12,23 +12,24 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Service
-public class TermAdminService {
+@Deprecated(since = "2024-12-27", forRemoval = true)
+public class TermAdminServiceDeprecated {
 
     private final Map<String, Term> requiredTerms;
-    private final TermService termService;
+    private final TermServiceDeprecated termServiceDeprecated;
 
-    public TermAdminService(TermService termService) {
-        this.termService = termService;
+    public TermAdminServiceDeprecated(TermServiceDeprecated termServiceDeprecated) {
+        this.termServiceDeprecated = termServiceDeprecated;
         this.requiredTerms = verityRequiredTerms();
     }
 
     public Mono<Term> createNewTerm(Term term) {
         TermInfo termInfo = term.getTermInfo();
-        return Mono.from(termService.getTermsByTitle(termInfo.getTitle()).flatMap(
+        return Mono.from(termServiceDeprecated.getTermsByTitle(termInfo.getTitle()).flatMap(
                 terms -> Flux.defer(() -> Flux.error(
                     new IllegalArgumentException("이미 존재하는 약관입니다: " + termInfo.getTitle()))))
             .switchIfEmpty(Mono.defer(() -> {
-                Mono<Term> newTerm = termService.addTerm(term);
+                Mono<Term> newTerm = termServiceDeprecated.addTerm(term);
                 return newTerm.doOnNext(newTermData -> {
                     String termTitle = newTermData.getTermInfo().getTitle();
                     if (newTermData.isMandatory()) {
@@ -40,24 +41,26 @@ public class TermAdminService {
 
     public Mono<Term> updateTerm(Term term) {
         TermInfo termInfo = term.getTermInfo();
-        return termService.getTermsByTitle(termInfo.getTitle()).collectList().flatMap(terms -> {
-            if (terms.isEmpty()) {
-                return Mono.defer(() -> Mono.error(
-                    new IllegalArgumentException("업데이트할 약관이 존재하지 않습니다: " + termInfo.getTitle())));
-            }
-            boolean predict = terms.stream()
-                .anyMatch(t -> t.getVersion() >= termInfo.getVersion());
-            if (predict) {
-                return Mono.defer(() -> Mono.error(new IllegalArgumentException(
-                    "이미 존재하는 약관 버전이 같거나 더 높습니다: " + termInfo.getVersion())));
-            }
-            return termService.addTerm(term).doOnNext(newTermData -> {
-                String termTitle = newTermData.getTermInfo().getTitle();
-                if (newTermData.isMandatory()) {
-                    requiredTerms.put(termTitle, newTermData);
+        return termServiceDeprecated.getTermsByTitle(termInfo.getTitle()).collectList()
+            .flatMap(terms -> {
+                if (terms.isEmpty()) {
+                    return Mono.defer(() -> Mono.error(
+                        new IllegalArgumentException(
+                            "업데이트할 약관이 존재하지 않습니다: " + termInfo.getTitle())));
                 }
+                boolean predict = terms.stream()
+                    .anyMatch(t -> t.getVersion() >= termInfo.getVersion());
+                if (predict) {
+                    return Mono.defer(() -> Mono.error(new IllegalArgumentException(
+                        "이미 존재하는 약관 버전이 같거나 더 높습니다: " + termInfo.getVersion())));
+                }
+                return termServiceDeprecated.addTerm(term).doOnNext(newTermData -> {
+                    String termTitle = newTermData.getTermInfo().getTitle();
+                    if (newTermData.isMandatory()) {
+                        requiredTerms.put(termTitle, newTermData);
+                    }
+                });
             });
-        });
     }
 
     public List<Term> getRequiredTerms() {
@@ -66,7 +69,7 @@ public class TermAdminService {
 
     private Map<String, Term> verityRequiredTerms() {
         Map<String, Term> map = new ConcurrentHashMap<>();
-        termService.getAllTerms()
+        termServiceDeprecated.getAllTerms()
             .filter(Term::isMandatory)
             .groupBy(term -> term.getTermInfo().getTitle())
             .flatMap(

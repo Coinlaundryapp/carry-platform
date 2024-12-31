@@ -2,17 +2,18 @@ package com.carry_laundry.carry_backend.user.application.service;
 
 import com.carry_laundry.carry_backend.user.domain.entity.domainmodel.Term;
 import com.carry_laundry.carry_backend.user.domain.value.TermInfo;
-import com.carry_laundry.carry_backend.user.repository.TermRepository;
+import com.carry_laundry.carry_backend.user.repository.TermRepositoryDeprecated;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Service
+@Deprecated(forRemoval = true, since = "2024-12-30")
 @RequiredArgsConstructor
-public class TermService {
+public class TermServiceDeprecated {
 
-    private final TermRepository termRepository;
+    private final TermRepositoryDeprecated termRepository;
 
     public Mono<Term> addTerm(Term term) {
         return termRepository.save(term.toData()).map(Term::from);

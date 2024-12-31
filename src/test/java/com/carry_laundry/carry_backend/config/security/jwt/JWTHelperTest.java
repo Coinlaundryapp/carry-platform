@@ -6,7 +6,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
 import com.auth0.jwt.exceptions.JWTVerificationException;
-import com.carry_laundry.carry_backend.user.application.service.TermAdminService;
+import com.carry_laundry.carry_backend.user.application.service.TermAdminServiceDeprecated;
 import com.carry_laundry.carry_backend.user.domain.entity.domainmodel.Term;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,7 +26,7 @@ class JWTHelperTest {
     @Mock
     private JWTProperties jwtProperties;
     @Mock
-    private TermAdminService termAdminService;
+    private TermAdminServiceDeprecated termAdminService;
 
     @BeforeEach
     void setUp() {
