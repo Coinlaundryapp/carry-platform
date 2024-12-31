@@ -23,7 +23,7 @@ public class UserSignService {
     private final UserService userService;
     private final RefreshTokenService refreshTokenService;
     private final TermAgreeService termAgreeService;
-    private final TermService termService;
+    private final TermServiceDeprecated termServiceDeprecated;
     private final KakaoOAuthService kakaoOAuthService;
     private final JWTHelper jwtHelper;
 
@@ -78,7 +78,7 @@ public class UserSignService {
 
     private Mono<TermAgree> addTermAgree(Long userId,
         KakaoUserTermsResponse.ServiceTerm serviceTerm) {
-        return termService.getTermByTermInfo(TermInfo.from(serviceTerm.getTag()))
+        return termServiceDeprecated.getTermByTermInfo(TermInfo.from(serviceTerm.getTag()))
             .flatMap(term -> termAgreeService.addTermAgree(
                 TermAgree.of(userId, term.getId(), true, LocalDateTime.now())
             ));

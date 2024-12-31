@@ -8,7 +8,7 @@ import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.Claim;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.auth0.jwt.interfaces.JWTVerifier;
-import com.carry_laundry.carry_backend.user.application.service.TermAdminService;
+import com.carry_laundry.carry_backend.user.application.service.TermAdminServiceDeprecated;
 import com.carry_laundry.carry_backend.user.domain.entity.domainmodel.Term;
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -29,9 +29,9 @@ public class JWTHelper {
     private final Long refreshTokenExpiryMillis;
     private final Algorithm algorithm;
     private final JWTVerifier jwtVerifier;
-    private final TermAdminService termAdminService;
+    private final TermAdminServiceDeprecated termAdminService;
 
-    public JWTHelper(JWTProperties jwtProperties, TermAdminService termAdminService) {
+    public JWTHelper(JWTProperties jwtProperties, TermAdminServiceDeprecated termAdminService) {
         this.issuer = jwtProperties.getIssuer();
         this.accessTokenExpiryMillis = daysToMillis(jwtProperties.getAccessTokenExpiryDate());
         this.refreshTokenExpiryMillis = daysToMillis(jwtProperties.getRefreshTokenExpiryDate());
