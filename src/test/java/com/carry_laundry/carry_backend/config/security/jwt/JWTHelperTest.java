@@ -1,13 +1,8 @@
 package com.carry_laundry.carry_backend.config.security.jwt;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.mock;
 
-import com.auth0.jwt.exceptions.JWTVerificationException;
-import com.carry_laundry.carry_backend.user.application.service.TermAdminServiceDeprecated;
-import com.carry_laundry.carry_backend.user.domain.entity.domainmodel.Term;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -25,8 +20,6 @@ class JWTHelperTest {
 
     @Mock
     private JWTProperties jwtProperties;
-    @Mock
-    private TermAdminServiceDeprecated termAdminService;
 
     @BeforeEach
     void setUp() {
@@ -34,7 +27,7 @@ class JWTHelperTest {
         given(jwtProperties.getClientSecret()).willReturn("clientSecret");
         given(jwtProperties.getAccessTokenExpiryDate()).willReturn(1L);
         given(jwtProperties.getRefreshTokenExpiryDate()).willReturn(14L);
-        jwtHelper = new JWTHelper(jwtProperties, termAdminService);
+        jwtHelper = new JWTHelper(jwtProperties);
     }
 
     @Test
@@ -42,8 +35,8 @@ class JWTHelperTest {
     void create() {
         // Act & Assert
         assertThat(jwtHelper)
-            .extracting("issuer", "termAdminService")
-            .containsExactly("issuer", termAdminService);
+            .extracting("issuer")
+            .isEqualTo("issuer");
     }
 
     @Nested
@@ -61,49 +54,6 @@ class JWTHelperTest {
             JWTTokenResponse actualResult = jwtHelper.sign(expectedUserId, expectedAcceptedTerms);
             // Assert
             assertThat(actualResult).isNotNull();
-        }
-    }
-
-    @Nested
-    @DisplayName("토큰을 검증할 때")
-    class whenVerify {
-
-        private final Term expectedTerm = mock(Term.class);
-        private String expectedAccessToken;
-
-        @BeforeEach
-        void init() {
-            Long expectedUserId = 1L;
-            Long expectedTermId = 1L;
-            List<Long> expectedAcceptedTerms = List.of(expectedTermId);
-            given(termAdminService.getRequiredTerms()).willReturn(List.of(expectedTerm));
-            JWTTokenResponse expectedTokenResponse = jwtHelper.sign(expectedUserId,
-                expectedAcceptedTerms);
-            expectedAccessToken = expectedTokenResponse.getAccessToken();
-        }
-
-        @Test
-        @DisplayName("정상적으로 검증한다.")
-        void verifySuccess() {
-            // Arrange
-            given(expectedTerm.getId()).willReturn(1L);
-            given(termAdminService.getRequiredTerms()).willReturn(List.of(expectedTerm));
-            // Act
-            Long actualResult = jwtHelper.verify(expectedAccessToken);
-            // Assert
-            assertThat(actualResult).isEqualTo(1L);
-        }
-
-        @Test
-        @DisplayName("약관 갱신이 필요한 경우 예외를 던진다.")
-        void verifyFailWhenTermsNeedUpdate() {
-            // Arrange
-            given(expectedTerm.getId()).willReturn(2L);
-            given(termAdminService.getRequiredTerms()).willReturn(List.of(expectedTerm));
-            // Act & Assert
-            assertThatThrownBy(() -> jwtHelper.verify(expectedAccessToken))
-                .isInstanceOf(JWTVerificationException.class)
-                .hasMessage("약관 동의가 필요합니다.");
         }
     }
 

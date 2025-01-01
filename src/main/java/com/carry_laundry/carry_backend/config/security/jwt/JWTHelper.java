@@ -8,10 +8,7 @@ import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.Claim;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.auth0.jwt.interfaces.JWTVerifier;
-import com.carry_laundry.carry_backend.user.application.service.TermAdminServiceDeprecated;
-import com.carry_laundry.carry_backend.user.domain.entity.domainmodel.Term;
 import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -29,15 +26,13 @@ public class JWTHelper {
     private final Long refreshTokenExpiryMillis;
     private final Algorithm algorithm;
     private final JWTVerifier jwtVerifier;
-    private final TermAdminServiceDeprecated termAdminService;
 
-    public JWTHelper(JWTProperties jwtProperties, TermAdminServiceDeprecated termAdminService) {
+    public JWTHelper(JWTProperties jwtProperties) {
         this.issuer = jwtProperties.getIssuer();
         this.accessTokenExpiryMillis = daysToMillis(jwtProperties.getAccessTokenExpiryDate());
         this.refreshTokenExpiryMillis = daysToMillis(jwtProperties.getRefreshTokenExpiryDate());
         this.algorithm = Algorithm.HMAC256(jwtProperties.getClientSecret());
         this.jwtVerifier = require(algorithm).withIssuer(issuer).build();
-        this.termAdminService = termAdminService;
     }
 
     public JWTTokenResponse sign(Long userId, List<Long> acceptedTerms) {
@@ -67,24 +62,6 @@ public class JWTHelper {
             .withArrayClaim(TERMS_KEY, acceptedTerms.toArray(new Long[0]))
             .sign(algorithm);
         return JWTTokenResponse.of(accessToken, refreshToken, refreshTokenExpiryDate);
-    }
-
-    // Helper에서 검증로직이 포함되는건 잘못된 것 같습니다
-    // Filter 분리 해야함!
-    @Deprecated(forRemoval = true, since = "2025-01-01")
-    public Long verify(String token) {
-        DecodedJWT decodedJWT = jwtVerifier.verify(token);
-        Map<String, Claim> claims = decodedJWT.getClaims();
-        Long[] requiredTerms = termAdminService.getRequiredTerms().stream().map(Term::getId)
-            .sorted()
-            .toArray(Long[]::new);
-        Long[] acceptedTerms = claims.get(TERMS_KEY).asArray(Long.class);
-        Arrays.sort(acceptedTerms);
-        if (Arrays.compare(requiredTerms, acceptedTerms) != 0) {
-            throw new JWTVerificationException("약관 동의가 필요합니다.");
-        }
-        return Optional.ofNullable(claims.get(USER_ID_KEY))
-            .orElseThrow(() -> new JWTVerificationException("Invalid Token")).asLong();
     }
 
     // TODO: Token Claim에 AgreeTerms 어떤 형식으로 추가할거야?
