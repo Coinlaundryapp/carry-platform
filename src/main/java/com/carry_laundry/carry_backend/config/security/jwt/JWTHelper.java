@@ -69,6 +69,9 @@ public class JWTHelper {
         return JWTTokenResponse.of(accessToken, refreshToken, refreshTokenExpiryDate);
     }
 
+    // Helper에서 검증로직이 포함되는건 잘못된 것 같습니다
+    // Filter 분리 해야함!
+    @Deprecated(forRemoval = true, since = "2025-01-01")
     public Long verify(String token) {
         DecodedJWT decodedJWT = jwtVerifier.verify(token);
         Map<String, Claim> claims = decodedJWT.getClaims();
@@ -82,6 +85,17 @@ public class JWTHelper {
         }
         return Optional.ofNullable(claims.get(USER_ID_KEY))
             .orElseThrow(() -> new JWTVerificationException("Invalid Token")).asLong();
+    }
+
+    // TODO: Token Claim에 AgreeTerms 어떤 형식으로 추가할거야?
+    public TokenDetail parse(String token) {
+        DecodedJWT decodedJWT = jwtVerifier.verify(token);
+        Map<String, Claim> claims = decodedJWT.getClaims();
+        long userId = Optional.ofNullable(claims.get(USER_ID_KEY))
+            .orElseThrow(() -> new JWTVerificationException("Invalid Token")).asLong();
+        Long[] acceptedTerms = Optional.ofNullable(claims.get(TERMS_KEY))
+            .orElseThrow(() -> new JWTVerificationException("Invalid Token")).asArray(Long.class);
+        return new TokenDetail(userId, acceptedTerms);
     }
 
     private Long daysToMillis(Long days) {
