@@ -14,7 +14,7 @@ import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
 
 @RequiredArgsConstructor
-public class JWTAuthenticationFilter implements WebFilter {
+public class JWTTokenParseFilter implements WebFilter {
 
     private static final String TOKEN_PREFIX = "Bearer ";
     private static final String EXCEPTION = "exception";
@@ -22,8 +22,7 @@ public class JWTAuthenticationFilter implements WebFilter {
     private final JWTHelper jwtHelper;
 
     @NonNull
-    @Override
-    public Mono<Void> filter(ServerWebExchange exchange, @NonNull WebFilterChain chain) {
+    public Mono<Void> filter(@NonNull ServerWebExchange exchange, @NonNull WebFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
         String token = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
 
@@ -31,10 +30,12 @@ public class JWTAuthenticationFilter implements WebFilter {
             return handleException(exchange, chain, new JWTVerificationException("토큰이 없습니다."));
         }
         String extractedToken = token.substring(TOKEN_PREFIX.length());
-
-        return Mono.fromCallable(() -> jwtHelper.verify(extractedToken))
-            .flatMap(userId -> {
-                JWTAuthenticationToken authentication = new JWTAuthenticationToken(userId, List.of(new SimpleGrantedAuthority("ROLE_USER")));
+        return Mono.fromCallable(() -> jwtHelper.parse(extractedToken))
+            .flatMap(tokenDetail -> {
+                exchange.getAttributes().put("tokenDetail", tokenDetail);
+                JWTAuthenticationToken authentication = new JWTAuthenticationToken(
+                    tokenDetail.userId(),
+                    List.of(new SimpleGrantedAuthority("ROLE_USER")));
                 return chain.filter(exchange)
                     .contextWrite(ReactiveSecurityContextHolder.withAuthentication(authentication));
             })

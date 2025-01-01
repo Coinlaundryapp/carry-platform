@@ -24,11 +24,11 @@ import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("JWTAuthenticationFilter는")
-class JWTAuthenticationFilterTest {
+@DisplayName("JWTTokenParseFilter는")
+class JWTTokenParseFilterTest {
 
     @InjectMocks
-    private JWTAuthenticationFilter jwtAuthenticationFilter;
+    private JWTTokenParseFilter jwtTokenParseFilter;
     @Mock
     private JWTHelper jwtHelper;
     @Mock
@@ -52,7 +52,7 @@ class JWTAuthenticationFilterTest {
             MockServerWebExchange exchange = MockServerWebExchange.from(request);
             // Act & Assert
             StepVerifier
-                .create(jwtAuthenticationFilter.filter(exchange, webFilterChain))
+                .create(jwtTokenParseFilter.filter(exchange, webFilterChain))
                 .verifyComplete();
             assertThat(exchange.getAttributes().get("exception"))
                 .isInstanceOf(JWTVerificationException.class);
@@ -67,10 +67,10 @@ class JWTAuthenticationFilterTest {
                 .header("Authorization", token)
                 .build();
             MockServerWebExchange exchange = MockServerWebExchange.from(request);
-            given(jwtHelper.verify(any())).willThrow(JWTVerificationException.class);
+            given(jwtHelper.parse(any())).willThrow(JWTVerificationException.class);
             // Act & Assert
             StepVerifier
-                .create(jwtAuthenticationFilter.filter(exchange, webFilterChain))
+                .create(jwtTokenParseFilter.filter(exchange, webFilterChain))
                 .verifyComplete();
             assertThat(exchange.getAttributes().get("exception"))
                 .isInstanceOf(JWTVerificationException.class);
@@ -87,7 +87,7 @@ class JWTAuthenticationFilterTest {
             MockServerWebExchange exchange = MockServerWebExchange.from(request);
             // Act & Assert
             StepVerifier
-                .create(jwtAuthenticationFilter.filter(exchange, webFilterChain))
+                .create(jwtTokenParseFilter.filter(exchange, webFilterChain))
                 .verifyComplete();
             assertThat(exchange.getAttributes().get("exception"))
                 .isInstanceOf(JWTVerificationException.class);
@@ -101,9 +101,9 @@ class JWTAuthenticationFilterTest {
                 .header("Authorization", "Bearer validToken")
                 .build();
             MockServerWebExchange exchange = MockServerWebExchange.from(request);
-            given(jwtHelper.verify(any())).willReturn(1L);
+            given(jwtHelper.parse(any())).willReturn(new TokenDetail(1L, new Long[0]));
             // Act & Assert
-            StepVerifier.create(jwtAuthenticationFilter.filter(exchange, webFilterChain))
+            StepVerifier.create(jwtTokenParseFilter.filter(exchange, webFilterChain))
                 .verifyComplete();
         }
 

@@ -1,7 +1,7 @@
 package com.carry_laundry.carry_backend.config.security;
 
-import com.carry_laundry.carry_backend.config.security.jwt.JWTAuthenticationFilter;
 import com.carry_laundry.carry_backend.config.security.jwt.JWTHelper;
+import com.carry_laundry.carry_backend.config.security.jwt.JWTTokenParseFilter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
@@ -47,7 +47,7 @@ public class SecurityConfig {
                 .pathMatchers("/api/v1/terms/**").permitAll()
                 .anyExchange().authenticated()
             )
-            .addFilterBefore(jwtAuthenticationFilter(), SecurityWebFiltersOrder.AUTHENTICATION)
+            .addFilterBefore(jwtTokenParseFilter(), SecurityWebFiltersOrder.AUTHENTICATION)
             .exceptionHandling(exceptionHandlingSpec -> exceptionHandlingSpec
                 .authenticationEntryPoint((exchange, ex) -> Mono.fromRunnable(() -> {
                     log.warn("UNAUTHORIZED");
@@ -60,7 +60,7 @@ public class SecurityConfig {
             .build();
     }
 
-    JWTAuthenticationFilter jwtAuthenticationFilter() {
-        return new JWTAuthenticationFilter(jwtHelper);
+    JWTTokenParseFilter jwtTokenParseFilter() {
+        return new JWTTokenParseFilter(jwtHelper);
     }
 }
