@@ -9,6 +9,7 @@ import reactor.core.publisher.Mono;
 
 @Service
 @RequiredArgsConstructor
+@Deprecated(forRemoval = true, since = "2025-01-03")
 public class TermAgreeService {
 
     private final TermAgreeRepository termAgreeRepository;

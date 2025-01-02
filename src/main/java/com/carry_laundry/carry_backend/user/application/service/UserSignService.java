@@ -2,18 +2,18 @@ package com.carry_laundry.carry_backend.user.application.service;
 
 import com.carry_laundry.carry_backend.config.security.jwt.JWTHelper;
 import com.carry_laundry.carry_backend.config.security.jwt.JWTTokenResponse;
+import com.carry_laundry.carry_backend.term.application.service.TermAgreementService;
+import com.carry_laundry.carry_backend.term.application.service.TermService;
+import com.carry_laundry.carry_backend.term.domain.entity.TermAgreement;
 import com.carry_laundry.carry_backend.user.application.record.oauth.KakaoOAuthResource;
 import com.carry_laundry.carry_backend.user.application.record.oauth.KakaoOAuthToken;
-import com.carry_laundry.carry_backend.user.application.record.oauth.KakaoUserTermsResponse;
 import com.carry_laundry.carry_backend.user.domain.entity.domainmodel.RefreshToken;
-import com.carry_laundry.carry_backend.user.domain.entity.domainmodel.TermAgree;
 import com.carry_laundry.carry_backend.user.domain.entity.domainmodel.User;
-import com.carry_laundry.carry_backend.user.domain.value.TermInfo;
 import com.carry_laundry.carry_backend.user.presentation.payload.response.LoginResponse;
-import java.time.LocalDateTime;
-import java.util.List;
+import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Service
@@ -22,8 +22,8 @@ public class UserSignService {
 
     private final UserService userService;
     private final RefreshTokenService refreshTokenService;
-    private final TermAgreeService termAgreeService;
-    private final TermServiceDeprecated termServiceDeprecated;
+    private final TermService termService;
+    private final TermAgreementService termAgreementService;
     private final KakaoOAuthService kakaoOAuthService;
     private final JWTHelper jwtHelper;
 
@@ -65,28 +65,25 @@ public class UserSignService {
 
     private Mono<Void> processKakaoTerms(User user, String accessToken) {
         return kakaoOAuthService.getUserAgreeTerms(accessToken)
-            .flatMap(kakaoUserTermsResponse -> {
-                List<Mono<TermAgree>> termAgreeMono = kakaoUserTermsResponse.getServiceTerms()
-                    .stream()
-                    .filter(term -> term.getRequired() && term.getAgreed())
-                    .map(term -> addTermAgree(user.getId(), term))
-                    .toList();
-                return Mono.when(termAgreeMono);
-            })
-            .then();
-    }
-
-    private Mono<TermAgree> addTermAgree(Long userId,
-        KakaoUserTermsResponse.ServiceTerm serviceTerm) {
-        return termServiceDeprecated.getTermByTermInfo(TermInfo.from(serviceTerm.getTag()))
-            .flatMap(term -> termAgreeService.addTermAgree(
-                TermAgree.of(userId, term.getId(), true, LocalDateTime.now())
-            ));
+            .flatMap(kakaoUserTermsResponse -> Flux.fromIterable(
+                    kakaoUserTermsResponse.getServiceTerms())
+                .flatMap(serviceTerm -> {
+                    String[] tagParts = serviceTerm.getTag().split("/");
+                    String code = tagParts[0];
+                    tagParts = tagParts[1].split("_");
+                    LocalDate createdAt = LocalDate.parse(tagParts[0]);
+                    int versionCount = Integer.parseInt(tagParts[1]);
+                    return termService.getTermIdByCodeAndVersion(code, versionCount, createdAt)
+                        .flatMap(term -> termAgreementService.manageTermAgreement(user.getId(),
+                            term.getId(),
+                            serviceTerm.getAgreed()));
+                }).then());
     }
 
     private Mono<LoginResponse> generateLoginResponse(Long userId) {
-        return termAgreeService.getTermAgreesByUserId(userId)
-            .map(TermAgree::getTermId)
+        return termAgreementService.getTermAgreementsByUserId(userId)
+            .filter(TermAgreement::getAgreeYn)
+            .map(TermAgreement::getTermId)
             .collectList()
             .flatMap(acceptedTerms -> {
                 JWTTokenResponse jwtTokenResponse = jwtHelper.sign(userId, acceptedTerms);
@@ -101,14 +98,15 @@ public class UserSignService {
         return refreshTokenService.findRefreshTokenByValue(refreshToken)
             .flatMap(refreshTokenData -> {
                 Long userId = refreshTokenData.getUserId();
-                Mono<List<Long>> acceptedTermIds = termAgreeService.getTermAgreesByUserId(
-                        userId)
-                    .map(TermAgree::getTermId).collectList();
-                return acceptedTermIds.flatMap(acceptedTerms -> {
-                    JWTTokenResponse tokenResponse = jwtHelper.sign(userId, acceptedTerms,
-                        refreshTokenData.getValue(), refreshTokenData.getExpiryAt());
-                    return Mono.defer(() -> Mono.just(LoginResponse.from(tokenResponse)));
-                });
+                return termAgreementService.getTermAgreementsByUserId(userId)
+                    .filter(TermAgreement::getAgreeYn)
+                    .map(TermAgreement::getTermId)
+                    .collectList()
+                    .flatMap(acceptedTermIds -> {
+                        JWTTokenResponse tokenResponse = jwtHelper.sign(userId, acceptedTermIds,
+                            refreshTokenData.getValue(), refreshTokenData.getExpiryAt());
+                        return Mono.defer(() -> Mono.just(LoginResponse.from(tokenResponse)));
+                    });
             });
     }
 
