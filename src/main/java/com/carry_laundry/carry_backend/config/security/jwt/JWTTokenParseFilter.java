@@ -32,10 +32,11 @@ public class JWTTokenParseFilter implements WebFilter {
         String extractedToken = token.substring(TOKEN_PREFIX.length());
         return Mono.fromCallable(() -> jwtHelper.parse(extractedToken))
             .flatMap(tokenDetail -> {
+                long userId = tokenDetail.userId();
                 exchange.getAttributes().put("tokenDetail", tokenDetail);
+                exchange.getResponse().getHeaders().add("X-USER-ID", String.valueOf(userId));
                 JWTAuthenticationToken authentication = new JWTAuthenticationToken(
-                    tokenDetail.userId(),
-                    List.of(new SimpleGrantedAuthority("ROLE_USER")));
+                    userId, List.of(new SimpleGrantedAuthority("ROLE_USER")));
                 return chain.filter(exchange)
                     .contextWrite(ReactiveSecurityContextHolder.withAuthentication(authentication));
             })
