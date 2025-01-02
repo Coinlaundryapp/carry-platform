@@ -1,7 +1,7 @@
 package com.carry_laundry.carry_backend.term.domain.entity;
 
 import com.carry_laundry.carry_backend.term.domain.enums.TermType;
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -36,9 +36,9 @@ public class TermMeta {
      */
     private TermType termType;
     @CreatedDate
-    private LocalDateTime createdAt;
+    private LocalDate createdAt;
     @LastModifiedDate
-    private LocalDateTime updatedAt;
+    private LocalDate updatedAt;
 
     public static TermMeta of(String title, String code,
         TermType termType) {
