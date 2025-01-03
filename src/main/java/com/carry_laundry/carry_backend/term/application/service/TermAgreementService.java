@@ -1,5 +1,6 @@
 package com.carry_laundry.carry_backend.term.application.service;
 
+import com.carry_laundry.carry_backend.term.application.record.TermAgreementDetail;
 import com.carry_laundry.carry_backend.term.domain.entity.TermAgreement;
 import com.carry_laundry.carry_backend.term.repository.TermAgreementRepository;
 import lombok.RequiredArgsConstructor;
@@ -46,7 +47,7 @@ public class TermAgreementService {
             });
     }
 
-    public Flux<TermAgreement> getTermAgreementsByUserId(Long userId) {
+    public Flux<TermAgreementDetail> getTermAgreementsByUserId(Long userId) {
         return termAgreementRepository.findAllByUserId(userId);
     }
 }

@@ -2,9 +2,9 @@ package com.carry_laundry.carry_backend.user.application.service;
 
 import com.carry_laundry.carry_backend.config.security.jwt.JWTHelper;
 import com.carry_laundry.carry_backend.config.security.jwt.JWTTokenResponse;
+import com.carry_laundry.carry_backend.term.application.record.TermAgreementDetail;
 import com.carry_laundry.carry_backend.term.application.service.TermAgreementService;
 import com.carry_laundry.carry_backend.term.application.service.TermService;
-import com.carry_laundry.carry_backend.term.domain.entity.TermAgreement;
 import com.carry_laundry.carry_backend.user.application.record.oauth.KakaoOAuthResource;
 import com.carry_laundry.carry_backend.user.application.record.oauth.KakaoOAuthToken;
 import com.carry_laundry.carry_backend.user.domain.entity.domainmodel.RefreshToken;
@@ -128,8 +128,8 @@ public class UserSignService {
      */
     private Mono<List<Long>> getAcceptedTerms(Long userId) {
         return termAgreementService.getTermAgreementsByUserId(userId)
-            .filter(TermAgreement::getAgreeYn)
-            .map(TermAgreement::getTermId)
+            .filter(TermAgreementDetail::agreeYn)
+            .map(TermAgreementDetail::termId)
             .collectList();
     }
 
