@@ -1,7 +1,9 @@
 package com.carry_laundry.carry_backend.config.security;
 
+import com.carry_laundry.carry_backend.common.security.filter.TermVerificationFilter;
 import com.carry_laundry.carry_backend.config.security.jwt.JWTHelper;
 import com.carry_laundry.carry_backend.config.security.jwt.JWTTokenParseFilter;
+import com.carry_laundry.carry_backend.term.repository.TermInMemoryCache;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
@@ -21,6 +23,7 @@ import reactor.core.publisher.Mono;
 public class SecurityConfig {
 
     private final JWTHelper jwtHelper;
+    private final TermInMemoryCache termInMemoryCache;
 
     @Bean
     SecurityWebFilterChain filterChain(ServerHttpSecurity http) {
@@ -48,6 +51,7 @@ public class SecurityConfig {
                 .anyExchange().authenticated()
             )
             .addFilterBefore(jwtTokenParseFilter(), SecurityWebFiltersOrder.AUTHENTICATION)
+            .addFilterBefore(termVerificationFilter(), SecurityWebFiltersOrder.AUTHENTICATION)
             .exceptionHandling(exceptionHandlingSpec -> exceptionHandlingSpec
                 .authenticationEntryPoint((exchange, ex) -> Mono.fromRunnable(() -> {
                     log.warn("UNAUTHORIZED");
@@ -62,5 +66,9 @@ public class SecurityConfig {
 
     JWTTokenParseFilter jwtTokenParseFilter() {
         return new JWTTokenParseFilter(jwtHelper);
+    }
+
+    TermVerificationFilter termVerificationFilter() {
+        return new TermVerificationFilter(termInMemoryCache);
     }
 }
