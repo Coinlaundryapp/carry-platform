@@ -45,3 +45,6 @@ CREATE TABLE term_agreements
 
 CREATE INDEX idx_term_agreements_term_id ON term_agreements (term_id);
 CREATE INDEX idx_term_agreements_user_id ON term_agreements (user_id);
+
+DROP TABLE IF EXISTS term_agrees_deprecated;
+DROP TABLE IF EXISTS terms_deprecated;
