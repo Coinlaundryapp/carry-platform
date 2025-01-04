@@ -10,16 +10,17 @@ import com.auth0.jwt.interfaces.DecodedJWT;
 import com.auth0.jwt.interfaces.JWTVerifier;
 import java.time.LocalDateTime;
 import java.util.Date;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 
 @Component
 public class JWTHelper {
 
-    private static final String USER_ID_KEY = "userId";
-    private static final String TERMS_KEY = "terms";
+    public static final String USER_ID_KEY = "USER_ID";
+    public static final String TERMS_KEY = "TERMS";
 
     private final String issuer;
     private final Long accessTokenExpiryMillis;
@@ -35,14 +36,9 @@ public class JWTHelper {
         this.jwtVerifier = require(algorithm).withIssuer(issuer).build();
     }
 
-    public JWTTokenResponse sign(Long userId, List<Long> acceptedTerms) {
+    public JWTTokenResponse sign(Long userId, Map<String, Long> acceptedTerms) {
         Date current = new Date();
-        String accessToken = create()
-            .withIssuer(issuer)
-            .withExpiresAt(calculateExpiryDate(current.getTime(), accessTokenExpiryMillis))
-            .withClaim(USER_ID_KEY, userId)
-            .withArrayClaim(TERMS_KEY, acceptedTerms.toArray(new Long[0]))
-            .sign(algorithm);
+        String accessToken = generateAccessToken(userId, acceptedTerms, current);
         Date refreshTokenExpiryDate = calculateExpiryDate(current.getTime(),
             refreshTokenExpiryMillis);
         String refreshToken = create()
@@ -52,30 +48,39 @@ public class JWTHelper {
         return JWTTokenResponse.of(accessToken, refreshToken, refreshTokenExpiryDate);
     }
 
-    public JWTTokenResponse sign(Long userId, List<Long> acceptedTerms, String refreshToken,
+    public JWTTokenResponse sign(Long userId, Map<String, Long> acceptedTerms, String refreshToken,
         LocalDateTime refreshTokenExpiryDate) {
         Date current = new Date();
-        String accessToken = create()
-            .withIssuer(issuer)
-            .withExpiresAt(calculateExpiryDate(current.getTime(), accessTokenExpiryMillis))
-            .withClaim(USER_ID_KEY, userId)
-            .withArrayClaim(TERMS_KEY, acceptedTerms.toArray(new Long[0]))
-            .sign(algorithm);
+        String accessToken = generateAccessToken(userId, acceptedTerms, current);
         return JWTTokenResponse.of(accessToken, refreshToken, refreshTokenExpiryDate);
     }
 
-    // TODO: Token Claim에 AgreeTerms 어떤 형식으로 추가할거야?
     public TokenDetail parse(String token) {
         DecodedJWT decodedJWT = jwtVerifier.verify(token);
         Map<String, Claim> claims = decodedJWT.getClaims();
         long userId = Optional.ofNullable(claims.get(USER_ID_KEY))
             .orElseThrow(() -> new JWTVerificationException("Invalid Token")).asLong();
-        Long[] acceptedTerms = Optional.ofNullable(claims.get(TERMS_KEY))
-            .orElseThrow(() -> new JWTVerificationException("Invalid Token")).asArray(Long.class);
+        Map<String, Long> acceptedTerms = parseAcceptedTerms(claims.get(TERMS_KEY));
         return new TokenDetail(userId, acceptedTerms);
     }
 
-    private Long daysToMillis(Long days) {
+    private String generateAccessToken(Long userId, Map<String, Long> acceptedTerm,
+        Date currentDate) {
+        return create()
+            .withIssuer(issuer)
+            .withExpiresAt(calculateExpiryDate(currentDate.getTime(), accessTokenExpiryMillis))
+            .withClaim(USER_ID_KEY, userId)
+            .withClaim(TERMS_KEY, acceptedTerm)
+            .sign(algorithm);
+    }
+
+    private Map<String, Long> parseAcceptedTerms(Claim claim) {
+        return claim.asMap().entrySet().stream()
+            .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey,
+                e -> ((Number) e.getValue()).longValue()));
+    }
+
+    private Long daysToMillis(@NonNull Long days) {
         return days * 24 * 60 * 60 * 1000;
     }
 

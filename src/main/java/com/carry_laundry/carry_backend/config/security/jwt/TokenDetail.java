@@ -1,8 +1,8 @@
 package com.carry_laundry.carry_backend.config.security.jwt;
 
-import java.util.Arrays;
+import java.util.Map;
 
-public record TokenDetail(long userId, Long[] acceptedTerms) {
+public record TokenDetail(long userId, Map<String, Long> acceptedTerms) {
 
     public TokenDetail {
         if (acceptedTerms == null) {
@@ -16,14 +16,13 @@ public record TokenDetail(long userId, Long[] acceptedTerms) {
             return false;
         }
 
-        return userId() == that.userId() && Arrays.equals(acceptedTerms(),
-            that.acceptedTerms());
+        return userId() == that.userId() && acceptedTerms().equals(that.acceptedTerms());
     }
 
     @Override
     public int hashCode() {
         int result = Long.hashCode(userId());
-        result = 31 * result + Arrays.hashCode(acceptedTerms());
+        result = 31 * result + acceptedTerms().hashCode();
         return result;
     }
 
@@ -31,7 +30,7 @@ public record TokenDetail(long userId, Long[] acceptedTerms) {
     public String toString() {
         return "TokenDetail{" +
             "userId=" + userId +
-            ", acceptedTerms=" + Arrays.toString(acceptedTerms) +
+            ", acceptedTerms=" + acceptedTerms +
             '}';
     }
 }

@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 
 import com.auth0.jwt.exceptions.JWTVerificationException;
+import java.util.Map;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -101,7 +102,7 @@ class JWTTokenParseFilterTest {
                 .header("Authorization", "Bearer validToken")
                 .build();
             MockServerWebExchange exchange = MockServerWebExchange.from(request);
-            given(jwtHelper.parse(any())).willReturn(new TokenDetail(1L, new Long[0]));
+            given(jwtHelper.parse(any())).willReturn(new TokenDetail(1L, Map.of()));
             // Act & Assert
             StepVerifier.create(jwtTokenParseFilter.filter(exchange, webFilterChain))
                 .verifyComplete();

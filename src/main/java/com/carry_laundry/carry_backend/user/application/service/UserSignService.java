@@ -11,7 +11,7 @@ import com.carry_laundry.carry_backend.user.domain.entity.domainmodel.RefreshTok
 import com.carry_laundry.carry_backend.user.domain.entity.domainmodel.User;
 import com.carry_laundry.carry_backend.user.presentation.payload.response.LoginResponse;
 import java.time.LocalDate;
-import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -126,11 +126,10 @@ public class UserSignService {
      * @param userId 사용자 ID
      * @return 사용자가 동의한 약관 ID 목록
      */
-    private Mono<List<Long>> getAcceptedTerms(Long userId) {
+    private Mono<Map<String, Long>> getAcceptedTerms(Long userId) {
         return termAgreementService.getTermAgreementsByUserId(userId)
             .filter(TermAgreementDetail::agreeYn)
-            .map(TermAgreementDetail::termId)
-            .collectList();
+            .collectMap(TermAgreementDetail::code, TermAgreementDetail::termId);
     }
 
     /**
@@ -153,22 +152,22 @@ public class UserSignService {
     /**
      * RefreshToken을 이용한 토큰 재발급
      *
-     * @param refreshToken RefreshToken
+     * @param token RefreshToken
      * @return JWT/RefreshToken 발급 후 LoginResponse
      */
-    public Mono<LoginResponse> reissue(String refreshToken) {
-        return refreshTokenService.findRefreshTokenByValue(refreshToken)
-            .flatMap(refreshTokenData -> {
-                Long userId = refreshTokenData.getUserId();
+    public Mono<LoginResponse> reissue(String token) {
+        return refreshTokenService.findRefreshTokenByValue(token)
+            .flatMap(refreshToken -> {
+                Long userId = refreshToken.getUserId();
                 return getAcceptedTerms(userId)
-                    .map(acceptedTermIds -> jwtHelper.sign(
-                        userId,
-                        acceptedTermIds,
-                        refreshTokenData.getValue(),
-                        refreshTokenData.getExpiryAt()
-                    ))
-                    .map(LoginResponse::from);
-            });
+                    .map(map ->
+                        jwtHelper.sign(userId,
+                            map,
+                            refreshToken.getValue(),
+                            refreshToken.getExpiryAt())
+                    );
+            })
+            .map(LoginResponse::from);
     }
 
 }
