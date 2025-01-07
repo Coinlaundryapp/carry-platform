@@ -1,6 +1,8 @@
 package com.carry_laundry.carry_backend.config.security;
 
+import com.carry_laundry.carry_backend.common.security.CustomAuthenticationEntryPoint;
 import com.carry_laundry.carry_backend.common.security.filter.TermVerificationFilter;
+import com.carry_laundry.carry_backend.common.security.filter.UserAuthenticationFilter;
 import com.carry_laundry.carry_backend.config.security.jwt.JWTHelper;
 import com.carry_laundry.carry_backend.config.security.jwt.JWTTokenParseFilter;
 import com.carry_laundry.carry_backend.term.repository.TermInMemoryCache;
@@ -51,12 +53,10 @@ public class SecurityConfig {
                 .anyExchange().authenticated()
             )
             .addFilterBefore(jwtTokenParseFilter(), SecurityWebFiltersOrder.AUTHENTICATION)
+            .addFilterBefore(userAuthenticationFilter(), SecurityWebFiltersOrder.AUTHENTICATION)
             .addFilterBefore(termVerificationFilter(), SecurityWebFiltersOrder.AUTHENTICATION)
             .exceptionHandling(exceptionHandlingSpec -> exceptionHandlingSpec
-                .authenticationEntryPoint((exchange, ex) -> Mono.fromRunnable(() -> {
-                    log.warn("UNAUTHORIZED");
-                    exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-                }))
+                .authenticationEntryPoint(new CustomAuthenticationEntryPoint())
                 .accessDeniedHandler((exchange, denied) -> Mono.fromRunnable(() -> {
                     log.warn("FORBIDDEN");
                     exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
@@ -66,6 +66,10 @@ public class SecurityConfig {
 
     JWTTokenParseFilter jwtTokenParseFilter() {
         return new JWTTokenParseFilter(jwtHelper);
+    }
+
+    UserAuthenticationFilter userAuthenticationFilter() {
+        return new UserAuthenticationFilter();
     }
 
     TermVerificationFilter termVerificationFilter() {
