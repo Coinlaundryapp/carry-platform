@@ -8,7 +8,8 @@ import lombok.RequiredArgsConstructor;
 public enum FilterConstant {
     TOKEN_PREFIX("Bearer "),
     TOKEN_DETAIL("TOKEN_DETAIL"),
-    HEADER_X_USER_ID("X-USER-ID");
+    HEADER_X_USER_ID("X-USER-ID"),
+    EXCEPTION("EXCEPTION");
 
     private final String value;
 }
