@@ -6,6 +6,7 @@ import com.carry_laundry.carry_backend.common.security.filter.TermVerificationFi
 import com.carry_laundry.carry_backend.common.security.filter.UserAuthenticationFilter;
 import com.carry_laundry.carry_backend.common.security.utils.JWTHelper;
 import com.carry_laundry.carry_backend.term.repository.TermInMemoryCache;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
@@ -17,6 +18,8 @@ import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.context.NoOpServerSecurityContextRepository;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.reactive.CorsWebFilter;
 import reactor.core.publisher.Mono;
 
 @Slf4j
@@ -76,5 +79,20 @@ public class SecurityConfig {
 
     TermVerificationFilter termVerificationFilter() {
         return new TermVerificationFilter(termInMemoryCache);
+    }
+
+    @Bean
+    CorsWebFilter corsWebFilter() {
+        return new CorsWebFilter(exchange -> {
+            CorsConfiguration configuration = new CorsConfiguration();
+            configuration.setAllowedOrigins(
+                List.of("http://localhost:3000", "https://www.carrylaundry.com"));
+            configuration.setAllowedMethods(
+                List.of("PUT", "DELETE", "GET", "POST", "PATCH", "OPTIONS"));
+            configuration.setAllowCredentials(true);
+            configuration.addAllowedHeader("*");
+            configuration.setMaxAge(86_400L);
+            return configuration;
+        });
     }
 }
