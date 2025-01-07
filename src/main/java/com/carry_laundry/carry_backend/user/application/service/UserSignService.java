@@ -1,7 +1,7 @@
 package com.carry_laundry.carry_backend.user.application.service;
 
-import com.carry_laundry.carry_backend.config.security.jwt.JWTHelper;
-import com.carry_laundry.carry_backend.config.security.jwt.JWTTokenResponse;
+import com.carry_laundry.carry_backend.common.security.payload.JWTTokenResponse;
+import com.carry_laundry.carry_backend.common.security.utils.JWTHelper;
 import com.carry_laundry.carry_backend.term.application.record.TermAgreementDetail;
 import com.carry_laundry.carry_backend.term.application.service.TermAgreementService;
 import com.carry_laundry.carry_backend.term.application.service.TermService;

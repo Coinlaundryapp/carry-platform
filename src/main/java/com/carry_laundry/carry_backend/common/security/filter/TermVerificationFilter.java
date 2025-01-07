@@ -3,7 +3,7 @@ package com.carry_laundry.carry_backend.common.security.filter;
 import static com.carry_laundry.carry_backend.common.security.filter.enums.FilterConstant.EXCEPTION;
 import static com.carry_laundry.carry_backend.common.security.filter.enums.FilterConstant.TOKEN_DETAIL;
 
-import com.carry_laundry.carry_backend.config.security.jwt.TokenDetail;
+import com.carry_laundry.carry_backend.common.security.payload.TokenDetail;
 import com.carry_laundry.carry_backend.term.repository.TermInMemoryCache;
 import java.util.Objects;
 import java.util.Optional;

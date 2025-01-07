@@ -1,4 +1,4 @@
-package com.carry_laundry.carry_backend.config.security.jwt;
+package com.carry_laundry.carry_backend.common.security.payload;
 
 import java.util.Collection;
 import lombok.Getter;

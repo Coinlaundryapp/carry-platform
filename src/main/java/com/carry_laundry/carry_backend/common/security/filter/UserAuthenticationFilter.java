@@ -4,8 +4,8 @@ import static com.carry_laundry.carry_backend.common.security.filter.enums.Filte
 import static com.carry_laundry.carry_backend.common.security.filter.enums.FilterConstant.HEADER_X_USER_ID;
 import static com.carry_laundry.carry_backend.common.security.filter.enums.FilterConstant.TOKEN_DETAIL;
 
-import com.carry_laundry.carry_backend.config.security.jwt.JWTAuthenticationToken;
-import com.carry_laundry.carry_backend.config.security.jwt.TokenDetail;
+import com.carry_laundry.carry_backend.common.security.payload.JWTAuthenticationToken;
+import com.carry_laundry.carry_backend.common.security.payload.TokenDetail;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpResponse;

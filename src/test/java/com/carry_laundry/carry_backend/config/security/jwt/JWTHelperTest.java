@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.auth0.jwt.exceptions.JWTVerificationException;
+import com.carry_laundry.carry_backend.common.security.properties.JWTProperties;
+import com.carry_laundry.carry_backend.common.security.utils.JWTHelper;
 import java.time.LocalDateTime;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;

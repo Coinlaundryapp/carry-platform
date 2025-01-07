@@ -1,4 +1,4 @@
-package com.carry_laundry.carry_backend.config.security.jwt;
+package com.carry_laundry.carry_backend.common.security.utils;
 
 import static com.auth0.jwt.JWT.create;
 import static com.auth0.jwt.JWT.require;
@@ -8,6 +8,9 @@ import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.Claim;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.auth0.jwt.interfaces.JWTVerifier;
+import com.carry_laundry.carry_backend.common.security.payload.JWTTokenResponse;
+import com.carry_laundry.carry_backend.common.security.payload.TokenDetail;
+import com.carry_laundry.carry_backend.common.security.properties.JWTProperties;
 import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.Map;

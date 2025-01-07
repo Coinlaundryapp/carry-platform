@@ -1,10 +1,11 @@
-package com.carry_laundry.carry_backend.config.security.jwt;
+package com.carry_laundry.carry_backend.common.security.filter;
 
 import static com.carry_laundry.carry_backend.common.security.filter.enums.FilterConstant.EXCEPTION;
 import static com.carry_laundry.carry_backend.common.security.filter.enums.FilterConstant.TOKEN_DETAIL;
 import static com.carry_laundry.carry_backend.common.security.filter.enums.FilterConstant.TOKEN_PREFIX;
 
 import com.auth0.jwt.exceptions.JWTVerificationException;
+import com.carry_laundry.carry_backend.common.security.utils.JWTHelper;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
