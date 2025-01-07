@@ -1,9 +1,11 @@
 package com.carry_laundry.carry_backend.term.application.service;
 
+import com.carry_laundry.carry_backend.term.application.record.TermAgreementDetail;
 import com.carry_laundry.carry_backend.term.domain.entity.TermAgreement;
 import com.carry_laundry.carry_backend.term.repository.TermAgreementRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Service
@@ -32,4 +34,20 @@ public class TermAgreementService {
             });
     }
 
+    public Mono<TermAgreement> manageTermAgreement(Long userId, Long termId, boolean agreeYn) {
+        return termAgreementRepository.findByUserIdAndTermId(userId, termId)
+            .switchIfEmpty(Mono.defer(
+                () -> termAgreementRepository.save(TermAgreement.of(userId, termId, agreeYn))))
+            .flatMap(termAgreement -> {
+                if (!termAgreement.getAgreeYn().equals(agreeYn)) {
+                    termAgreement.updateAgreeYn(agreeYn);
+                    return termAgreementRepository.save(termAgreement);
+                }
+                return Mono.just(termAgreement);
+            });
+    }
+
+    public Flux<TermAgreementDetail> getTermAgreementsByUserId(Long userId) {
+        return termAgreementRepository.findAllByUserId(userId);
+    }
 }

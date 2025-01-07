@@ -22,7 +22,8 @@ public class UserSignController implements UserSignSwagger {
 
     @PostMapping("/login")
     public Mono<ApiCommonResponse<LoginResponse>> login(@RequestBody OAuthCodeRequest request) {
-        return userSignService.manageUser(request.getAuthorizationCode(), request.getRedirectUri())
+        return userSignService.loginOrSignUpWithKakao(request.getAuthorizationCode(),
+                request.getRedirectUri())
             .map(ApiCommonResponse::createSuccessResponse);
     }
 

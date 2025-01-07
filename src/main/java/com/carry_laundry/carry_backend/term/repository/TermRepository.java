@@ -43,4 +43,13 @@ public interface TermRepository extends ReactiveCrudRepository<Term, Long> {
         LIMIT 1
         """)
     Mono<TermCommonResponse> findLastByTermMetaCode(@NonNull String code);
+
+    @Query("""
+        SELECT t.*
+        FROM terms as t
+            LEFT JOIN term_metas as tm ON t.term_meta_id = tm.id
+        WHERE tm.code = :code AND t.version_count = :versionCount AND t.created_at = :createdAt
+        """)
+    Mono<Term> findByCodeAndVersionCountAndCreatedAt(@NonNull String code,
+        @NonNull int versionCount, @NonNull LocalDate createdAt);
 }
