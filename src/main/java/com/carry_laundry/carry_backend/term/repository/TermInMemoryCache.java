@@ -4,9 +4,9 @@ import com.carry_laundry.carry_backend.term.application.record.TermDetail;
 import com.carry_laundry.carry_backend.term.domain.entity.Term;
 import com.carry_laundry.carry_backend.term.domain.entity.TermMeta;
 import jakarta.annotation.PostConstruct;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -26,10 +26,10 @@ public class TermInMemoryCache {
         map.put(termMeta.getCode(), termDetail);
     }
 
-    public List<TermDetail> getMandatoryTerms() {
-        return map.values().stream()
-            .filter(TermDetail::isMandatory)
-            .toList();
+    public Map<String, TermDetail> getMandatoryTerms() {
+        return map.entrySet()
+            .stream().filter(entry -> entry.getValue().isMandatory())
+            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
     @PostConstruct

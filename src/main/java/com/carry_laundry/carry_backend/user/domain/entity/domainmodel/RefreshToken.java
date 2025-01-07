@@ -1,6 +1,6 @@
 package com.carry_laundry.carry_backend.user.domain.entity.domainmodel;
 
-import com.carry_laundry.carry_backend.config.security.jwt.JWTTokenResponse;
+import com.carry_laundry.carry_backend.common.security.payload.JWTTokenResponse;
 import com.carry_laundry.carry_backend.user.domain.entity.data.RefreshTokenData;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;

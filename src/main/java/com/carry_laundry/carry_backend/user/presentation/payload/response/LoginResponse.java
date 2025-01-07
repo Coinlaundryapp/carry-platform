@@ -1,6 +1,6 @@
 package com.carry_laundry.carry_backend.user.presentation.payload.response;
 
-import com.carry_laundry.carry_backend.config.security.jwt.JWTTokenResponse;
+import com.carry_laundry.carry_backend.common.security.payload.JWTTokenResponse;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;

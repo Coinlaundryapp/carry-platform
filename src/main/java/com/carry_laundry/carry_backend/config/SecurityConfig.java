@@ -1,7 +1,12 @@
-package com.carry_laundry.carry_backend.config.security;
+package com.carry_laundry.carry_backend.config;
 
-import com.carry_laundry.carry_backend.config.security.jwt.JWTAuthenticationFilter;
-import com.carry_laundry.carry_backend.config.security.jwt.JWTHelper;
+import com.carry_laundry.carry_backend.common.security.CustomAuthenticationEntryPoint;
+import com.carry_laundry.carry_backend.common.security.filter.JWTTokenParseFilter;
+import com.carry_laundry.carry_backend.common.security.filter.TermVerificationFilter;
+import com.carry_laundry.carry_backend.common.security.filter.UserAuthenticationFilter;
+import com.carry_laundry.carry_backend.common.security.utils.JWTHelper;
+import com.carry_laundry.carry_backend.term.repository.TermInMemoryCache;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
@@ -12,6 +17,9 @@ import org.springframework.security.config.annotation.web.reactive.EnableWebFlux
 import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.web.server.SecurityWebFilterChain;
+import org.springframework.security.web.server.context.NoOpServerSecurityContextRepository;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.reactive.CorsWebFilter;
 import reactor.core.publisher.Mono;
 
 @Slf4j
@@ -21,6 +29,7 @@ import reactor.core.publisher.Mono;
 public class SecurityConfig {
 
     private final JWTHelper jwtHelper;
+    private final TermInMemoryCache termInMemoryCache;
 
     @Bean
     SecurityWebFilterChain filterChain(ServerHttpSecurity http) {
@@ -29,6 +38,7 @@ public class SecurityConfig {
             .csrf(ServerHttpSecurity.CsrfSpec::disable)
             .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
             .logout(ServerHttpSecurity.LogoutSpec::disable)
+            .securityContextRepository(NoOpServerSecurityContextRepository.getInstance())
             .authorizeExchange(exchanges -> exchanges
                 .pathMatchers(HttpMethod.OPTIONS).permitAll()
                 .pathMatchers("/api-docs/**",
@@ -47,12 +57,11 @@ public class SecurityConfig {
                 .pathMatchers("/api/v1/terms/**").permitAll()
                 .anyExchange().authenticated()
             )
-            .addFilterBefore(jwtAuthenticationFilter(), SecurityWebFiltersOrder.AUTHENTICATION)
+            .addFilterBefore(jwtTokenParseFilter(), SecurityWebFiltersOrder.AUTHENTICATION)
+            .addFilterBefore(userAuthenticationFilter(), SecurityWebFiltersOrder.AUTHENTICATION)
+            .addFilterBefore(termVerificationFilter(), SecurityWebFiltersOrder.AUTHENTICATION)
             .exceptionHandling(exceptionHandlingSpec -> exceptionHandlingSpec
-                .authenticationEntryPoint((exchange, ex) -> Mono.fromRunnable(() -> {
-                    log.warn("UNAUTHORIZED");
-                    exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-                }))
+                .authenticationEntryPoint(new CustomAuthenticationEntryPoint())
                 .accessDeniedHandler((exchange, denied) -> Mono.fromRunnable(() -> {
                     log.warn("FORBIDDEN");
                     exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
@@ -60,7 +69,30 @@ public class SecurityConfig {
             .build();
     }
 
-    JWTAuthenticationFilter jwtAuthenticationFilter() {
-        return new JWTAuthenticationFilter(jwtHelper);
+    JWTTokenParseFilter jwtTokenParseFilter() {
+        return new JWTTokenParseFilter(jwtHelper);
+    }
+
+    UserAuthenticationFilter userAuthenticationFilter() {
+        return new UserAuthenticationFilter();
+    }
+
+    TermVerificationFilter termVerificationFilter() {
+        return new TermVerificationFilter(termInMemoryCache);
+    }
+
+    @Bean
+    CorsWebFilter corsWebFilter() {
+        return new CorsWebFilter(exchange -> {
+            CorsConfiguration configuration = new CorsConfiguration();
+            configuration.setAllowedOrigins(
+                List.of("http://localhost:3000", "https://www.carrylaundry.com"));
+            configuration.setAllowedMethods(
+                List.of("PUT", "DELETE", "GET", "POST", "PATCH", "OPTIONS"));
+            configuration.setAllowCredentials(true);
+            configuration.addAllowedHeader("*");
+            configuration.setMaxAge(86_400L);
+            return configuration;
+        });
     }
 }
