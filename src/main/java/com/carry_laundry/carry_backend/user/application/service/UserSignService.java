@@ -7,8 +7,8 @@ import com.carry_laundry.carry_backend.term.application.service.TermAgreementSer
 import com.carry_laundry.carry_backend.term.application.service.TermService;
 import com.carry_laundry.carry_backend.user.application.record.oauth.KakaoOAuthResource;
 import com.carry_laundry.carry_backend.user.application.record.oauth.KakaoOAuthToken;
+import com.carry_laundry.carry_backend.user.domain.entity.User;
 import com.carry_laundry.carry_backend.user.domain.entity.domainmodel.RefreshToken;
-import com.carry_laundry.carry_backend.user.domain.entity.domainmodel.User;
 import com.carry_laundry.carry_backend.user.presentation.payload.response.LoginResponse;
 import java.time.LocalDate;
 import java.util.Map;
@@ -88,7 +88,7 @@ public class UserSignService {
      */
     private Mono<LoginResponse> handleNewUser(KakaoOAuthResource kakaoOAuthResource,
         String accessToken) {
-        return userService.addUser(User.create(kakaoOAuthResource))
+        return userService.addUser(kakaoOAuthResource)
             .flatMap(newUser -> processKakaoTerms(newUser, accessToken)
                 .then(generateLoginResponse(newUser.getId())));
     }
@@ -114,9 +114,10 @@ public class UserSignService {
                     LocalDate createdAt = LocalDate.parse(tagParts[0]);
                     int versionCount = Integer.parseInt(tagParts[1]);
                     return termService.getTermIdByCodeAndVersion(code, versionCount, createdAt)
-                        .flatMap(term -> termAgreementService.manageTermAgreement(user.getId(),
-                            term.getId(),
-                            serviceTerm.getAgreed()));
+                        .flatMap(
+                            term -> termAgreementService.manageTermAgreement(user.getId(),
+                                term.getId(),
+                                serviceTerm.getAgreed()));
                 }).then());
     }
 

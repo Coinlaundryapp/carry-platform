@@ -4,6 +4,8 @@ import com.carry_laundry.carry_backend.media_resource.domain.converter.ResourceS
 import com.carry_laundry.carry_backend.term.repository.converter.TermTypeConverter.TermTypeReadConverter;
 import com.carry_laundry.carry_backend.term.repository.converter.TermTypeConverter.TermTypeWriteConverter;
 import com.carry_laundry.carry_backend.user.domain.converter.EntranceTypeReadConverter;
+import com.carry_laundry.carry_backend.user.repository.converter.PhoneNumberConverter.PhoneNumberReadConverter;
+import com.carry_laundry.carry_backend.user.repository.converter.PhoneNumberConverter.PhoneNumberWriteConverter;
 import io.r2dbc.spi.ConnectionFactory;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
@@ -26,7 +28,9 @@ public class R2dbcConfiguration {
                 new EntranceTypeReadConverter(),
                 new ResourceStatusReadConverter(),
                 new TermTypeReadConverter(),
-                new TermTypeWriteConverter()
+                new TermTypeWriteConverter(),
+                new PhoneNumberReadConverter(),
+                new PhoneNumberWriteConverter()
             )
         );
     }
