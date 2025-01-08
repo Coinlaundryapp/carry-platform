@@ -7,8 +7,8 @@ import com.carry_laundry.carry_backend.term.application.service.TermAgreementSer
 import com.carry_laundry.carry_backend.term.application.service.TermService;
 import com.carry_laundry.carry_backend.user.application.record.oauth.KakaoOAuthResource;
 import com.carry_laundry.carry_backend.user.application.record.oauth.KakaoOAuthToken;
+import com.carry_laundry.carry_backend.user.domain.entity.RefreshToken;
 import com.carry_laundry.carry_backend.user.domain.entity.User;
-import com.carry_laundry.carry_backend.user.domain.entity.domainmodel.RefreshToken;
 import com.carry_laundry.carry_backend.user.presentation.payload.response.LoginResponse;
 import java.time.LocalDate;
 import java.util.Map;
@@ -159,13 +159,13 @@ public class UserSignService {
     public Mono<LoginResponse> reissue(String token) {
         return refreshTokenService.findRefreshTokenByValue(token)
             .flatMap(refreshToken -> {
-                Long userId = refreshToken.getUserId();
+                Long userId = refreshToken.userId();
                 return getAcceptedTerms(userId)
                     .map(map ->
                         jwtHelper.sign(userId,
                             map,
-                            refreshToken.getValue(),
-                            refreshToken.getExpiryAt())
+                            refreshToken.value(),
+                            refreshToken.expiryAt())
                     );
             })
             .map(LoginResponse::from);
