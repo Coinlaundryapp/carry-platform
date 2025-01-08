@@ -3,7 +3,7 @@ package com.carry_laundry.carry_backend.config;
 import com.carry_laundry.carry_backend.media_resource.domain.converter.ResourceStatusReadConverter;
 import com.carry_laundry.carry_backend.term.repository.converter.TermTypeConverter.TermTypeReadConverter;
 import com.carry_laundry.carry_backend.term.repository.converter.TermTypeConverter.TermTypeWriteConverter;
-import com.carry_laundry.carry_backend.user.domain.converter.EntranceTypeReadConverter;
+import com.carry_laundry.carry_backend.user.repository.converter.EntranceTypeConverter.EntranceTypeReadConverter;
 import com.carry_laundry.carry_backend.user.repository.converter.PhoneNumberConverter.PhoneNumberReadConverter;
 import com.carry_laundry.carry_backend.user.repository.converter.PhoneNumberConverter.PhoneNumberWriteConverter;
 import io.r2dbc.spi.ConnectionFactory;
