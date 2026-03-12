@@ -64,11 +64,23 @@ management:
   tracing:
     sampling:
       probability: 1.0
+  otlp:
+    tracing:
+      endpoint: http://localhost:4318/v1/traces
+    metrics:
+      export:
+        enabled: true
+        endpoint: http://localhost:4318/v1/metrics
+  observations:
+    key-values:
+      application: carry-platform
 
 server:
   port: 8080
 
 logging:
+  pattern:
+    correlation: "[${spring.application.name:},%mdc{traceId:-},%mdc{spanId:-}] "
   level:
     com.carry: DEBUG
     org.hibernate.SQL: DEBUG
