@@ -1,26 +1,35 @@
 package com.carry.event.order
 
+import java.time.Instant
+
 data class OrderCreatedEvent(
     val orderId: Long,
     val customerId: Long,
     val laundromatId: Long,
-    val totalAmount: Long,
-    val items: List<OrderItemSummary> = emptyList()
+    val laundryItemType: String,
+    val selectedOptions: List<SelectedOptionDto>,
+    val shippingAddress: ShippingAddressDto,
+    val desiredPickupAt: Instant,
+    val desiredDeliveryAt: Instant,
+    val areaCode: String,
 )
 
-data class OrderItemSummary(
-    val itemName: String,
-    val quantity: Int,
-    val price: Long
+data class SelectedOptionDto(
+    val optionType: String,
+    val subOptionType: String,
 )
 
-data class OrderPaidEvent(
-    val orderId: Long,
-    val customerId: Long,
-    val totalAmount: Long
+data class ShippingAddressDto(
+    val roadAddress: String,
+    val detailAddress: String,
+    val latitude: Double,
+    val longitude: Double,
+    val recipientName: String,
+    val recipientPhone: String,
 )
 
 data class OrderCancelledEvent(
     val orderId: Long,
-    val reason: String
+    val reason: String,
+    val cancelledBy: String,
 )
