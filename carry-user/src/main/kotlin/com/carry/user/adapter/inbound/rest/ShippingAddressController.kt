@@ -41,6 +41,10 @@ class ShippingAddressController(
             alias = request.alias,
             address = request.toAddress(),
             coordinates = request.toCoordinates(),
+            recipientName = request.recipientName,
+            recipientPhone = request.recipientPhone,
+            entranceInfo = request.entranceInfo,
+            areaCode = request.areaCode,
         )
         return ResponseEntity.status(201).body(ApiResponse.created(ShippingAddressResponse.from(address)))
     }
@@ -57,6 +61,10 @@ class ShippingAddressController(
             alias = request.alias,
             address = request.toAddress(),
             coordinates = request.toCoordinates(),
+            recipientName = request.recipientName,
+            recipientPhone = request.recipientPhone,
+            entranceInfo = request.entranceInfo,
+            areaCode = request.areaCode,
         )
         return ResponseEntity.ok(ApiResponse.success(ShippingAddressResponse.from(address)))
     }

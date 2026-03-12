@@ -21,6 +21,9 @@ class ShippingAddressTest {
         alias = alias,
         address = defaultAddress,
         coordinates = defaultCoords,
+        recipientName = "홍길동",
+        recipientPhone = "01012345678",
+        areaCode = "GANGNAM",
         isDefault = isDefault,
     )
 
@@ -32,6 +35,10 @@ class ShippingAddressTest {
         alias = "집",
         address = defaultAddress,
         coordinates = defaultCoords,
+        recipientName = "홍길동",
+        recipientPhone = "01012345678",
+        entranceInfo = null,
+        areaCode = "GANGNAM",
         isDefault = isDefault,
         createdAt = Instant.now(),
         updatedAt = Instant.now(),
@@ -80,7 +87,7 @@ class ShippingAddressTest {
             val newAddress = Address("서울시 서초구 반포대로 45", "2층", "06500")
             val newCoords = Coordinates(37.4950, 127.0100)
 
-            address.update("회사", newAddress, newCoords)
+            address.update("회사", newAddress, newCoords, "홍길동", "01012345678", null, "GANGNAM")
 
             assertThat(address.alias).isEqualTo("회사")
             assertThat(address.address).isEqualTo(newAddress)
@@ -92,7 +99,7 @@ class ShippingAddressTest {
             val address = reconstitutedAddress()
 
             assertThatThrownBy {
-                address.update("", defaultAddress, defaultCoords)
+                address.update("", defaultAddress, defaultCoords, "홍길동", "01012345678", null, "GANGNAM")
             }.isInstanceOf(IllegalArgumentException::class.java)
                 .hasMessageContaining("별칭")
         }

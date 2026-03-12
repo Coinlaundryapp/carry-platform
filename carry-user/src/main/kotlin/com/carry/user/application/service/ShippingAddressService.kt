@@ -18,6 +18,10 @@ class ShippingAddressService(
     private val shippingAddressPersistencePort: ShippingAddressPersistencePort,
 ) : ShippingAddressUseCase {
 
+    override fun getAddress(userId: Long, addressId: Long): ShippingAddress {
+        return findOwnedAddress(userId, addressId)
+    }
+
     override fun getAddresses(userId: Long): List<ShippingAddress> {
         return shippingAddressPersistencePort.findByUserId(userId)
     }
@@ -28,6 +32,10 @@ class ShippingAddressService(
         alias: String,
         address: Address,
         coordinates: Coordinates,
+        recipientName: String,
+        recipientPhone: String,
+        entranceInfo: String?,
+        areaCode: String,
     ): ShippingAddress {
         val currentCount = shippingAddressPersistencePort.countByUserId(userId)
         if (currentCount >= ShippingAddress.MAX_ADDRESSES_PER_USER) {
@@ -40,6 +48,10 @@ class ShippingAddressService(
             alias = alias,
             address = address,
             coordinates = coordinates,
+            recipientName = recipientName,
+            recipientPhone = recipientPhone,
+            entranceInfo = entranceInfo,
+            areaCode = areaCode,
             isDefault = isFirst,
         )
         return shippingAddressPersistencePort.save(shippingAddress)
@@ -52,9 +64,13 @@ class ShippingAddressService(
         alias: String,
         address: Address,
         coordinates: Coordinates,
+        recipientName: String,
+        recipientPhone: String,
+        entranceInfo: String?,
+        areaCode: String,
     ): ShippingAddress {
         val shippingAddress = findOwnedAddress(userId, addressId)
-        shippingAddress.update(alias, address, coordinates)
+        shippingAddress.update(alias, address, coordinates, recipientName, recipientPhone, entranceInfo, areaCode)
         return shippingAddressPersistencePort.save(shippingAddress)
     }
 
