@@ -18,4 +18,7 @@ dependencies {
 
     // Kafka tracing propagation
     api("io.micrometer:micrometer-tracing")
+
+    // Structured JSON logging
+    api("net.logstash.logback:logstash-logback-encoder:8.0")
 }
