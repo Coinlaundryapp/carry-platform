@@ -1,20 +1,22 @@
 package com.carry.media.adapter.inbound.rest.dto
 
 import com.carry.media.domain.model.MediaResource
+import io.swagger.v3.oas.annotations.media.Schema
 import java.time.Instant
 import java.util.UUID
 
+@Schema(description = "미디어 파일 응답")
 data class MediaResponse(
-    val id: Long,
-    val folder: String,
-    val accessKey: UUID,
-    val originalFilename: String,
-    val extension: String,
-    val contentType: String,
-    val status: String,
-    val fileSize: Long?,
-    val uploadedBy: Long,
-    val createdAt: Instant,
+    @Schema(description = "미디어 ID") val id: Long,
+    @Schema(description = "폴더") val folder: String,
+    @Schema(description = "접근 키") val accessKey: UUID,
+    @Schema(description = "원본 파일명") val originalFilename: String,
+    @Schema(description = "확장자") val extension: String,
+    @Schema(description = "콘텐츠 타입") val contentType: String,
+    @Schema(description = "상태") val status: String,
+    @Schema(description = "파일 크기(bytes)", nullable = true) val fileSize: Long?,
+    @Schema(description = "업로드한 사용자 ID") val uploadedBy: Long,
+    @Schema(description = "생성 시간") val createdAt: Instant,
 ) {
     companion object {
         fun from(media: MediaResource) = MediaResponse(
@@ -32,6 +34,8 @@ data class MediaResponse(
     }
 }
 
+@Schema(description = "다운로드 URL 응답")
 data class DownloadUrlResponse(
+    @Schema(description = "S3 Presigned URL")
     val downloadUrl: String,
 )

@@ -1,22 +1,24 @@
 package com.carry.notification.adapter.inbound.rest.dto
 
 import com.carry.notification.domain.model.Notification
+import io.swagger.v3.oas.annotations.media.Schema
 import java.time.Instant
 
+@Schema(description = "알림 응답")
 data class NotificationResponse(
-    val id: Long,
-    val recipientId: Long,
-    val recipientContact: String,
-    val type: String,
-    val channel: String,
-    val title: String,
-    val content: String,
-    val status: String,
-    val referenceType: String?,
-    val referenceId: Long?,
-    val sentAt: Instant?,
-    val failReason: String?,
-    val createdAt: Instant,
+    @Schema(description = "알림 ID") val id: Long,
+    @Schema(description = "수신자 ID") val recipientId: Long,
+    @Schema(description = "수신자 연락처") val recipientContact: String,
+    @Schema(description = "알림 유형") val type: String,
+    @Schema(description = "알림 채널") val channel: String,
+    @Schema(description = "제목") val title: String,
+    @Schema(description = "내용") val content: String,
+    @Schema(description = "상태") val status: String,
+    @Schema(description = "참조 유형", nullable = true) val referenceType: String?,
+    @Schema(description = "참조 ID", nullable = true) val referenceId: Long?,
+    @Schema(description = "발송 시간", nullable = true) val sentAt: Instant?,
+    @Schema(description = "실패 사유", nullable = true) val failReason: String?,
+    @Schema(description = "생성 시간") val createdAt: Instant,
 ) {
     companion object {
         fun from(notification: Notification) = NotificationResponse(
