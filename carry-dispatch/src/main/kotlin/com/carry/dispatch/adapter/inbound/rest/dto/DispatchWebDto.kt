@@ -6,26 +6,8 @@ import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.constraints.NotBlank
 import java.time.Instant
 
-@Schema(description = "배차 선점 요청")
-data class ClaimDispatchRequest(
-    @Schema(description = "배달원 ID")
-    val carrierId: Long,
-)
-
 @Schema(description = "배차 배정 요청")
 data class AssignDispatchRequest(
-    @Schema(description = "배달원 ID")
-    val carrierId: Long,
-)
-
-@Schema(description = "배차 수락 요청")
-data class AcceptAssignmentRequest(
-    @Schema(description = "배달원 ID")
-    val carrierId: Long,
-)
-
-@Schema(description = "배차 거절 요청")
-data class RejectAssignmentRequest(
     @Schema(description = "배달원 ID")
     val carrierId: Long,
 )
