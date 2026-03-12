@@ -9,6 +9,7 @@ import com.carry.order.application.port.inbound.CreateOrderCommand
 import com.carry.order.application.port.inbound.OrderCommandUseCase
 import com.carry.order.application.port.outbound.LaundromatQueryPort
 import com.carry.order.application.port.outbound.OrderPersistencePort
+import com.carry.order.application.port.outbound.ServiceAvailabilityQueryPort
 import com.carry.order.application.port.outbound.UserQueryPort
 import com.carry.order.domain.exception.OrderNotFoundException
 import com.carry.order.domain.model.Order
@@ -22,6 +23,7 @@ class OrderCommandService(
     private val orderPersistencePort: OrderPersistencePort,
     private val userQueryPort: UserQueryPort,
     private val laundromatQueryPort: LaundromatQueryPort,
+    private val serviceAvailabilityQueryPort: ServiceAvailabilityQueryPort,
     private val outboxEventPublisher: OutboxEventPublisher,
 ) : OrderCommandUseCase {
 
@@ -29,6 +31,7 @@ class OrderCommandService(
     override fun createOrder(command: CreateOrderCommand): Order {
         val address = userQueryPort.getShippingAddress(command.customerId, command.shippingAddressId)
         check(laundromatQueryPort.existsById(command.laundromatId)) { "세탁소를 찾을 수 없습니다: ${command.laundromatId}" }
+        serviceAvailabilityQueryPort.checkAvailability(command.areaCode, command.desiredPickupAt, command.desiredDeliveryAt)
 
         val order = Order.create(
             customerId = command.customerId,

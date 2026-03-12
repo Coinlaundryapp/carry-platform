@@ -59,6 +59,7 @@ class OrderCancellationSagaIntegrationTest : IntegrationTestBase() {
         TestFixtures.insertCarrier(jdbc)
         TestFixtures.insertLaundromat(jdbc)
         TestFixtures.insertCarrierArea(jdbc)
+        TestFixtures.insertServiceArea(jdbc)
     }
 
     @AfterEach

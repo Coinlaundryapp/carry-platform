@@ -5,6 +5,7 @@ import com.carry.order.application.port.inbound.CreateOrderCommand
 import com.carry.order.application.port.inbound.SelectedOptionCommand
 import com.carry.order.application.port.outbound.LaundromatQueryPort
 import com.carry.order.application.port.outbound.OrderPersistencePort
+import com.carry.order.application.port.outbound.ServiceAvailabilityQueryPort
 import com.carry.order.application.port.outbound.UserQueryPort
 import com.carry.order.domain.exception.OrderNotCancellableException
 import com.carry.order.domain.model.Order
@@ -27,10 +28,11 @@ class OrderCommandServiceTest {
     private val orderPersistencePort = mockk<OrderPersistencePort>(relaxed = true)
     private val userQueryPort = mockk<UserQueryPort>()
     private val laundromatQueryPort = mockk<LaundromatQueryPort>()
+    private val serviceAvailabilityQueryPort = mockk<ServiceAvailabilityQueryPort>(relaxed = true)
     private val outboxEventPublisher = mockk<OutboxEventPublisher>(relaxed = true)
 
     private val sut = OrderCommandService(
-        orderPersistencePort, userQueryPort, laundromatQueryPort, outboxEventPublisher,
+        orderPersistencePort, userQueryPort, laundromatQueryPort, serviceAvailabilityQueryPort, outboxEventPublisher,
     )
 
     private val address = OrderShippingAddress(
