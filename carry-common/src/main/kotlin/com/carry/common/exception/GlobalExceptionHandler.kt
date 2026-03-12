@@ -2,6 +2,7 @@ package com.carry.common.exception
 
 import com.carry.common.response.ApiResponse
 import org.slf4j.LoggerFactory
+import org.slf4j.MDC
 import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.web.bind.MethodArgumentNotValidException
@@ -20,7 +21,7 @@ class GlobalExceptionHandler {
         log.warn("Business exception: [{}] {}", e.errorCode.name, e.message)
         return ResponseEntity
             .status(e.errorCode.status)
-            .body(ApiResponse.error(e.errorCode.status, e.errorCode.name, e.message))
+            .body(ApiResponse.error(e.errorCode.status, e.errorCode.name, e.message, MDC.get("traceId")))
     }
 
     @ExceptionHandler(MethodArgumentNotValidException::class)
@@ -29,7 +30,7 @@ class GlobalExceptionHandler {
         log.warn("Validation failed: {}", errors)
         return ResponseEntity
             .badRequest()
-            .body(ApiResponse.error(400, ErrorCode.INVALID_INPUT.name, errors))
+            .body(ApiResponse.error(400, ErrorCode.INVALID_INPUT.name, errors, MDC.get("traceId")))
     }
 
     @ExceptionHandler(MissingServletRequestParameterException::class)
@@ -37,7 +38,7 @@ class GlobalExceptionHandler {
         log.warn("Missing parameter: {}", e.parameterName)
         return ResponseEntity
             .badRequest()
-            .body(ApiResponse.error(400, ErrorCode.INVALID_INPUT.name, "Missing required parameter: ${e.parameterName}"))
+            .body(ApiResponse.error(400, ErrorCode.INVALID_INPUT.name, "Missing required parameter: ${e.parameterName}", MDC.get("traceId")))
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException::class)
@@ -45,7 +46,7 @@ class GlobalExceptionHandler {
         log.warn("Type mismatch: {} for parameter {}", e.value, e.name)
         return ResponseEntity
             .badRequest()
-            .body(ApiResponse.error(400, ErrorCode.INVALID_INPUT.name, "Invalid value '${e.value}' for parameter '${e.name}'"))
+            .body(ApiResponse.error(400, ErrorCode.INVALID_INPUT.name, "Invalid value '${e.value}' for parameter '${e.name}'", MDC.get("traceId")))
     }
 
     @ExceptionHandler(HttpMessageNotReadableException::class)
@@ -53,7 +54,7 @@ class GlobalExceptionHandler {
         log.warn("Message not readable: {}", e.message)
         return ResponseEntity
             .badRequest()
-            .body(ApiResponse.error(400, ErrorCode.INVALID_INPUT.name, "Malformed request body"))
+            .body(ApiResponse.error(400, ErrorCode.INVALID_INPUT.name, "Malformed request body", MDC.get("traceId")))
     }
 
     @ExceptionHandler(Exception::class)
@@ -61,6 +62,6 @@ class GlobalExceptionHandler {
         log.error("Unexpected exception", e)
         return ResponseEntity
             .status(500)
-            .body(ApiResponse.error(500, ErrorCode.INTERNAL_ERROR.name, "Internal server error"))
+            .body(ApiResponse.error(500, ErrorCode.INTERNAL_ERROR.name, "Internal server error", MDC.get("traceId")))
     }
 }
