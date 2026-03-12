@@ -294,7 +294,7 @@ class OrderSagaE2ETest {
         // 1. 주문 생성 API 호출
         val orderId = given()
             .body(CreateOrderRequest(/* ... */))
-            .post("/api/v1/orders")
+            .post("/api/v2/orders")
             .then().statusCode(201)
             .extract().path<Long>("data.orderId")
 
@@ -391,7 +391,7 @@ webhooks:
       type: bash
       cmd: |
         curl -sf http://carry-order-canary:8080/actuator/health &&
-        curl -sf http://carry-order-canary:8080/api/v1/orders/health-check
+        curl -sf http://carry-order-canary:8080/api/v2/orders/health-check
 ```
 
 ---
