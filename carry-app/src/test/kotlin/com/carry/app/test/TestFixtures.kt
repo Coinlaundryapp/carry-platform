@@ -48,6 +48,18 @@ object TestFixtures {
         )
     }
 
+    fun insertShippingAddress(jdbc: JdbcTemplate, userId: Long = CUSTOMER_ID, id: Long = SHIPPING_ADDRESS_ID, areaCode: String = AREA_CODE) {
+        jdbc.update(
+            """
+            INSERT INTO user_shipping_addresses (id, user_id, alias, road_address, detail_address, zip_code, latitude, longitude, recipient_name, recipient_phone, area_code, is_default)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT (id) DO NOTHING
+            """,
+            id, userId, "집", "서울시 강남구 테헤란로 123", "4층", "06234",
+            37.5065, 127.0536, "테스트고객", "010-1234-5678", areaCode, true,
+        )
+    }
+
     fun insertCarrierArea(jdbc: JdbcTemplate, carrierId: Long = CARRIER_ID, areaCode: String = AREA_CODE) {
         jdbc.update(
             """

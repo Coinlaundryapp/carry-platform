@@ -47,6 +47,8 @@ class OrderJpaEntity(
     @Column(nullable = false, length = 20)
     val recipientPhone: String,
     val entranceInfo: String?,
+    @Column(nullable = false, length = 20)
+    val areaCode: String,
 
     @Column(nullable = false)
     val desiredPickupAt: Instant,
@@ -78,7 +80,7 @@ class OrderJpaEntity(
         selectedOptions = selectedOptions.map { SelectedOption(it.optionType, it.subOptionType) },
         shippingAddress = OrderShippingAddress(
             roadAddress, detailAddress, zipCode, latitude, longitude,
-            recipientName, recipientPhone, entranceInfo,
+            recipientName, recipientPhone, entranceInfo, areaCode,
         ),
         desiredPickupAt = desiredPickupAt,
         desiredDeliveryAt = desiredDeliveryAt,
@@ -121,6 +123,7 @@ class OrderJpaEntity(
                 recipientName = order.shippingAddress.recipientName,
                 recipientPhone = order.shippingAddress.recipientPhone,
                 entranceInfo = order.shippingAddress.entranceInfo,
+                areaCode = order.shippingAddress.areaCode,
                 desiredPickupAt = order.desiredPickupAt,
                 desiredDeliveryAt = order.desiredDeliveryAt,
                 carrierId = order.carrierId,

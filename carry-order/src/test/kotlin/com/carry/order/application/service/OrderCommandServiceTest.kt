@@ -37,7 +37,7 @@ class OrderCommandServiceTest {
 
     private val address = OrderShippingAddress(
         "서울특별시 강남구 역삼로 1", "101호", "06230",
-        37.5, 127.0, "홍길동", "01012345678", null,
+        37.5, 127.0, "홍길동", "01012345678", null, "GANGNAM",
     )
 
     private val now = Instant.now()

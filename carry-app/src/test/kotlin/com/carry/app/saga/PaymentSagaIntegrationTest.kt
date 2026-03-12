@@ -67,6 +67,7 @@ class PaymentSagaIntegrationTest : IntegrationTestBase() {
         TestFixtures.insertCustomer(jdbc)
         TestFixtures.insertCarrier(jdbc)
         TestFixtures.insertLaundromat(jdbc)
+        TestFixtures.insertShippingAddress(jdbc)
         TestFixtures.insertCarrierArea(jdbc)
         TestFixtures.insertServiceArea(jdbc)
     }
@@ -89,7 +90,7 @@ class PaymentSagaIntegrationTest : IntegrationTestBase() {
                 selectedOptions = listOf(SelectedOptionCommand("WASH", "COLD")),
                 desiredPickupAt = TestFixtures.desiredPickupAt(),
                 desiredDeliveryAt = TestFixtures.desiredDeliveryAt(),
-                areaCode = TestFixtures.AREA_CODE,
+
             )
         )
         val orderId = order.id!!
