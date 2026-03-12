@@ -47,6 +47,20 @@ patches:
             targetPort: http
             nodePort: 30080
 
+  # Disable Flagger canary analysis for local development
+  - target:
+      kind: Canary
+      name: carry-platform
+      namespace: carry
+    patch: |
+      apiVersion: flagger.app/v1beta1
+      kind: Canary
+      metadata:
+        name: carry-platform
+      spec:
+        analysis:
+          maxWeight: 0
+
   # Expose Jaeger UI via NodePort
   - target:
       kind: Service
