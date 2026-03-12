@@ -315,7 +315,7 @@ class DispatchCarrierController(
 
 // 코디네이터 운영 웹
 @RestController
-@RequestMapping("/api/v2/admin/dispatches")
+@RequestMapping("/api/v2/coordinator/dispatches")
 class DispatchCoordinatorController(
     private val dispatchCommandUseCase: DispatchCommandUseCase,
     private val dispatchQueryUseCase: DispatchQueryUseCase,
