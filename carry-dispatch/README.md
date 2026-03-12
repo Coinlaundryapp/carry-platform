@@ -4,7 +4,7 @@
 
 ## 도메인 개요
 
-배차 자동/수동 배정과 배달원 선점/수락/거절을 담당하는 모듈이다. 배달원 권역 등록 및 해제, 관리자 배차 관리 기능을 제공한다. `DispatchCreatedEvent`, `DispatchAssignedEvent`를 발행하여 사가에 참여한다.
+배차 자동/수동 배정과 배달원 선점/수락/거절을 담당하는 모듈이다. 배달원 권역 등록 및 해제, 코디네이터 배차 관리 기능을 제공한다. `DispatchCreatedEvent`, `DispatchAssignedEvent`를 발행하여 사가에 참여한다.
 
 ## 아키텍처
 
@@ -31,13 +31,13 @@ domain/exception/         # 도메인 예외
 | GET | `/api/v2/dispatches/my` | 내 배차 목록 |
 | GET | `/api/v2/dispatches/{id}` | 배차 상세 |
 
-### 관리자 배차
+### 코디네이터 배차
 
 | Method | Endpoint | 설명 |
 |--------|----------|------|
-| POST | `/api/v2/admin/dispatches/{id}/assign` | 관리자 배차 배정 |
-| POST | `/api/v2/admin/dispatches/{id}/cancel` | 관리자 배차 취소 |
-| GET | `/api/v2/admin/dispatches/carriers` | 권역별 배달원 조회 |
+| POST | `/api/v2/coordinator/dispatches/{id}/assign` | 코디네이터 배차 배정 |
+| POST | `/api/v2/coordinator/dispatches/{id}/cancel` | 코디네이터 배차 취소 |
+| GET | `/api/v2/coordinator/dispatches/carriers` | 권역별 배달원 조회 |
 
 ### 배달원 권역
 

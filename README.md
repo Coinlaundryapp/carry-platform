@@ -235,7 +235,7 @@ http://localhost:8080/swagger-ui.html
 | Order | 주문 생성/취소/조회 |
 | Payment | 결제/청구서 |
 | Dispatch - Carrier | 배달원 배차 |
-| Dispatch - Admin | 관리자 배차 |
+| Dispatch - Coordinator | 코디네이터 배차 관리 |
 | Carrier Area | 배달원 권역 |
 | Delivery | 배달 프로세스 |
 | Review | 리뷰/통계 |

@@ -24,9 +24,9 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
-@Tag(name = "Dispatch - Admin", description = "배차 관리자 API")
+@Tag(name = "Dispatch - Coordinator", description = "배차 코디네이터 API")
 @RestController
-@RequestMapping("/api/v2/admin/dispatches")
+@RequestMapping("/api/v2/coordinator/dispatches")
 class DispatchCoordinatorController(
     private val dispatchCommandUseCase: DispatchCommandUseCase,
     private val dispatchQueryUseCase: DispatchQueryUseCase,
