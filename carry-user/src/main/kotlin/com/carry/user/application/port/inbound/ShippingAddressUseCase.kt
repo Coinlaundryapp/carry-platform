@@ -6,6 +6,8 @@ import com.carry.user.domain.vo.Coordinates
 
 interface ShippingAddressUseCase {
 
+    fun getAddress(userId: Long, addressId: Long): ShippingAddress
+
     fun getAddresses(userId: Long): List<ShippingAddress>
 
     fun createAddress(
@@ -13,6 +15,10 @@ interface ShippingAddressUseCase {
         alias: String,
         address: Address,
         coordinates: Coordinates,
+        recipientName: String,
+        recipientPhone: String,
+        entranceInfo: String?,
+        areaCode: String,
     ): ShippingAddress
 
     fun updateAddress(
@@ -21,6 +27,10 @@ interface ShippingAddressUseCase {
         alias: String,
         address: Address,
         coordinates: Coordinates,
+        recipientName: String,
+        recipientPhone: String,
+        entranceInfo: String?,
+        areaCode: String,
     ): ShippingAddress
 
     fun deleteAddress(userId: Long, addressId: Long)

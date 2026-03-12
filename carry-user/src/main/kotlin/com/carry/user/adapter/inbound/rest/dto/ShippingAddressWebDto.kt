@@ -11,6 +11,10 @@ data class CreateShippingAddressRequest(
     val zipCode: String,
     val latitude: Double,
     val longitude: Double,
+    val recipientName: String,
+    val recipientPhone: String,
+    val entranceInfo: String? = null,
+    val areaCode: String,
 ) {
     fun toAddress() = Address(roadAddress, detailAddress, zipCode)
     fun toCoordinates() = Coordinates(latitude, longitude)
@@ -23,6 +27,10 @@ data class UpdateShippingAddressRequest(
     val zipCode: String,
     val latitude: Double,
     val longitude: Double,
+    val recipientName: String,
+    val recipientPhone: String,
+    val entranceInfo: String? = null,
+    val areaCode: String,
 ) {
     fun toAddress() = Address(roadAddress, detailAddress, zipCode)
     fun toCoordinates() = Coordinates(latitude, longitude)
@@ -36,6 +44,10 @@ data class ShippingAddressResponse(
     val zipCode: String,
     val latitude: Double,
     val longitude: Double,
+    val recipientName: String,
+    val recipientPhone: String,
+    val entranceInfo: String?,
+    val areaCode: String,
     val isDefault: Boolean,
 ) {
     companion object {
@@ -47,6 +59,10 @@ data class ShippingAddressResponse(
             zipCode = address.address.zipCode,
             latitude = address.coordinates.latitude,
             longitude = address.coordinates.longitude,
+            recipientName = address.recipientName,
+            recipientPhone = address.recipientPhone,
+            entranceInfo = address.entranceInfo,
+            areaCode = address.areaCode,
             isDefault = address.isDefault,
         )
     }

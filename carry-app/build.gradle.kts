@@ -28,7 +28,7 @@ dependencies {
     implementation(project(":carry-review"))
     implementation(project(":carry-notification"))
     implementation(project(":carry-media"))
-    // implementation(project(":carry-service-availability"))
+    implementation(project(":carry-service-availability"))
 
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")

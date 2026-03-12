@@ -7,7 +7,7 @@ metadata:
     app.kubernetes.io/name: carry-app
     app.kubernetes.io/part-of: carry-platform
 data:
-  SPRING_PROFILES_ACTIVE: "k8s"
+  SPRING_PROFILES_ACTIVE: "dev"
   SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres.carry-infra.svc.cluster.local:5432/carry"
   SPRING_KAFKA_BOOTSTRAP_SERVERS: "kafka.carry-infra.svc.cluster.local:9092"
   SPRING_DATA_REDIS_HOST: "redis.carry-infra.svc.cluster.local"

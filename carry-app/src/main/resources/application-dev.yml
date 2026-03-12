@@ -12,17 +12,34 @@ spring:
       host: ${SPRING_DATA_REDIS_HOST}
       port: ${SPRING_DATA_REDIS_PORT:6379}
 
-  flyway:
-    enabled: true
-    locations: classpath:db/migration
-
 jwt:
   secret: ${JWT_SECRET}
 
+cloud:
+  aws:
+    s3:
+      bucket: ${AWS_S3_BUCKET:carry-media-dev}
+    credentials:
+      access-key: ${AWS_ACCESS_KEY}
+      secret-key: ${AWS_SECRET_KEY}
+
+carry:
+  geo:
+    naver:
+      client-id: ${NAVER_CLIENT_ID}
+      client-secret: ${NAVER_CLIENT_SECRET}
+
 management:
+  tracing:
+    sampling:
+      probability: 1.0
   otlp:
     tracing:
       endpoint: ${MANAGEMENT_OTLP_TRACING_ENDPOINT:http://otel-collector:4318/v1/traces}
+    metrics:
+      export:
+        enabled: true
+        endpoint: ${MANAGEMENT_OTLP_METRICS_ENDPOINT:http://otel-collector:4318/v1/metrics}
 
 logging:
   level:

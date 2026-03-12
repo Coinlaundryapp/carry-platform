@@ -36,6 +36,10 @@ class ShippingAddressServiceTest {
         alias = "집",
         address = address,
         coordinates = coords,
+        recipientName = "홍길동",
+        recipientPhone = "01012345678",
+        entranceInfo = null,
+        areaCode = "GANGNAM",
         isDefault = isDefault,
         createdAt = Instant.now(),
         updatedAt = Instant.now(),
@@ -73,7 +77,7 @@ class ShippingAddressServiceTest {
             val saved = slot<ShippingAddress>()
             every { port.save(capture(saved)) } answers { saved.captured }
 
-            val result = sut.createAddress(1L, "집", address, coords)
+            val result = sut.createAddress(1L, "집", address, coords, "홍길동", "01012345678", null, "GANGNAM")
 
             assertThat(result.isDefault).isTrue()
         }
@@ -84,7 +88,7 @@ class ShippingAddressServiceTest {
             val saved = slot<ShippingAddress>()
             every { port.save(capture(saved)) } answers { saved.captured }
 
-            val result = sut.createAddress(1L, "회사", address, coords)
+            val result = sut.createAddress(1L, "회사", address, coords, "홍길동", "01012345678", null, "GANGNAM")
 
             assertThat(result.isDefault).isFalse()
         }
@@ -93,7 +97,7 @@ class ShippingAddressServiceTest {
         fun `배송지 개수 제한을 초과하면 예외가 발생한다`() {
             every { port.countByUserId(1L) } returns ShippingAddress.MAX_ADDRESSES_PER_USER.toLong()
 
-            assertThatThrownBy { sut.createAddress(1L, "새주소", address, coords) }
+            assertThatThrownBy { sut.createAddress(1L, "새주소", address, coords, "홍길동", "01012345678", null, "GANGNAM") }
                 .isInstanceOf(ShippingAddressLimitExceededException::class.java)
         }
     }
@@ -109,7 +113,7 @@ class ShippingAddressServiceTest {
             every { port.save(capture(saved)) } answers { saved.captured }
 
             val newAddress = Address("서울시 서초구 반포대로 45", "2층", "06500")
-            val result = sut.updateAddress(1L, 1L, "회사", newAddress, coords)
+            val result = sut.updateAddress(1L, 1L, "회사", newAddress, coords, "홍길동", "01012345678", null, "GANGNAM")
 
             assertThat(result.alias).isEqualTo("회사")
             assertThat(result.address).isEqualTo(newAddress)
@@ -119,7 +123,7 @@ class ShippingAddressServiceTest {
         fun `존재하지 않는 배송지를 수정하면 예외가 발생한다`() {
             every { port.findById(999L) } returns null
 
-            assertThatThrownBy { sut.updateAddress(1L, 999L, "회사", address, coords) }
+            assertThatThrownBy { sut.updateAddress(1L, 999L, "회사", address, coords, "홍길동", "01012345678", null, "GANGNAM") }
                 .isInstanceOf(ShippingAddressNotFoundException::class.java)
         }
 
@@ -128,7 +132,7 @@ class ShippingAddressServiceTest {
             val otherUserAddress = anAddress(userId = 2L)
             every { port.findById(1L) } returns otherUserAddress
 
-            assertThatThrownBy { sut.updateAddress(1L, 1L, "회사", address, coords) }
+            assertThatThrownBy { sut.updateAddress(1L, 1L, "회사", address, coords, "홍길동", "01012345678", null, "GANGNAM") }
                 .isInstanceOf(ShippingAddressNotOwnedException::class.java)
         }
     }

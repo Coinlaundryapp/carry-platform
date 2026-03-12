@@ -32,6 +32,18 @@ class ShippingAddressJpaEntity(
     @Column(nullable = false)
     var longitude: Double,
 
+    @Column(name = "recipient_name", nullable = false, length = 50)
+    var recipientName: String,
+
+    @Column(name = "recipient_phone", nullable = false, length = 20)
+    var recipientPhone: String,
+
+    @Column(name = "entrance_info")
+    var entranceInfo: String? = null,
+
+    @Column(name = "area_code", nullable = false, length = 20)
+    var areaCode: String,
+
     @Column(name = "is_default", nullable = false)
     var isDefault: Boolean = false,
 ) : BaseEntity() {
@@ -42,6 +54,10 @@ class ShippingAddressJpaEntity(
         alias = alias,
         address = Address(roadAddress, detailAddress, zipCode),
         coordinates = Coordinates(latitude, longitude),
+        recipientName = recipientName,
+        recipientPhone = recipientPhone,
+        entranceInfo = entranceInfo,
+        areaCode = areaCode,
         isDefault = isDefault,
         createdAt = createdAt,
         updatedAt = updatedAt,
@@ -54,6 +70,10 @@ class ShippingAddressJpaEntity(
         zipCode = address.address.zipCode
         latitude = address.coordinates.latitude
         longitude = address.coordinates.longitude
+        recipientName = address.recipientName
+        recipientPhone = address.recipientPhone
+        entranceInfo = address.entranceInfo
+        areaCode = address.areaCode
         isDefault = address.isDefault
     }
 
@@ -67,6 +87,10 @@ class ShippingAddressJpaEntity(
                 zipCode = address.address.zipCode,
                 latitude = address.coordinates.latitude,
                 longitude = address.coordinates.longitude,
+                recipientName = address.recipientName,
+                recipientPhone = address.recipientPhone,
+                entranceInfo = address.entranceInfo,
+                areaCode = address.areaCode,
                 isDefault = address.isDefault,
             )
     }

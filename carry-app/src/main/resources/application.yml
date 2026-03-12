@@ -5,12 +5,6 @@ spring:
     virtual:
       enabled: true
 
-  datasource:
-    url: jdbc:postgresql://localhost:5432/carry
-    username: carry
-    password: carry
-    driver-class-name: org.postgresql.Driver
-
   jpa:
     hibernate:
       ddl-auto: validate
@@ -25,7 +19,6 @@ spring:
     locations: classpath:db/migration
 
   kafka:
-    bootstrap-servers: localhost:9092
     consumer:
       group-id: carry-platform
       auto-offset-reset: earliest
@@ -35,24 +28,12 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
 
-  data:
-    redis:
-      host: localhost
-      port: 6379
-
 jwt:
-  secret: ${JWT_SECRET:carry-dev-secret-key-change-in-production}
   access-token-expiration: 3600000
   refresh-token-expiration: 604800000
 
 cloud:
   aws:
-    s3:
-      endpoint: http://localhost:4566
-      bucket: carry-media
-    credentials:
-      access-key: ${AWS_ACCESS_KEY:test}
-      secret-key: ${AWS_SECRET_KEY:test}
     region:
       static: ap-northeast-2
 
@@ -61,16 +42,6 @@ management:
     web:
       exposure:
         include: health,info,prometheus,metrics
-  tracing:
-    sampling:
-      probability: 1.0
-  otlp:
-    tracing:
-      endpoint: http://localhost:4318/v1/traces
-    metrics:
-      export:
-        enabled: true
-        endpoint: http://localhost:4318/v1/metrics
   observations:
     key-values:
       application: carry-platform
@@ -81,6 +52,3 @@ server:
 logging:
   pattern:
     correlation: "[${spring.application.name:},%mdc{traceId:-},%mdc{spanId:-}] "
-  level:
-    com.carry: DEBUG
-    org.hibernate.SQL: DEBUG

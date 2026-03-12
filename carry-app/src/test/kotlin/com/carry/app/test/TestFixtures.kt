@@ -2,6 +2,7 @@ package com.carry.app.test
 
 import org.springframework.jdbc.core.JdbcTemplate
 import java.time.Instant
+import java.time.LocalTime
 import java.time.temporal.ChronoUnit
 
 object TestFixtures {
@@ -47,6 +48,18 @@ object TestFixtures {
         )
     }
 
+    fun insertShippingAddress(jdbc: JdbcTemplate, userId: Long = CUSTOMER_ID, id: Long = SHIPPING_ADDRESS_ID, areaCode: String = AREA_CODE) {
+        jdbc.update(
+            """
+            INSERT INTO user_shipping_addresses (id, user_id, alias, road_address, detail_address, zip_code, latitude, longitude, recipient_name, recipient_phone, area_code, is_default)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT (id) DO NOTHING
+            """,
+            id, userId, "집", "서울시 강남구 테헤란로 123", "4층", "06234",
+            37.5065, 127.0536, "테스트고객", "010-1234-5678", areaCode, true,
+        )
+    }
+
     fun insertCarrierArea(jdbc: JdbcTemplate, carrierId: Long = CARRIER_ID, areaCode: String = AREA_CODE) {
         jdbc.update(
             """
@@ -58,6 +71,28 @@ object TestFixtures {
         )
     }
 
+    fun insertServiceArea(jdbc: JdbcTemplate, areaCode: String = AREA_CODE) {
+        jdbc.update(
+            """
+            INSERT INTO service_areas (id, area_code, name, status)
+            VALUES (1, ?, ?, 'ACTIVE')
+            ON CONFLICT (area_code) DO NOTHING
+            """,
+            areaCode, "강남구",
+        )
+        // 월~일 00:00~23:59 운영 (테스트 편의상 전일 운영)
+        for (day in 1..7) {
+            jdbc.update(
+                """
+                INSERT INTO service_area_schedules (service_area_id, day_of_week, open_time, close_time)
+                VALUES (1, ?, ?, ?)
+                ON CONFLICT (service_area_id, day_of_week) DO NOTHING
+                """,
+                day, LocalTime.of(0, 0), LocalTime.of(23, 59),
+            )
+        }
+    }
+
     fun desiredPickupAt(): Instant = Instant.now().plus(2, ChronoUnit.HOURS)
 
     fun desiredDeliveryAt(): Instant = Instant.now().plus(24, ChronoUnit.HOURS)
@@ -67,6 +102,9 @@ object TestFixtures {
             """
             TRUNCATE TABLE outbox_events CASCADE;
             TRUNCATE TABLE processed_events CASCADE;
+            DELETE FROM service_area_holidays;
+            DELETE FROM service_area_schedules;
+            DELETE FROM service_areas;
             DELETE FROM dispatch_penalty_records;
             DELETE FROM dispatch_carrier_areas;
             DELETE FROM dispatch_dispatches;

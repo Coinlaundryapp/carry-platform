@@ -31,7 +31,7 @@ class OrderSagaHandlerTest {
 
     private val now = Instant.now()
     private val address = OrderShippingAddress(
-        "서울특별시 강남구 역삼로 1", "101호", null, 37.5, 127.0, "홍길동", "01012345678", null,
+        "서울특별시 강남구 역삼로 1", "101호", null, 37.5, 127.0, "홍길동", "01012345678", null, "GANGNAM",
     )
 
     private fun orderAt(status: OrderStatus) = Order.reconstitute(

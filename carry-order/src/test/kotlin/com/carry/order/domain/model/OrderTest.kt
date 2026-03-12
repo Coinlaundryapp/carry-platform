@@ -25,6 +25,7 @@ class OrderTest {
         recipientName = "홍길동",
         recipientPhone = "01012345678",
         entranceInfo = null,
+        areaCode = "GANGNAM",
     )
 
     private val options = listOf(
