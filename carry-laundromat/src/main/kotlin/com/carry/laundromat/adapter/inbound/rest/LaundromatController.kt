@@ -29,7 +29,7 @@ import org.springframework.web.bind.annotation.RestController
 
 @Tag(name = "Laundromat", description = "세탁소 관리 API")
 @RestController
-@RequestMapping("/api/v1/laundromats")
+@RequestMapping("/api/v2/laundromats")
 class LaundromatController(
     private val laundromatQueryUseCase: LaundromatQueryUseCase,
     private val laundromatCommandUseCase: LaundromatCommandUseCase,
