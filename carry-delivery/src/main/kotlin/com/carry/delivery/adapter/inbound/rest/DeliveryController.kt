@@ -7,6 +7,7 @@ import com.carry.delivery.adapter.inbound.rest.dto.StepPhotoRequest
 import com.carry.delivery.application.port.inbound.DeliveryCommandUseCase
 import com.carry.delivery.application.port.inbound.DeliveryQueryUseCase
 import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.responses.ApiResponse as SwaggerApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -31,8 +32,12 @@ class DeliveryController(
     @Operation(summary = "배달원 배달 목록 조회")
     @ApiResponses(value = [SwaggerApiResponse(responseCode = "200", description = "배달 목록 조회 성공")])
     @GetMapping("/my")
-    fun getMyDeliveries(@RequestParam carrierId: Long): ResponseEntity<ApiResponse<List<DeliveryResponse>>> {
-        val deliveries = deliveryQueryUseCase.getDeliveriesByCarrier(carrierId)
+    fun getMyDeliveries(
+        @RequestParam carrierId: Long,
+        @Parameter(description = "마지막으로 조회한 배달 ID (첫 페이지는 생략)") @RequestParam(required = false) cursor: Long?,
+        @Parameter(description = "페이지 크기") @RequestParam(defaultValue = "20") size: Int,
+    ): ResponseEntity<ApiResponse<List<DeliveryResponse>>> {
+        val deliveries = deliveryQueryUseCase.getDeliveriesByCarrier(carrierId, cursor, size)
         return ResponseEntity.ok(ApiResponse.success(deliveries.map { DeliveryResponse.from(it) }))
     }
 

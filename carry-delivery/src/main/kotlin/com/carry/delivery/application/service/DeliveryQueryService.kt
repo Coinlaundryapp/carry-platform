@@ -22,7 +22,7 @@ class DeliveryQueryService(
             ?: throw DeliveryNotFoundException(orderId)
     }
 
-    override fun getDeliveriesByCarrier(carrierId: Long): List<Delivery> {
-        return deliveryPersistencePort.findByCarrierId(carrierId)
+    override fun getDeliveriesByCarrier(carrierId: Long, cursor: Long?, size: Int): List<Delivery> {
+        return deliveryPersistencePort.findByCarrierId(carrierId, cursor, size)
     }
 }

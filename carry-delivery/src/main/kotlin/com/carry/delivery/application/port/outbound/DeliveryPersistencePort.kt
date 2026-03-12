@@ -6,5 +6,5 @@ interface DeliveryPersistencePort {
     fun save(delivery: Delivery): Delivery
     fun findById(id: Long): Delivery?
     fun findByOrderId(orderId: Long): Delivery?
-    fun findByCarrierId(carrierId: Long): List<Delivery>
+    fun findByCarrierId(carrierId: Long, cursor: Long?, size: Int): List<Delivery>
 }
