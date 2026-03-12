@@ -1,5 +1,5 @@
 package com.carry.user.domain.vo
 
 enum class UserRole {
-    CUSTOMER, RIDER, OWNER, ADMIN
+    CUSTOMER, CARRIER, COORDINATOR, ADMIN
 }

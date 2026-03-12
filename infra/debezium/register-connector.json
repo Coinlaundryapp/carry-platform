@@ -1,0 +1,29 @@
+{
+  "name": "carry-outbox-connector",
+  "config": {
+    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+    "database.hostname": "host.docker.internal",
+    "database.port": "5432",
+    "database.user": "carry",
+    "database.password": "carry",
+    "database.dbname": "carry",
+    "topic.prefix": "carry",
+    "plugin.name": "pgoutput",
+    "table.include.list": "public.outbox_events",
+    "tombstones.on.delete": "false",
+    "transforms": "outbox",
+    "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
+    "transforms.outbox.route.by.field": "aggregate_type",
+    "transforms.outbox.route.topic.regex": "(.*)",
+    "transforms.outbox.route.topic.replacement": "carry.$1.events",
+    "transforms.outbox.table.field.event.id": "id",
+    "transforms.outbox.table.field.event.key": "aggregate_id",
+    "transforms.outbox.table.field.event.payload": "payload",
+    "transforms.outbox.table.field.event.type": "event_type",
+    "transforms.outbox.table.field.event.timestamp": "created_at",
+    "transforms.outbox.table.fields.additional.placement": "trace_id:header:traceId",
+    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter.schemas.enable": "false"
+  }
+}

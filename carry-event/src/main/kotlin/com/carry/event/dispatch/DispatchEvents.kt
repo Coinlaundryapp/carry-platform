@@ -1,23 +1,19 @@
 package com.carry.event.dispatch
 
-data class DispatchCreatedEvent(
-    val dispatchId: Long,
-    val orderId: Long
-)
-
-data class DispatchAssignedEvent(
+data class DispatchAcceptedEvent(
     val dispatchId: Long,
     val orderId: Long,
-    val riderId: Long
+    val carrierId: Long,
+    val laundromatId: Long,
 )
 
-data class DispatchFailedEvent(
+data class DispatchTimeoutEvent(
     val dispatchId: Long,
     val orderId: Long,
-    val reason: String
 )
 
-data class DeliveryCompletedEvent(
+data class DispatchCancelledEvent(
     val dispatchId: Long,
-    val orderId: Long
+    val orderId: Long,
+    val reason: String,
 )
