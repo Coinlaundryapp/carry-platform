@@ -9,8 +9,34 @@ enum class ErrorCode(
     UNAUTHORIZED(401, "Unauthorized"),
     FORBIDDEN(403, "Forbidden"),
     NOT_FOUND(404, "Resource not found"),
-    SERVICE_UNAVAILABLE(422, "Service unavailable in this area/time"),
+    CONFLICT(409, "Resource conflict"),
     INTERNAL_ERROR(500, "Internal server error"),
+
+    // User
+    USER_NOT_FOUND(404, "User not found"),
+    USER_ALREADY_DEACTIVATED(409, "User is already deactivated"),
+    SHIPPING_ADDRESS_NOT_FOUND(404, "Shipping address not found"),
+    SHIPPING_ADDRESS_LIMIT_EXCEEDED(400, "Shipping address limit exceeded"),
+
+    // Laundromat
+    LAUNDROMAT_NOT_FOUND(404, "Laundromat not found"),
+    LAUNDROMAT_ALREADY_EXISTS(409, "Laundromat already exists"),
+
+    // Price
+    PRICE_POLICY_NOT_FOUND(404, "Price policy not found"),
+    PRICE_POLICY_ALREADY_EXISTS(409, "Price policy already exists for the given condition"),
+    OPTION_NOT_FOUND(404, "Option not found in price policy"),
+
+    // Geo
+    GEOCODING_FAILED(502, "Geocoding request failed"),
+    REVERSE_GEOCODING_FAILED(502, "Reverse geocoding request failed"),
+    ADDRESS_NOT_FOUND(404, "Address not found"),
+
+    // Service Availability
+    SERVICE_AREA_NOT_FOUND(404, "Service area not found"),
+    AREA_NOT_ACTIVE(422, "Service is not active in the requested area"),
+    OUTSIDE_OPERATING_HOURS(422, "Request is outside operating hours"),
+    HOLIDAY_CLOSED(422, "Service is closed due to holiday"),
 
     // Order
     ORDER_NOT_FOUND(404, "Order not found"),
@@ -19,19 +45,38 @@ enum class ErrorCode(
     // Payment
     PAYMENT_NOT_FOUND(404, "Payment not found"),
     PAYMENT_ALREADY_COMPLETED(409, "Payment already completed"),
+    PAYMENT_FAILED(502, "Payment processing failed"),
+    ORDER_NOT_PAID(402, "Order payment is not completed"),
+
+    // Invoice
+    INVOICE_NOT_FOUND(404, "Invoice not found"),
+    INVOICE_ALREADY_PAID(409, "Invoice already paid"),
 
     // Dispatch
     DISPATCH_NOT_FOUND(404, "Dispatch not found"),
     DISPATCH_NOT_PENDING(400, "Dispatch is not in pending status"),
     DISPATCH_ALREADY_ACCEPTED(409, "Dispatch already accepted"),
     CARRIER_NOT_IN_AREA(403, "Carrier is not registered in the dispatch area"),
+    CARRIER_AREA_NOT_FOUND(404, "Carrier area registration not found"),
 
     // Delivery
     DELIVERY_NOT_FOUND(404, "Delivery not found"),
     DELIVERY_INVALID_STATUS(400, "Delivery is not in expected status"),
-    ORDER_NOT_PAID(402, "Order payment is not completed"),
 
-    // Invoice
-    INVOICE_NOT_FOUND(404, "Invoice not found"),
-    INVOICE_ALREADY_PAID(409, "Invoice already paid"),
+    // Media
+    MEDIA_NOT_FOUND(404, "Media resource not found"),
+    MEDIA_UPLOAD_FAILED(502, "Media upload failed"),
+    INVALID_FILE_TYPE(400, "Invalid file type"),
+
+    // Review
+    REVIEW_NOT_FOUND(404, "Review not found"),
+    REVIEW_NOT_OWNED(403, "Review does not belong to the user"),
+    DUPLICATE_REVIEW(409, "Review already exists for this order"),
+
+    // Notification
+    NOTIFICATION_NOT_FOUND(404, "Notification not found"),
+
+    // Operation
+    TERM_NOT_FOUND(404, "Term not found"),
+    TERM_ALREADY_DEACTIVATED(409, "Term is already deactivated"),
 }

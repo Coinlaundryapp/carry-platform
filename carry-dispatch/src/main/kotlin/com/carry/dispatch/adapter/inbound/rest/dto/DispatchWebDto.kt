@@ -2,46 +2,62 @@ package com.carry.dispatch.adapter.inbound.rest.dto
 
 import com.carry.dispatch.domain.model.CarrierArea
 import com.carry.dispatch.domain.model.Dispatch
+import io.swagger.v3.oas.annotations.media.Schema
+import jakarta.validation.constraints.NotBlank
 import java.time.Instant
 
+@Schema(description = "배차 선점 요청")
 data class ClaimDispatchRequest(
+    @Schema(description = "배달원 ID")
     val carrierId: Long,
 )
 
+@Schema(description = "배차 배정 요청")
 data class AssignDispatchRequest(
+    @Schema(description = "배달원 ID")
     val carrierId: Long,
 )
 
+@Schema(description = "배차 수락 요청")
 data class AcceptAssignmentRequest(
+    @Schema(description = "배달원 ID")
     val carrierId: Long,
 )
 
+@Schema(description = "배차 거절 요청")
 data class RejectAssignmentRequest(
+    @Schema(description = "배달원 ID")
     val carrierId: Long,
 )
 
+@Schema(description = "배차 취소 요청")
 data class CancelDispatchRequest(
-    val reason: String,
+    @Schema(description = "취소 사유")
+    @field:NotBlank val reason: String,
 )
 
+@Schema(description = "권역 등록 요청")
 data class RegisterAreaRequest(
-    val areaCode: String,
-    val areaName: String,
+    @Schema(description = "권역 코드", example = "GANGNAM")
+    @field:NotBlank val areaCode: String,
+    @Schema(description = "권역명", example = "강남구")
+    @field:NotBlank val areaName: String,
 )
 
+@Schema(description = "배차 응답")
 data class DispatchResponse(
-    val id: Long,
-    val orderId: Long,
-    val laundromatId: Long,
-    val status: String,
-    val carrierId: Long?,
-    val areaCode: String,
-    val desiredPickupAt: Instant,
-    val assignedBy: String?,
-    val assignedAt: Instant?,
-    val acceptedAt: Instant?,
-    val cancelReason: String?,
-    val createdAt: Instant,
+    @Schema(description = "배차 ID") val id: Long,
+    @Schema(description = "주문 ID") val orderId: Long,
+    @Schema(description = "세탁소 ID") val laundromatId: Long,
+    @Schema(description = "배차 상태") val status: String,
+    @Schema(description = "배달원 ID", nullable = true) val carrierId: Long?,
+    @Schema(description = "권역 코드") val areaCode: String,
+    @Schema(description = "희망 수거 시간") val desiredPickupAt: Instant,
+    @Schema(description = "배정 방식", nullable = true) val assignedBy: String?,
+    @Schema(description = "배정 시간", nullable = true) val assignedAt: Instant?,
+    @Schema(description = "수락 시간", nullable = true) val acceptedAt: Instant?,
+    @Schema(description = "취소 사유", nullable = true) val cancelReason: String?,
+    @Schema(description = "생성 시간") val createdAt: Instant,
 ) {
     companion object {
         fun from(dispatch: Dispatch) = DispatchResponse(
@@ -61,13 +77,14 @@ data class DispatchResponse(
     }
 }
 
+@Schema(description = "배달원 권역 응답")
 data class CarrierAreaResponse(
-    val id: Long,
-    val carrierId: Long,
-    val areaCode: String,
-    val areaName: String,
-    val active: Boolean,
-    val createdAt: Instant,
+    @Schema(description = "권역 매핑 ID") val id: Long,
+    @Schema(description = "배달원 ID") val carrierId: Long,
+    @Schema(description = "권역 코드") val areaCode: String,
+    @Schema(description = "권역명") val areaName: String,
+    @Schema(description = "활성 여부") val active: Boolean,
+    @Schema(description = "생성 시간") val createdAt: Instant,
 ) {
     companion object {
         fun from(carrierArea: CarrierArea) = CarrierAreaResponse(
