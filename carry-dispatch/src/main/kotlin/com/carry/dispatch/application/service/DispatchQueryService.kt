@@ -24,14 +24,14 @@ class DispatchQueryService(
             ?: throw RuntimeException("해당 주문의 배차를 찾을 수 없습니다: $orderId")
     }
 
-    override fun getAvailableDispatches(carrierId: Long): List<Dispatch> {
+    override fun getAvailableDispatches(carrierId: Long, cursor: Long?, size: Int): List<Dispatch> {
         val areas = carrierAreaPersistencePort.findByCarrierId(carrierId)
         val areaCodes = areas.filter { it.active }.map { it.areaCode }
         if (areaCodes.isEmpty()) return emptyList()
-        return dispatchPersistencePort.findPendingByAreaCodes(areaCodes)
+        return dispatchPersistencePort.findPendingByAreaCodes(areaCodes, cursor, size)
     }
 
-    override fun getDispatchesByCarrier(carrierId: Long): List<Dispatch> {
-        return dispatchPersistencePort.findByCarrierId(carrierId)
+    override fun getDispatchesByCarrier(carrierId: Long, cursor: Long?, size: Int): List<Dispatch> {
+        return dispatchPersistencePort.findByCarrierId(carrierId, cursor, size)
     }
 }

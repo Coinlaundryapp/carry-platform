@@ -4,6 +4,7 @@ import com.carry.delivery.adapter.outbound.persistence.entity.DeliveryJpaEntity
 import com.carry.delivery.adapter.outbound.persistence.repository.DeliveryJpaRepository
 import com.carry.delivery.application.port.outbound.DeliveryPersistencePort
 import com.carry.delivery.domain.model.Delivery
+import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 
@@ -33,8 +34,8 @@ class DeliveryPersistenceAdapter(
         return deliveryJpaRepository.findByOrderId(orderId)?.toDomain()
     }
 
-    override fun findByCarrierId(carrierId: Long): List<Delivery> {
-        return deliveryJpaRepository.findByCarrierIdOrderByCreatedAtDesc(carrierId)
+    override fun findByCarrierId(carrierId: Long, cursor: Long?, size: Int): List<Delivery> {
+        return deliveryJpaRepository.findByCarrierIdWithCursor(carrierId, cursor, PageRequest.of(0, size))
             .map { it.toDomain() }
     }
 }

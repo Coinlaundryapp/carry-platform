@@ -22,11 +22,11 @@ domain/exception/         # 도메인 예외
 
 | Method | Endpoint | 설명 |
 |--------|----------|------|
-| GET | `/api/v1/prices` | 가격 정책 조회 |
-| POST | `/api/v1/prices/calculate` | 총 금액 계산 |
-| POST | `/api/v1/prices` | 가격 정책 생성 |
-| PUT | `/api/v1/prices/{id}/options` | 옵션 가격 수정 |
-| DELETE | `/api/v1/prices/{id}` | 가격 정책 삭제 |
+| GET | `/api/v2/prices` | 가격 정책 조회 |
+| POST | `/api/v2/prices/calculate` | 총 금액 계산 |
+| POST | `/api/v2/prices` | 가격 정책 생성 |
+| PUT | `/api/v2/prices/{id}/options` | 옵션 가격 수정 |
+| DELETE | `/api/v2/prices/{id}` | 가격 정책 삭제 |
 
 ## 주요 도메인 모델
 

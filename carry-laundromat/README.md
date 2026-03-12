@@ -22,13 +22,13 @@ domain/exception/         # 도메인 예외
 
 | Method | Endpoint | 설명 |
 |--------|----------|------|
-| GET | `/api/v1/laundromats` | 주변 세탁소 검색 |
-| GET | `/api/v1/laundromats/{id}` | 상세 조회 |
-| POST | `/api/v1/laundromats` | 등록 |
-| PUT | `/api/v1/laundromats/{id}` | 정보 수정 |
-| PUT | `/api/v1/laundromats/{id}/options` | 옵션 수정 |
-| POST | `/api/v1/laundromats/{id}/media` | 이미지 추가 |
-| DELETE | `/api/v1/laundromats/{id}/media/{mediaId}` | 이미지 삭제 |
+| GET | `/api/v2/laundromats` | 주변 세탁소 검색 |
+| GET | `/api/v2/laundromats/{id}` | 상세 조회 |
+| POST | `/api/v2/laundromats` | 등록 |
+| PUT | `/api/v2/laundromats/{id}` | 정보 수정 |
+| PUT | `/api/v2/laundromats/{id}/options` | 옵션 수정 |
+| POST | `/api/v2/laundromats/{id}/media` | 이미지 추가 |
+| DELETE | `/api/v2/laundromats/{id}/media/{mediaId}` | 이미지 삭제 |
 
 ## 주요 도메인 모델
 

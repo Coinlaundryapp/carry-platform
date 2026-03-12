@@ -1,6 +1,7 @@
 package com.carry.order.application.service
 
 import com.carry.infra.kafka.outbox.OutboxEventPublisher
+import com.carry.infra.observability.metrics.BusinessMetrics
 import com.carry.order.application.port.inbound.CreateOrderCommand
 import com.carry.order.application.port.inbound.SelectedOptionCommand
 import com.carry.order.application.port.outbound.LaundromatQueryPort
@@ -30,9 +31,10 @@ class OrderCommandServiceTest {
     private val laundromatQueryPort = mockk<LaundromatQueryPort>()
     private val serviceAvailabilityQueryPort = mockk<ServiceAvailabilityQueryPort>(relaxed = true)
     private val outboxEventPublisher = mockk<OutboxEventPublisher>(relaxed = true)
+    private val businessMetrics = mockk<BusinessMetrics>(relaxed = true)
 
     private val sut = OrderCommandService(
-        orderPersistencePort, userQueryPort, laundromatQueryPort, serviceAvailabilityQueryPort, outboxEventPublisher,
+        orderPersistencePort, userQueryPort, laundromatQueryPort, serviceAvailabilityQueryPort, outboxEventPublisher, businessMetrics,
     )
 
     private val address = OrderShippingAddress(

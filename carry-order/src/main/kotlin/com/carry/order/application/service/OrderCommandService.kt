@@ -5,6 +5,7 @@ import com.carry.event.order.OrderCreatedEvent
 import com.carry.event.order.SelectedOptionDto
 import com.carry.event.order.ShippingAddressDto
 import com.carry.infra.kafka.outbox.OutboxEventPublisher
+import com.carry.infra.observability.metrics.BusinessMetrics
 import com.carry.order.application.port.inbound.CreateOrderCommand
 import com.carry.order.application.port.inbound.OrderCommandUseCase
 import com.carry.order.application.port.outbound.LaundromatQueryPort
@@ -25,6 +26,7 @@ class OrderCommandService(
     private val laundromatQueryPort: LaundromatQueryPort,
     private val serviceAvailabilityQueryPort: ServiceAvailabilityQueryPort,
     private val outboxEventPublisher: OutboxEventPublisher,
+    private val businessMetrics: BusinessMetrics,
 ) : OrderCommandUseCase {
 
     @Transactional
@@ -69,6 +71,7 @@ class OrderCommandService(
             ),
         )
 
+        businessMetrics.incrementOrderCreated()
         return saved
     }
 
@@ -85,5 +88,7 @@ class OrderCommandService(
             eventType = "OrderCancelledEvent",
             payload = OrderCancelledEvent(orderId, reason, cancelledBy),
         )
+
+        businessMetrics.incrementOrderCancelled()
     }
 }

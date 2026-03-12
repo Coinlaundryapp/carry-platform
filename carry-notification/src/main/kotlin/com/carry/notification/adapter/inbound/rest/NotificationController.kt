@@ -13,6 +13,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
 @Tag(name = "Notification", description = "알림 API")
@@ -22,13 +23,15 @@ class NotificationController(
     private val notificationQueryUseCase: NotificationQueryUseCase,
 ) {
 
-    @Operation(summary = "내 알림 목록 조회")
+    @Operation(summary = "내 알림 목록 조회", description = "커서 기반 페이지네이션으로 내 알림을 조회합니다")
     @ApiResponses(value = [SwaggerApiResponse(responseCode = "200", description = "알림 목록 조회 성공")])
     @GetMapping("/my")
     fun getMyNotifications(
         @Parameter(hidden = true) @AuthenticationPrincipal userId: Long,
+        @Parameter(description = "커서 (마지막 알림 ID)") @RequestParam(required = false) cursor: Long?,
+        @Parameter(description = "페이지 크기", example = "20") @RequestParam(defaultValue = "20") size: Int,
     ): ResponseEntity<ApiResponse<List<NotificationResponse>>> {
-        val notifications = notificationQueryUseCase.getNotificationsByRecipient(userId)
+        val notifications = notificationQueryUseCase.getNotificationsByRecipient(userId, cursor, size)
         return ResponseEntity.ok(ApiResponse.success(notifications.map { NotificationResponse.from(it) }))
     }
 

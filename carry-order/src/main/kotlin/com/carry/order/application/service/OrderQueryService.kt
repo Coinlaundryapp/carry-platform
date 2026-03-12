@@ -17,7 +17,7 @@ class OrderQueryService(
         return orderPersistencePort.findById(orderId) ?: throw OrderNotFoundException(orderId)
     }
 
-    override fun getOrdersByCustomer(customerId: Long): List<Order> {
-        return orderPersistencePort.findByCustomerId(customerId)
+    override fun getOrdersByCustomer(customerId: Long, cursor: Long?, size: Int): List<Order> {
+        return orderPersistencePort.findByCustomerId(customerId, cursor, size)
     }
 }
