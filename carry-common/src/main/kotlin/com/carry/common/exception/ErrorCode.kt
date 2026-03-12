@@ -9,6 +9,7 @@ enum class ErrorCode(
     UNAUTHORIZED(401, "Unauthorized"),
     FORBIDDEN(403, "Forbidden"),
     NOT_FOUND(404, "Resource not found"),
+    SERVICE_UNAVAILABLE(422, "Service unavailable in this area/time"),
     INTERNAL_ERROR(500, "Internal server error"),
 
     // Order
