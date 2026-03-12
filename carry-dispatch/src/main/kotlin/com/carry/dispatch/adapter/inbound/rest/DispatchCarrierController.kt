@@ -11,6 +11,7 @@ import com.carry.dispatch.application.port.inbound.DispatchCommandUseCase
 import com.carry.dispatch.application.port.inbound.DispatchQueryUseCase
 import com.carry.dispatch.application.port.inbound.RejectAssignmentCommand
 import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.responses.ApiResponse as SwaggerApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -37,8 +38,10 @@ class DispatchCarrierController(
     @GetMapping("/available")
     fun getAvailableDispatches(
         @RequestParam carrierId: Long,
+        @Parameter(description = "커서 (마지막 배차 ID)") @RequestParam(required = false) cursor: Long?,
+        @Parameter(description = "페이지 크기", example = "20") @RequestParam(defaultValue = "20") size: Int,
     ): ResponseEntity<ApiResponse<List<DispatchResponse>>> {
-        val dispatches = dispatchQueryUseCase.getAvailableDispatches(carrierId)
+        val dispatches = dispatchQueryUseCase.getAvailableDispatches(carrierId, cursor, size)
         return ResponseEntity.ok(ApiResponse.success(dispatches.map { DispatchResponse.from(it) }))
     }
 
@@ -91,8 +94,10 @@ class DispatchCarrierController(
     @GetMapping("/my")
     fun getMyDispatches(
         @RequestParam carrierId: Long,
+        @Parameter(description = "커서 (마지막 배차 ID)") @RequestParam(required = false) cursor: Long?,
+        @Parameter(description = "페이지 크기", example = "20") @RequestParam(defaultValue = "20") size: Int,
     ): ResponseEntity<ApiResponse<List<DispatchResponse>>> {
-        val dispatches = dispatchQueryUseCase.getDispatchesByCarrier(carrierId)
+        val dispatches = dispatchQueryUseCase.getDispatchesByCarrier(carrierId, cursor, size)
         return ResponseEntity.ok(ApiResponse.success(dispatches.map { DispatchResponse.from(it) }))
     }
 
