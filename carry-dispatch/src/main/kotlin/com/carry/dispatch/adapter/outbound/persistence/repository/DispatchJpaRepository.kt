@@ -15,8 +15,9 @@ interface DispatchJpaRepository : JpaRepository<DispatchJpaEntity, Long> {
     fun findByCarrierIdOrderByCreatedAtDesc(carrierId: Long): List<DispatchJpaEntity>
 
     @Query(
-        "SELECT d FROM DispatchJpaEntity d WHERE d.status = 'PENDING' " +
-            "AND d.desiredPickupAt <= CURRENT_TIMESTAMP + 30 * 60",
+        value = "SELECT d.* FROM dispatch_dispatches d WHERE d.status = 'PENDING' " +
+            "AND d.desired_pickup_at <= CURRENT_TIMESTAMP + INTERVAL '30 minutes'",
+        nativeQuery = true,
     )
     fun findExpiredPendingDispatches(): List<DispatchJpaEntity>
 }

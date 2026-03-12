@@ -35,7 +35,7 @@ class DeliveryJpaEntity(
     @Column(precision = 10, scale = 2)
     var actualWeight: BigDecimal?,
 
-    @OneToMany(mappedBy = "delivery", cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "delivery", cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.EAGER)
     val steps: MutableList<DeliveryStepJpaEntity> = mutableListOf(),
 ) : BaseEntity() {
 

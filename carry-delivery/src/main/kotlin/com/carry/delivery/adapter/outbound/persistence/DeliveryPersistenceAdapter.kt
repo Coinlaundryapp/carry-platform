@@ -5,12 +5,15 @@ import com.carry.delivery.adapter.outbound.persistence.repository.DeliveryJpaRep
 import com.carry.delivery.application.port.outbound.DeliveryPersistencePort
 import com.carry.delivery.domain.model.Delivery
 import org.springframework.stereotype.Component
+import org.springframework.transaction.annotation.Transactional
 
 @Component
+@Transactional(readOnly = true)
 class DeliveryPersistenceAdapter(
     private val deliveryJpaRepository: DeliveryJpaRepository,
 ) : DeliveryPersistencePort {
 
+    @Transactional
     override fun save(delivery: Delivery): Delivery {
         val entity = if (delivery.id == null) {
             DeliveryJpaEntity.fromDomain(delivery)

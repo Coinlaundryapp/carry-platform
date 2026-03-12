@@ -10,6 +10,7 @@ data class CreateOrderCommand(
     val selectedOptions: List<SelectedOptionCommand>,
     val desiredPickupAt: java.time.Instant,
     val desiredDeliveryAt: java.time.Instant,
+    val areaCode: String = "",
 )
 
 data class SelectedOptionCommand(
