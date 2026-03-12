@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: carry
+  annotations:
+    linkerd.io/inject: enabled
+  labels:
+    app.kubernetes.io/part-of: carry-platform
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: carry-infra
+  labels:
+    app.kubernetes.io/part-of: carry-platform

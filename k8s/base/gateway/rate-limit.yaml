@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: carry-rate-limit
+  namespace: carry
+data:
+  # Rate limiting configuration for future use
+  global-rate-limit: "100"  # requests per second
+  per-client-rate-limit: "20"

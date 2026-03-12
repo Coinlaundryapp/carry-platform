@@ -1,0 +1,35 @@
+apiVersion: linkerd.io/v1alpha2
+kind: ServiceProfile
+metadata:
+  name: carry-app.carry.svc.cluster.local
+  namespace: carry
+spec:
+  routes:
+    - name: GET /api/v2/{module}
+      condition:
+        method: GET
+        pathRegex: /api/v2/.*
+      responseClasses:
+        - condition:
+            status:
+              min: 500
+              max: 599
+          isFailure: true
+      timeout: 10s
+    - name: POST /api/v2/{module}
+      condition:
+        method: POST
+        pathRegex: /api/v2/.*
+      responseClasses:
+        - condition:
+            status:
+              min: 500
+              max: 599
+          isFailure: true
+      timeout: 30s
+      isRetryable: false
+    - name: Health check
+      condition:
+        method: GET
+        pathRegex: /actuator/health
+      timeout: 5s
