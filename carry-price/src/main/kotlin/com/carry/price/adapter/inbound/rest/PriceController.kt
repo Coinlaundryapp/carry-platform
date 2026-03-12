@@ -31,7 +31,7 @@ import org.springframework.web.bind.annotation.RestController
 
 @Tag(name = "Price", description = "가격 정책 관리 API")
 @RestController
-@RequestMapping("/api/v1/prices")
+@RequestMapping("/api/v2/prices")
 class PriceController(
     private val priceQueryUseCase: PriceQueryUseCase,
     private val priceCommandUseCase: PriceCommandUseCase,
