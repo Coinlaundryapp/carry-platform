@@ -6,6 +6,19 @@ resources:
   - hpa.yaml
 
 patches:
+  # Override Spring profile to prod
+  - target:
+      kind: ConfigMap
+      name: carry-app-config
+      namespace: carry
+    patch: |
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: carry-app-config
+      data:
+        SPRING_PROFILES_ACTIVE: "prod"
+
   # Scale carry-app to 3 replicas with higher resources
   - target:
       kind: Deployment
