@@ -28,7 +28,7 @@ class OperationEventConsumer(
     )
     fun consume(record: ConsumerRecord<String, String>) {
         val envelope = objectMapper.readValue(record.value(), OutboxEventEnvelope::class.java)
-        eventConsumerSupport.processIfNotDuplicate(envelope.id) {
+        eventConsumerSupport.processIfNotDuplicate(envelope.id, envelope.traceId, envelope.eventType) {
             when (envelope.eventType) {
                 "OrderCreatedEvent" -> {
                     val event = objectMapper.readValue(envelope.payload, OrderCreatedEvent::class.java)

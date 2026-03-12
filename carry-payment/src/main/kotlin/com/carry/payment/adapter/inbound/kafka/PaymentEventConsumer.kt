@@ -21,7 +21,7 @@ class PaymentEventConsumer(
     @KafkaListener(topics = ["carry.Delivery.events"], groupId = "carry-payment-module")
     fun consume(record: ConsumerRecord<String, String>) {
         val envelope = objectMapper.readValue(record.value(), OutboxEventEnvelope::class.java)
-        eventConsumerSupport.processIfNotDuplicate(envelope.id) {
+        eventConsumerSupport.processIfNotDuplicate(envelope.id, envelope.traceId, envelope.eventType) {
             when (envelope.eventType) {
                 "PickupCompletedEvent" -> {
                     val event = objectMapper.readValue(envelope.payload, PickupCompletedEvent::class.java)
