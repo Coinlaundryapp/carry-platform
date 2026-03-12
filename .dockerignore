@@ -1,0 +1,12 @@
+.git
+.github
+.gradle
+.idea
+.claude
+build/
+*/build/
+k8s/
+docs/
+infra/
+docker-compose.yml
+*.md

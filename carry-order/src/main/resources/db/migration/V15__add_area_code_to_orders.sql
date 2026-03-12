@@ -1,0 +1,2 @@
+ALTER TABLE orders
+    ADD COLUMN area_code VARCHAR(20) NOT NULL DEFAULT '';

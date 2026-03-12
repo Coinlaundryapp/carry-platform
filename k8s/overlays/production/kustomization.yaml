@@ -1,0 +1,103 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  - hpa.yaml
+
+patches:
+  # Override Spring profile to prod
+  - target:
+      kind: ConfigMap
+      name: carry-app-config
+      namespace: carry
+    patch: |
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: carry-app-config
+      data:
+        SPRING_PROFILES_ACTIVE: "prod"
+
+  # Scale carry-app to 3 replicas with higher resources
+  - target:
+      kind: Deployment
+      name: carry-app
+      namespace: carry
+    patch: |
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: carry-app
+      spec:
+        replicas: 3
+        template:
+          spec:
+            containers:
+              - name: carry-app
+                resources:
+                  requests:
+                    cpu: 500m
+                    memory: 512Mi
+                  limits:
+                    cpu: "1"
+                    memory: 1Gi
+
+  # Expose carry-app via LoadBalancer
+  - target:
+      kind: Service
+      name: carry-app
+      namespace: carry
+    patch: |
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: carry-app
+      spec:
+        type: LoadBalancer
+
+  # Scale up PostgreSQL resources
+  - target:
+      kind: StatefulSet
+      name: postgres
+      namespace: carry-infra
+    patch: |
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: postgres
+      spec:
+        template:
+          spec:
+            containers:
+              - name: postgres
+                resources:
+                  requests:
+                    cpu: 500m
+                    memory: 512Mi
+                  limits:
+                    cpu: "1"
+                    memory: 1Gi
+
+  # Scale up Kafka resources
+  - target:
+      kind: Deployment
+      name: kafka
+      namespace: carry-infra
+    patch: |
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: kafka
+      spec:
+        template:
+          spec:
+            containers:
+              - name: kafka
+                resources:
+                  requests:
+                    cpu: 500m
+                    memory: 1Gi
+                  limits:
+                    cpu: "1"
+                    memory: 2Gi

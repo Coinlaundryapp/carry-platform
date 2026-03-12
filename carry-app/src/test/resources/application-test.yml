@@ -1,0 +1,72 @@
+spring:
+  application:
+    name: carry-platform-test
+  threads:
+    virtual:
+      enabled: true
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+    open-in-view: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  kafka:
+    bootstrap-servers: localhost:0
+    listener:
+      auto-startup: false
+    consumer:
+      group-id: test
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+
+jwt:
+  secret: test-secret-key-for-integration-tests
+  access-token-expiration: 3600000
+  refresh-token-expiration: 604800000
+
+cloud:
+  aws:
+    s3:
+      endpoint: http://localhost:4566
+      bucket: carry-media-test
+    credentials:
+      access-key: test
+      secret-key: test
+    region:
+      static: ap-northeast-2
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  tracing:
+    enabled: false
+
+carry:
+  geo:
+    naver:
+      client-id: test
+      client-secret: test
+
+logging:
+  level:
+    com.carry: DEBUG
+    org.hibernate.SQL: DEBUG

@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: carry-app-config
+  namespace: carry
+  labels:
+    app.kubernetes.io/name: carry-app
+    app.kubernetes.io/part-of: carry-platform
+data:
+  SPRING_PROFILES_ACTIVE: "dev"
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres.carry-infra.svc.cluster.local:5432/carry"
+  SPRING_KAFKA_BOOTSTRAP_SERVERS: "kafka.carry-infra.svc.cluster.local:9092"
+  SPRING_DATA_REDIS_HOST: "redis.carry-infra.svc.cluster.local"
+  SPRING_DATA_REDIS_PORT: "6379"
+  MANAGEMENT_OTLP_TRACING_ENDPOINT: "http://otel-collector.carry-infra.svc.cluster.local:4318/v1/traces"
+  MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info,prometheus"
+  JAVA_OPTS: "-XX:+UseZGC -XX:MaxRAMPercentage=75.0"

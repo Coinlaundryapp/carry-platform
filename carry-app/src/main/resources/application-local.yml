@@ -1,0 +1,57 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/carry
+    username: carry
+    password: carry
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+  flyway:
+    enabled: false
+
+  kafka:
+    bootstrap-servers: localhost:9092
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+jwt:
+  secret: carry-local-dev-secret-key-do-not-use-in-production
+
+cloud:
+  aws:
+    s3:
+      endpoint: http://localhost:4566
+      bucket: carry-media
+    credentials:
+      access-key: test
+      secret-key: test
+
+carry:
+  geo:
+    naver:
+      client-id: ${NAVER_CLIENT_ID:local-test}
+      client-secret: ${NAVER_CLIENT_SECRET:local-test}
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      endpoint: http://localhost:4318/v1/traces
+    metrics:
+      export:
+        enabled: true
+        endpoint: http://localhost:4318/v1/metrics
+
+logging:
+  level:
+    com.carry: DEBUG
+    org.hibernate.SQL: DEBUG

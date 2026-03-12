@@ -1,0 +1,26 @@
+apiVersion: flagger.app/v1beta1
+kind: Canary
+metadata:
+  name: carry-platform
+  namespace: carry
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: carry-app
+  service:
+    port: 8080
+  analysis:
+    interval: 30s
+    threshold: 5
+    maxWeight: 60
+    stepWeight: 10
+    metrics:
+      - name: request-success-rate
+        thresholdRange:
+          min: 99
+        interval: 1m
+      - name: request-duration
+        thresholdRange:
+          max: 500
+        interval: 1m
