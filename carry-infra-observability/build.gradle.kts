@@ -12,6 +12,7 @@ dependencyManagement {
 dependencies {
     api("org.springframework.boot:spring-boot-starter-actuator")
     api("io.micrometer:micrometer-tracing-bridge-otel")
+    api("io.opentelemetry:opentelemetry-api")
     api("io.opentelemetry:opentelemetry-exporter-otlp")
     api("io.micrometer:micrometer-registry-prometheus")
 
