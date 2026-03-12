@@ -7,6 +7,7 @@ import com.carry.user.application.port.inbound.UserCommandUseCase
 import com.carry.user.application.port.inbound.UserQueryUseCase
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
+import jakarta.validation.Valid
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PutMapping
@@ -32,7 +33,7 @@ class UserController(
     @PutMapping("/me")
     fun updateMyProfile(
         @AuthenticationPrincipal userId: Long,
-        @RequestBody request: UpdateProfileRequest,
+        @Valid @RequestBody request: UpdateProfileRequest,
     ): ResponseEntity<ApiResponse<UserProfileResponse>> {
         val user = userCommandUseCase.updateProfile(userId, request.name, request.phone)
         return ResponseEntity.ok(ApiResponse.success(UserProfileResponse.from(user)))

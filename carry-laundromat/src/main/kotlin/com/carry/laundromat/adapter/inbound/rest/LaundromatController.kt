@@ -9,6 +9,8 @@ import com.carry.laundromat.adapter.inbound.rest.dto.UpdateLaundromatInfoRequest
 import com.carry.laundromat.adapter.inbound.rest.dto.UpdateOptionsRequest
 import com.carry.laundromat.application.port.inbound.LaundromatCommandUseCase
 import com.carry.laundromat.application.port.inbound.LaundromatQueryUseCase
+import jakarta.validation.Valid
+import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
@@ -48,7 +50,7 @@ class LaundromatController(
 
     @PostMapping
     fun register(
-        @RequestBody request: RegisterLaundromatRequest,
+        @Valid @RequestBody request: RegisterLaundromatRequest,
     ): ResponseEntity<ApiResponse<LaundromatResponse>> {
         val laundromat = laundromatCommandUseCase.register(
             name = request.name,
@@ -56,13 +58,13 @@ class LaundromatController(
             location = request.toLocation(),
             options = request.options,
         )
-        return ResponseEntity.status(201).body(ApiResponse.created(LaundromatResponse.from(laundromat)))
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(LaundromatResponse.from(laundromat)))
     }
 
     @PutMapping("/{id}")
     fun updateInfo(
         @PathVariable id: Long,
-        @RequestBody request: UpdateLaundromatInfoRequest,
+        @Valid @RequestBody request: UpdateLaundromatInfoRequest,
     ): ResponseEntity<ApiResponse<LaundromatResponse>> {
         val laundromat = laundromatCommandUseCase.updateInfo(
             laundromatId = id,
@@ -76,7 +78,7 @@ class LaundromatController(
     @PutMapping("/{id}/options")
     fun updateOptions(
         @PathVariable id: Long,
-        @RequestBody request: UpdateOptionsRequest,
+        @Valid @RequestBody request: UpdateOptionsRequest,
     ): ResponseEntity<ApiResponse<LaundromatResponse>> {
         val laundromat = laundromatCommandUseCase.updateOptions(id, request.options)
         return ResponseEntity.ok(ApiResponse.success(LaundromatResponse.from(laundromat)))
@@ -85,10 +87,10 @@ class LaundromatController(
     @PostMapping("/{id}/media")
     fun addMediaResource(
         @PathVariable id: Long,
-        @RequestBody request: AddMediaResourceRequest,
+        @Valid @RequestBody request: AddMediaResourceRequest,
     ): ResponseEntity<ApiResponse<LaundromatResponse>> {
         val laundromat = laundromatCommandUseCase.addMediaResource(id, request.url, request.extension)
-        return ResponseEntity.status(201).body(ApiResponse.created(LaundromatResponse.from(laundromat)))
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(LaundromatResponse.from(laundromat)))
     }
 
     @DeleteMapping("/{id}/media/{mediaResourceId}")

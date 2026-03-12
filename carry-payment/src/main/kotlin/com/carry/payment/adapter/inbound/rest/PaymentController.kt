@@ -1,5 +1,6 @@
 package com.carry.payment.adapter.inbound.rest
 
+import com.carry.common.response.ApiResponse
 import com.carry.payment.adapter.inbound.rest.dto.InvoiceResponse
 import com.carry.payment.adapter.inbound.rest.dto.PaymentRequest
 import com.carry.payment.adapter.inbound.rest.dto.PaymentResponse
@@ -8,7 +9,10 @@ import com.carry.payment.application.port.inbound.PaymentCommandUseCase
 import com.carry.payment.application.port.inbound.PaymentQueryUseCase
 import com.carry.payment.application.port.inbound.RequestPaymentCommand
 import com.carry.payment.domain.vo.PgProvider
+import jakarta.validation.Valid
+import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
@@ -27,29 +31,29 @@ class PaymentController(
 
     @PostMapping("/pay")
     fun requestPayment(
-        @RequestParam customerId: Long, // TODO: JWT에서 추출
+        @AuthenticationPrincipal userId: Long,
         @RequestParam orderId: Long,
-        @RequestBody request: PaymentRequest,
-    ): ResponseEntity<PaymentResponse> {
+        @Valid @RequestBody request: PaymentRequest,
+    ): ResponseEntity<ApiResponse<PaymentResponse>> {
         val command = RequestPaymentCommand(
             orderId = orderId,
-            customerId = customerId,
+            customerId = userId,
             pgProvider = PgProvider.valueOf(request.pgProvider),
             paymentKey = request.paymentKey,
         )
         val payment = paymentCommandUseCase.requestPayment(command)
-        return ResponseEntity.ok(PaymentResponse.from(payment))
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(PaymentResponse.from(payment)))
     }
 
     @GetMapping("/{orderId}/invoice")
-    fun getInvoice(@PathVariable orderId: Long): ResponseEntity<InvoiceResponse> {
+    fun getInvoice(@PathVariable orderId: Long): ResponseEntity<ApiResponse<InvoiceResponse>> {
         val invoice = invoiceQueryUseCase.getInvoiceByOrder(orderId)
-        return ResponseEntity.ok(InvoiceResponse.from(invoice))
+        return ResponseEntity.ok(ApiResponse.success(InvoiceResponse.from(invoice)))
     }
 
     @GetMapping("/{orderId}/payment")
-    fun getPayment(@PathVariable orderId: Long): ResponseEntity<PaymentResponse> {
+    fun getPayment(@PathVariable orderId: Long): ResponseEntity<ApiResponse<PaymentResponse>> {
         val payment = paymentQueryUseCase.getPaymentByOrder(orderId)
-        return ResponseEntity.ok(PaymentResponse.from(payment))
+        return ResponseEntity.ok(ApiResponse.success(PaymentResponse.from(payment)))
     }
 }

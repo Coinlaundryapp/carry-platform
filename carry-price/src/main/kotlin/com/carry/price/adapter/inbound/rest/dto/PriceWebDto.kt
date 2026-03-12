@@ -4,16 +4,18 @@ import com.carry.price.domain.model.PricePolicy
 import com.carry.price.domain.vo.OptionPrice
 import com.carry.price.domain.vo.OptionType
 import com.carry.price.domain.vo.SubOptionType
+import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.NotEmpty
 
 data class CreatePricePolicyRequest(
-    val orderUnitType: String,
-    val orderRequestType: String,
-    val laundryItemType: String,
-    val optionPrices: List<OptionPriceRequest>,
+    @field:NotBlank val orderUnitType: String,
+    @field:NotBlank val orderRequestType: String,
+    @field:NotBlank val laundryItemType: String,
+    @field:NotEmpty val optionPrices: List<OptionPriceRequest>,
 )
 
 data class UpdateOptionPricesRequest(
-    val optionPrices: List<OptionPriceRequest>,
+    @field:NotEmpty val optionPrices: List<OptionPriceRequest>,
 )
 
 data class OptionPriceRequest(

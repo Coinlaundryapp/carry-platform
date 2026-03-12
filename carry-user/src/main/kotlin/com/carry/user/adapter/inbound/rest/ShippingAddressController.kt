@@ -7,6 +7,8 @@ import com.carry.user.adapter.inbound.rest.dto.UpdateShippingAddressRequest
 import com.carry.user.application.port.inbound.ShippingAddressUseCase
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
+import jakarta.validation.Valid
+import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -34,7 +36,7 @@ class ShippingAddressController(
     @PostMapping
     fun createAddress(
         @AuthenticationPrincipal userId: Long,
-        @RequestBody request: CreateShippingAddressRequest,
+        @Valid @RequestBody request: CreateShippingAddressRequest,
     ): ResponseEntity<ApiResponse<ShippingAddressResponse>> {
         val address = shippingAddressUseCase.createAddress(
             userId = userId,
@@ -46,14 +48,14 @@ class ShippingAddressController(
             entranceInfo = request.entranceInfo,
             areaCode = request.areaCode,
         )
-        return ResponseEntity.status(201).body(ApiResponse.created(ShippingAddressResponse.from(address)))
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(ShippingAddressResponse.from(address)))
     }
 
     @PutMapping("/{addressId}")
     fun updateAddress(
         @AuthenticationPrincipal userId: Long,
         @PathVariable addressId: Long,
-        @RequestBody request: UpdateShippingAddressRequest,
+        @Valid @RequestBody request: UpdateShippingAddressRequest,
     ): ResponseEntity<ApiResponse<ShippingAddressResponse>> {
         val address = shippingAddressUseCase.updateAddress(
             userId = userId,

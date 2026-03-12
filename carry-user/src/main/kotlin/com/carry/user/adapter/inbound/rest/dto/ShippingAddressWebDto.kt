@@ -3,34 +3,35 @@ package com.carry.user.adapter.inbound.rest.dto
 import com.carry.user.domain.model.ShippingAddress
 import com.carry.user.domain.vo.Address
 import com.carry.user.domain.vo.Coordinates
+import jakarta.validation.constraints.NotBlank
 
 data class CreateShippingAddressRequest(
-    val alias: String,
-    val roadAddress: String,
-    val detailAddress: String,
-    val zipCode: String,
+    @field:NotBlank val alias: String,
+    @field:NotBlank val roadAddress: String,
+    @field:NotBlank val detailAddress: String,
+    @field:NotBlank val zipCode: String,
     val latitude: Double,
     val longitude: Double,
-    val recipientName: String,
-    val recipientPhone: String,
+    @field:NotBlank val recipientName: String,
+    @field:NotBlank val recipientPhone: String,
     val entranceInfo: String? = null,
-    val areaCode: String,
+    @field:NotBlank val areaCode: String,
 ) {
     fun toAddress() = Address(roadAddress, detailAddress, zipCode)
     fun toCoordinates() = Coordinates(latitude, longitude)
 }
 
 data class UpdateShippingAddressRequest(
-    val alias: String,
-    val roadAddress: String,
-    val detailAddress: String,
-    val zipCode: String,
+    @field:NotBlank val alias: String,
+    @field:NotBlank val roadAddress: String,
+    @field:NotBlank val detailAddress: String,
+    @field:NotBlank val zipCode: String,
     val latitude: Double,
     val longitude: Double,
-    val recipientName: String,
-    val recipientPhone: String,
+    @field:NotBlank val recipientName: String,
+    @field:NotBlank val recipientPhone: String,
     val entranceInfo: String? = null,
-    val areaCode: String,
+    @field:NotBlank val areaCode: String,
 ) {
     fun toAddress() = Address(roadAddress, detailAddress, zipCode)
     fun toCoordinates() = Coordinates(latitude, longitude)

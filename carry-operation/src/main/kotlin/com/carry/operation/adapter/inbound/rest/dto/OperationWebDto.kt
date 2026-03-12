@@ -4,18 +4,19 @@ import com.carry.operation.domain.model.OperationEvent
 import com.carry.operation.domain.model.OperationSummary
 import com.carry.operation.domain.model.Term
 import com.carry.operation.domain.vo.TermType
+import jakarta.validation.constraints.NotBlank
 import java.time.Instant
 
 data class CreateTermRequest(
-    val title: String,
-    val content: String,
+    @field:NotBlank val title: String,
+    @field:NotBlank val content: String,
     val type: TermType,
     val required: Boolean,
 )
 
 data class UpdateTermRequest(
-    val title: String,
-    val content: String,
+    @field:NotBlank val title: String,
+    @field:NotBlank val content: String,
     val required: Boolean,
 )
 

@@ -3,21 +3,23 @@ package com.carry.delivery.adapter.inbound.rest.dto
 import com.carry.delivery.domain.model.Delivery
 import com.carry.delivery.domain.model.DeliveryStep
 import com.carry.event.delivery.SelectedOptionSnapshot
+import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.NotEmpty
 import java.math.BigDecimal
 import java.time.Instant
 
 data class CompletePickupRequest(
     val weight: BigDecimal,
-    val photoIds: List<Long>,
+    @field:NotEmpty val photoIds: List<Long>,
     val customerId: Long,
-    val laundryItemType: String,
-    val orderUnitType: String,
-    val orderRequestType: String,
+    @field:NotBlank val laundryItemType: String,
+    @field:NotBlank val orderUnitType: String,
+    @field:NotBlank val orderRequestType: String,
     val selectedOptions: List<SelectedOptionSnapshot>,
 )
 
 data class StepPhotoRequest(
-    val photoIds: List<Long>,
+    @field:NotEmpty val photoIds: List<Long>,
 )
 
 data class DeliveryResponse(

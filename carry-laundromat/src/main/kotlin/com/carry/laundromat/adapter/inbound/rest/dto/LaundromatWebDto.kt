@@ -5,10 +5,11 @@ import com.carry.laundromat.domain.model.NearbyLaundromat
 import com.carry.laundromat.domain.vo.LaundromatAddress
 import com.carry.laundromat.domain.vo.LaundromatOption
 import com.carry.laundromat.domain.vo.Location
+import jakarta.validation.constraints.NotBlank
 
 data class RegisterLaundromatRequest(
-    val name: String,
-    val roadAddress: String,
+    @field:NotBlank val name: String,
+    @field:NotBlank val roadAddress: String,
     val detailAddress: String? = null,
     val zipCode: String? = null,
     val latitude: Double,
@@ -20,8 +21,8 @@ data class RegisterLaundromatRequest(
 }
 
 data class UpdateLaundromatInfoRequest(
-    val name: String,
-    val roadAddress: String,
+    @field:NotBlank val name: String,
+    @field:NotBlank val roadAddress: String,
     val detailAddress: String? = null,
     val zipCode: String? = null,
     val latitude: Double,
@@ -36,8 +37,8 @@ data class UpdateOptionsRequest(
 )
 
 data class AddMediaResourceRequest(
-    val url: String,
-    val extension: String,
+    @field:NotBlank val url: String,
+    @field:NotBlank val extension: String,
 )
 
 data class MediaResourceResponse(

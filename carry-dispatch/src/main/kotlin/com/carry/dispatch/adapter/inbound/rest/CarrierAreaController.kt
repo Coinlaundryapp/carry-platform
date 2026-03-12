@@ -1,10 +1,12 @@
 package com.carry.dispatch.adapter.inbound.rest
 
+import com.carry.common.response.ApiResponse
 import com.carry.dispatch.adapter.inbound.rest.dto.CarrierAreaResponse
 import com.carry.dispatch.adapter.inbound.rest.dto.RegisterAreaRequest
 import com.carry.dispatch.application.port.inbound.CarrierAreaUseCase
 import com.carry.dispatch.application.port.inbound.RegisterAreaCommand
 import com.carry.dispatch.application.port.inbound.RemoveAreaCommand
+import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.DeleteMapping
@@ -24,12 +26,12 @@ class CarrierAreaController(
     @PostMapping
     fun registerArea(
         @RequestParam carrierId: Long,
-        @RequestBody request: RegisterAreaRequest,
-    ): ResponseEntity<CarrierAreaResponse> {
+        @Valid @RequestBody request: RegisterAreaRequest,
+    ): ResponseEntity<ApiResponse<CarrierAreaResponse>> {
         val carrierArea = carrierAreaUseCase.registerArea(
             RegisterAreaCommand(carrierId, request.areaCode, request.areaName),
         )
-        return ResponseEntity.status(HttpStatus.CREATED).body(CarrierAreaResponse.from(carrierArea))
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(CarrierAreaResponse.from(carrierArea)))
     }
 
     @DeleteMapping
@@ -44,8 +46,8 @@ class CarrierAreaController(
     @GetMapping
     fun getAreasByCarrier(
         @RequestParam carrierId: Long,
-    ): ResponseEntity<List<CarrierAreaResponse>> {
+    ): ResponseEntity<ApiResponse<List<CarrierAreaResponse>>> {
         val areas = carrierAreaUseCase.getAreasByCarrier(carrierId)
-        return ResponseEntity.ok(areas.map { CarrierAreaResponse.from(it) })
+        return ResponseEntity.ok(ApiResponse.success(areas.map { CarrierAreaResponse.from(it) }))
     }
 }

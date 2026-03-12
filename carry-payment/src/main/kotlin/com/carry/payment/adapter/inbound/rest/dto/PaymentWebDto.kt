@@ -3,12 +3,13 @@ package com.carry.payment.adapter.inbound.rest.dto
 import com.carry.payment.domain.model.Invoice
 import com.carry.payment.domain.model.Payment
 import com.carry.payment.domain.vo.InvoiceLineItem
+import jakarta.validation.constraints.NotBlank
 import java.math.BigDecimal
 import java.time.Instant
 
 data class PaymentRequest(
-    val pgProvider: String,
-    val paymentKey: String,
+    @field:NotBlank val pgProvider: String,
+    @field:NotBlank val paymentKey: String,
 )
 
 data class InvoiceResponse(

@@ -1,5 +1,6 @@
 package com.carry.operation.adapter.inbound.rest
 
+import com.carry.common.response.ApiResponse
 import com.carry.operation.adapter.inbound.rest.dto.OperationEventResponse
 import com.carry.operation.adapter.inbound.rest.dto.OperationSummaryResponse
 import com.carry.operation.application.port.inbound.OperationQueryUseCase
@@ -16,16 +17,16 @@ class OperationDashboardController(
 ) {
 
     @GetMapping("/summary")
-    fun getSummary(): ResponseEntity<OperationSummaryResponse> {
+    fun getSummary(): ResponseEntity<ApiResponse<OperationSummaryResponse>> {
         val summary = operationQueryUseCase.getSummary()
-        return ResponseEntity.ok(OperationSummaryResponse.from(summary))
+        return ResponseEntity.ok(ApiResponse.success(OperationSummaryResponse.from(summary)))
     }
 
     @GetMapping("/events")
     fun getRecentEvents(
         @RequestParam(defaultValue = "50") limit: Int,
-    ): ResponseEntity<List<OperationEventResponse>> {
+    ): ResponseEntity<ApiResponse<List<OperationEventResponse>>> {
         val events = operationQueryUseCase.getRecentEvents(limit)
-        return ResponseEntity.ok(events.map { OperationEventResponse.from(it) })
+        return ResponseEntity.ok(ApiResponse.success(events.map { OperationEventResponse.from(it) }))
     }
 }

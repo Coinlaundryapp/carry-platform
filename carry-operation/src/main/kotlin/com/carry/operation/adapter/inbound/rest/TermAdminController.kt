@@ -1,11 +1,13 @@
 package com.carry.operation.adapter.inbound.rest
 
+import com.carry.common.response.ApiResponse
 import com.carry.operation.adapter.inbound.rest.dto.CreateTermRequest
 import com.carry.operation.adapter.inbound.rest.dto.TermResponse
 import com.carry.operation.adapter.inbound.rest.dto.UpdateTermRequest
 import com.carry.operation.application.port.inbound.CreateTermCommand
 import com.carry.operation.application.port.inbound.TermCommandUseCase
 import com.carry.operation.application.port.inbound.UpdateTermCommand
+import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.DeleteMapping
@@ -24,8 +26,8 @@ class TermAdminController(
 
     @PostMapping
     fun createTerm(
-        @RequestBody request: CreateTermRequest,
-    ): ResponseEntity<TermResponse> {
+        @Valid @RequestBody request: CreateTermRequest,
+    ): ResponseEntity<ApiResponse<TermResponse>> {
         val term = termCommandUseCase.createTerm(
             CreateTermCommand(
                 title = request.title,
@@ -34,14 +36,14 @@ class TermAdminController(
                 required = request.required,
             ),
         )
-        return ResponseEntity.status(HttpStatus.CREATED).body(TermResponse.from(term))
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(TermResponse.from(term)))
     }
 
     @PutMapping("/{termId}")
     fun updateTerm(
         @PathVariable termId: Long,
-        @RequestBody request: UpdateTermRequest,
-    ): ResponseEntity<TermResponse> {
+        @Valid @RequestBody request: UpdateTermRequest,
+    ): ResponseEntity<ApiResponse<TermResponse>> {
         val term = termCommandUseCase.updateTerm(
             UpdateTermCommand(
                 termId = termId,
@@ -50,7 +52,7 @@ class TermAdminController(
                 required = request.required,
             ),
         )
-        return ResponseEntity.ok(TermResponse.from(term))
+        return ResponseEntity.ok(ApiResponse.success(TermResponse.from(term)))
     }
 
     @DeleteMapping("/{termId}")

@@ -2,6 +2,7 @@ package com.carry.dispatch.adapter.inbound.rest.dto
 
 import com.carry.dispatch.domain.model.CarrierArea
 import com.carry.dispatch.domain.model.Dispatch
+import jakarta.validation.constraints.NotBlank
 import java.time.Instant
 
 data class ClaimDispatchRequest(
@@ -21,12 +22,12 @@ data class RejectAssignmentRequest(
 )
 
 data class CancelDispatchRequest(
-    val reason: String,
+    @field:NotBlank val reason: String,
 )
 
 data class RegisterAreaRequest(
-    val areaCode: String,
-    val areaName: String,
+    @field:NotBlank val areaCode: String,
+    @field:NotBlank val areaName: String,
 )
 
 data class DispatchResponse(

@@ -1,5 +1,6 @@
 package com.carry.geo.adapter.inbound.rest
 
+import com.carry.common.response.ApiResponse
 import com.carry.geo.adapter.inbound.rest.dto.GeocodingResponse
 import com.carry.geo.adapter.inbound.rest.dto.ReverseGeocodingResponse
 import com.carry.geo.application.port.inbound.GeocodingUseCase
@@ -21,34 +22,34 @@ class GeoController(
     @GetMapping("/geocode")
     fun geocode(
         @RequestParam address: String,
-    ): ResponseEntity<List<GeocodingResponse>> {
+    ): ResponseEntity<ApiResponse<List<GeocodingResponse>>> {
         val results = geocodingUseCase.geocode(address)
-        return ResponseEntity.ok(results.map { GeocodingResponse.from(it) })
+        return ResponseEntity.ok(ApiResponse.success(results.map { GeocodingResponse.from(it) }))
     }
 
     @GetMapping("/geocode/jibun")
     fun geocodeJibun(
         @RequestParam address: String,
-    ): ResponseEntity<List<GeocodingResponse>> {
+    ): ResponseEntity<ApiResponse<List<GeocodingResponse>>> {
         val results = geocodingUseCase.geocodeJibun(address)
-        return ResponseEntity.ok(results.map { GeocodingResponse.from(it) })
+        return ResponseEntity.ok(ApiResponse.success(results.map { GeocodingResponse.from(it) }))
     }
 
     @GetMapping("/geocode/road")
     fun geocodeRoad(
         @RequestParam address: String,
-    ): ResponseEntity<List<GeocodingResponse>> {
+    ): ResponseEntity<ApiResponse<List<GeocodingResponse>>> {
         val results = geocodingUseCase.geocodeRoad(address)
-        return ResponseEntity.ok(results.map { GeocodingResponse.from(it) })
+        return ResponseEntity.ok(ApiResponse.success(results.map { GeocodingResponse.from(it) }))
     }
 
     @GetMapping("/reverse-geocode")
     fun reverseGeocode(
         @RequestParam latitude: Double,
         @RequestParam longitude: Double,
-    ): ResponseEntity<ReverseGeocodingResponse> {
+    ): ResponseEntity<ApiResponse<ReverseGeocodingResponse>> {
         val coordinate = Coordinate(latitude, longitude)
         val result = reverseGeocodingUseCase.reverseGeocode(coordinate)
-        return ResponseEntity.ok(ReverseGeocodingResponse.from(result))
+        return ResponseEntity.ok(ApiResponse.success(ReverseGeocodingResponse.from(result)))
     }
 }

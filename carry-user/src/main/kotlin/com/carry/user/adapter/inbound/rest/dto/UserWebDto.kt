@@ -1,10 +1,11 @@
 package com.carry.user.adapter.inbound.rest.dto
 
 import com.carry.user.domain.model.User
+import jakarta.validation.constraints.NotBlank
 
 data class UpdateProfileRequest(
-    val name: String,
-    val phone: String,
+    @field:NotBlank val name: String,
+    @field:NotBlank val phone: String,
 )
 
 data class UserProfileResponse(

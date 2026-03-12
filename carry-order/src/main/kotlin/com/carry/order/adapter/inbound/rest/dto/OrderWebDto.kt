@@ -1,25 +1,28 @@
 package com.carry.order.adapter.inbound.rest.dto
 
 import com.carry.order.domain.model.Order
+import jakarta.validation.Valid
+import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.NotEmpty
 import java.math.BigDecimal
 import java.time.Instant
 
 data class CreateOrderRequest(
     val shippingAddressId: Long,
     val laundromatId: Long,
-    val laundryItemType: String,
-    val selectedOptions: List<SelectedOptionRequest>,
+    @field:NotBlank val laundryItemType: String,
+    @field:NotEmpty @field:Valid val selectedOptions: List<SelectedOptionRequest>,
     val desiredPickupAt: Instant,
     val desiredDeliveryAt: Instant,
 )
 
 data class SelectedOptionRequest(
-    val optionType: String,
-    val subOptionType: String,
+    @field:NotBlank val optionType: String,
+    @field:NotBlank val subOptionType: String,
 )
 
 data class CancelOrderRequest(
-    val reason: String,
+    @field:NotBlank val reason: String,
 )
 
 data class OrderResponse(

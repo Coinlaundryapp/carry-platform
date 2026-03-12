@@ -1,5 +1,6 @@
 package com.carry.operation.adapter.inbound.rest
 
+import com.carry.common.response.ApiResponse
 import com.carry.operation.adapter.inbound.rest.dto.TermResponse
 import com.carry.operation.application.port.inbound.TermQueryUseCase
 import org.springframework.http.ResponseEntity
@@ -14,14 +15,14 @@ class TermController(
 ) {
 
     @GetMapping
-    fun getActiveTerms(): ResponseEntity<List<TermResponse>> {
+    fun getActiveTerms(): ResponseEntity<ApiResponse<List<TermResponse>>> {
         val terms = termQueryUseCase.getActiveTerms()
-        return ResponseEntity.ok(terms.map { TermResponse.from(it) })
+        return ResponseEntity.ok(ApiResponse.success(terms.map { TermResponse.from(it) }))
     }
 
     @GetMapping("/required")
-    fun getRequiredTerms(): ResponseEntity<List<TermResponse>> {
+    fun getRequiredTerms(): ResponseEntity<ApiResponse<List<TermResponse>>> {
         val terms = termQueryUseCase.getRequiredTerms()
-        return ResponseEntity.ok(terms.map { TermResponse.from(it) })
+        return ResponseEntity.ok(ApiResponse.success(terms.map { TermResponse.from(it) }))
     }
 }
