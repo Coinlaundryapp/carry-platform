@@ -1,31 +1,20 @@
 package com.carry.user.application.service
 
-import com.carry.common.exception.BusinessException
-import com.carry.common.exception.ErrorCode
-import com.carry.user.application.dto.UpdateProfileCommand
-import com.carry.user.application.dto.UserProfileResponse
 import com.carry.user.application.port.inbound.UserQueryUseCase
-import com.carry.user.domain.repository.UserRepository
+import com.carry.user.application.port.outbound.UserPersistencePort
+import com.carry.user.domain.exception.UserNotFoundException
+import com.carry.user.domain.model.User
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 @Service
 @Transactional(readOnly = true)
 class UserQueryService(
-    private val userRepository: UserRepository
+    private val userPersistencePort: UserPersistencePort,
 ) : UserQueryUseCase {
 
-    override fun getProfile(userId: Long): UserProfileResponse {
-        val user = userRepository.findById(userId)
-            .orElseThrow { BusinessException(ErrorCode.NOT_FOUND, "User not found") }
-        return UserProfileResponse.from(user)
-    }
-
-    @Transactional
-    fun updateProfile(userId: Long, command: UpdateProfileCommand): UserProfileResponse {
-        val user = userRepository.findById(userId)
-            .orElseThrow { BusinessException(ErrorCode.NOT_FOUND, "User not found") }
-        user.updateProfile(command.name, command.phone)
-        return UserProfileResponse.from(user)
+    override fun getProfile(userId: Long): User {
+        return userPersistencePort.findById(userId)
+            ?: throw UserNotFoundException(userId)
     }
 }

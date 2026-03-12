@@ -1,7 +1,8 @@
 package com.carry.user.application.port.inbound
 
-import com.carry.user.application.dto.UserProfileResponse
+import com.carry.user.domain.model.User
 
 interface UserQueryUseCase {
-    fun getProfile(userId: Long): UserProfileResponse
+
+    fun getProfile(userId: Long): User
 }
