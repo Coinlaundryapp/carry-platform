@@ -82,9 +82,9 @@ class UserTest {
         }
 
         @Test
-        fun `RIDER 역할로 생성할 수 있다`() {
-            val user = createUser(role = UserRole.RIDER)
-            assertThat(user.role).isEqualTo(UserRole.RIDER)
+        fun `CARRIER 역할로 생성할 수 있다`() {
+            val user = createUser(role = UserRole.CARRIER)
+            assertThat(user.role).isEqualTo(UserRole.CARRIER)
         }
     }
 

@@ -21,5 +21,16 @@ enum class ErrorCode(
 
     // Dispatch
     DISPATCH_NOT_FOUND(404, "Dispatch not found"),
-    NO_AVAILABLE_RIDER(503, "No available rider"),
+    DISPATCH_NOT_PENDING(400, "Dispatch is not in pending status"),
+    DISPATCH_ALREADY_ACCEPTED(409, "Dispatch already accepted"),
+    CARRIER_NOT_IN_AREA(403, "Carrier is not registered in the dispatch area"),
+
+    // Delivery
+    DELIVERY_NOT_FOUND(404, "Delivery not found"),
+    DELIVERY_INVALID_STATUS(400, "Delivery is not in expected status"),
+    ORDER_NOT_PAID(402, "Order payment is not completed"),
+
+    // Invoice
+    INVOICE_NOT_FOUND(404, "Invoice not found"),
+    INVOICE_ALREADY_PAID(409, "Invoice already paid"),
 }
