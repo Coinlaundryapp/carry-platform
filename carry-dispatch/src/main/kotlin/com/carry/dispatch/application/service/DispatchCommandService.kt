@@ -15,6 +15,7 @@ import com.carry.dispatch.domain.model.Dispatch
 import com.carry.event.dispatch.DispatchAcceptedEvent
 import com.carry.event.dispatch.DispatchCancelledEvent
 import com.carry.infra.kafka.outbox.OutboxEventPublisher
+import com.carry.infra.observability.metrics.BusinessMetrics
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -24,6 +25,7 @@ class DispatchCommandService(
     private val carrierAreaPersistencePort: CarrierAreaPersistencePort,
     private val penaltyRecordPersistencePort: PenaltyRecordPersistencePort,
     private val outboxEventPublisher: OutboxEventPublisher,
+    private val businessMetrics: BusinessMetrics,
 ) : DispatchCommandUseCase {
 
     @Transactional
@@ -50,6 +52,7 @@ class DispatchCommandService(
             ),
         )
 
+        businessMetrics.incrementDispatchAccepted()
         return saved
     }
 
@@ -78,6 +81,7 @@ class DispatchCommandService(
             ),
         )
 
+        businessMetrics.incrementDispatchAccepted()
         return saved
     }
 

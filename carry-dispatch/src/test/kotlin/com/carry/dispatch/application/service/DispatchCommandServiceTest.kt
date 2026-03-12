@@ -13,6 +13,7 @@ import com.carry.dispatch.domain.model.Dispatch
 import com.carry.dispatch.domain.vo.AssignedBy
 import com.carry.dispatch.domain.vo.DispatchStatus
 import com.carry.infra.kafka.outbox.OutboxEventPublisher
+import com.carry.infra.observability.metrics.BusinessMetrics
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -30,9 +31,10 @@ class DispatchCommandServiceTest {
     private val carrierAreaPersistencePort = mockk<CarrierAreaPersistencePort>()
     private val penaltyRecordPersistencePort = mockk<PenaltyRecordPersistencePort>(relaxed = true)
     private val outboxEventPublisher = mockk<OutboxEventPublisher>(relaxed = true)
+    private val businessMetrics = mockk<BusinessMetrics>(relaxed = true)
 
     private val sut = DispatchCommandService(
-        dispatchPersistencePort, carrierAreaPersistencePort, penaltyRecordPersistencePort, outboxEventPublisher,
+        dispatchPersistencePort, carrierAreaPersistencePort, penaltyRecordPersistencePort, outboxEventPublisher, businessMetrics,
     )
 
     private val now = Instant.now()

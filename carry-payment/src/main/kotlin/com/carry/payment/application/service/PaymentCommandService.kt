@@ -4,6 +4,7 @@ import com.carry.event.payment.PaymentCompletedEvent
 import com.carry.event.payment.PaymentFailedEvent
 import com.carry.event.payment.RefundCompletedEvent
 import com.carry.infra.kafka.outbox.OutboxEventPublisher
+import com.carry.infra.observability.metrics.BusinessMetrics
 import com.carry.payment.application.port.inbound.PaymentCommandUseCase
 import com.carry.payment.application.port.inbound.RequestPaymentCommand
 import com.carry.payment.application.port.outbound.InvoicePersistencePort
@@ -26,6 +27,7 @@ class PaymentCommandService(
     private val invoicePersistencePort: InvoicePersistencePort,
     private val pgProviderRegistry: PgProviderRegistry,
     private val outboxEventPublisher: OutboxEventPublisher,
+    private val businessMetrics: BusinessMetrics,
 ) : PaymentCommandUseCase {
 
     @Transactional
@@ -75,6 +77,7 @@ class PaymentCommandService(
                 ),
             )
 
+            businessMetrics.incrementPaymentCompleted()
             return saved
         } else {
             payment.markFailed(pgResult.failReason ?: "알 수 없는 오류")
@@ -91,6 +94,7 @@ class PaymentCommandService(
                 ),
             )
 
+            businessMetrics.incrementPaymentFailed()
             return saved
         }
     }

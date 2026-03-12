@@ -1,6 +1,7 @@
 package com.carry.payment.application.service
 
 import com.carry.infra.kafka.outbox.OutboxEventPublisher
+import com.carry.infra.observability.metrics.BusinessMetrics
 import com.carry.payment.application.port.inbound.RequestPaymentCommand
 import com.carry.payment.application.port.outbound.InvoicePersistencePort
 import com.carry.payment.application.port.outbound.PaymentPersistencePort
@@ -33,10 +34,11 @@ class PaymentCommandServiceTest {
     private val invoicePersistencePort = mockk<InvoicePersistencePort>(relaxed = true)
     private val pgProviderRegistry = mockk<PgProviderRegistry>()
     private val outboxEventPublisher = mockk<OutboxEventPublisher>(relaxed = true)
+    private val businessMetrics = mockk<BusinessMetrics>(relaxed = true)
     private val paymentGateway = mockk<PaymentGatewayPort>()
 
     private val sut = PaymentCommandService(
-        paymentPersistencePort, invoicePersistencePort, pgProviderRegistry, outboxEventPublisher,
+        paymentPersistencePort, invoicePersistencePort, pgProviderRegistry, outboxEventPublisher, businessMetrics,
     )
 
     private val now = Instant.now()
