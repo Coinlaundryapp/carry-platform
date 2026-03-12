@@ -16,6 +16,8 @@ spec:
       labels:
         app.kubernetes.io/name: carry-app
         app.kubernetes.io/part-of: carry-platform
+      annotations:
+        linkerd.io/inject: enabled
     spec:
       containers:
         - name: carry-app
