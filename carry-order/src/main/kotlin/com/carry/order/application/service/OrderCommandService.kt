@@ -62,7 +62,7 @@ class OrderCommandService(
                 ),
                 desiredPickupAt = saved.desiredPickupAt,
                 desiredDeliveryAt = saved.desiredDeliveryAt,
-                areaCode = "", // TODO: 배송지 주소로부터 행정구역 코드 도출
+                areaCode = command.areaCode,
             ),
         )
 

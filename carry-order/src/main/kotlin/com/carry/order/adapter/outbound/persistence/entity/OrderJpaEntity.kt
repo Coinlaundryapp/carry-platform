@@ -65,7 +65,7 @@ class OrderJpaEntity(
     var cancelledAt: Instant?,
     var completedAt: Instant?,
 
-    @OneToMany(mappedBy = "order", cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "order", cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.EAGER)
     val selectedOptions: MutableList<OrderSelectedOptionJpaEntity> = mutableListOf(),
 ) : BaseEntity() {
 

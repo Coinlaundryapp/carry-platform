@@ -84,6 +84,13 @@ class DeliveryCommandService(
     }
 
     @Transactional
+    override fun startDelivery(deliveryId: Long): Delivery {
+        val delivery = findDelivery(deliveryId)
+        delivery.startDelivery()
+        return deliveryPersistencePort.save(delivery)
+    }
+
+    @Transactional
     override fun completeDelivery(deliveryId: Long, photoIds: List<Long>): Delivery {
         val delivery = findDelivery(deliveryId)
 

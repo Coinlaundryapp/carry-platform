@@ -99,6 +99,10 @@ class Delivery private constructor(
         getStep(DeliveryStepType.DRYING)?.complete(photoIds)
     }
 
+    fun startDelivery() {
+        transitTo(DeliveryStatus.DELIVERY_PENDING)
+    }
+
     fun completeDelivery(photoIds: List<Long>) {
         require(photoIds.isNotEmpty()) { throw DeliveryPhotoRequiredException() }
         transitTo(DeliveryStatus.DELIVERED)

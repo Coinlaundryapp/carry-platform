@@ -15,7 +15,7 @@ CREATE TABLE laundromat_laundromats
 
 CREATE INDEX idx_laundromat_location
     ON laundromat_laundromats USING GIST (
-        ST_MakePoint(longitude, latitude)::geography
+        CAST(ST_MakePoint(longitude, latitude) AS geography)
     );
 
 CREATE TABLE laundromat_options

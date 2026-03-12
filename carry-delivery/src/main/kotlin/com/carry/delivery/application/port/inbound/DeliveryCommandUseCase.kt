@@ -18,5 +18,6 @@ interface DeliveryCommandUseCase {
 
     fun startWashing(deliveryId: Long, photoIds: List<Long>): Delivery
     fun completeDrying(deliveryId: Long, photoIds: List<Long>): Delivery
+    fun startDelivery(deliveryId: Long): Delivery
     fun completeDelivery(deliveryId: Long, photoIds: List<Long>): Delivery
 }
