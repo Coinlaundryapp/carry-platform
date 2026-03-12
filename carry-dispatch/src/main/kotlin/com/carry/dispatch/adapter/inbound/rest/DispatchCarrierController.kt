@@ -1,28 +1,25 @@
 package com.carry.dispatch.adapter.inbound.rest
 
 import com.carry.common.response.ApiResponse
-import com.carry.dispatch.adapter.inbound.rest.dto.AcceptAssignmentRequest
-import com.carry.dispatch.adapter.inbound.rest.dto.ClaimDispatchRequest
 import com.carry.dispatch.adapter.inbound.rest.dto.DispatchResponse
-import com.carry.dispatch.adapter.inbound.rest.dto.RejectAssignmentRequest
 import com.carry.dispatch.application.port.inbound.AcceptAssignmentCommand
 import com.carry.dispatch.application.port.inbound.ClaimDispatchCommand
 import com.carry.dispatch.application.port.inbound.DispatchCommandUseCase
 import com.carry.dispatch.application.port.inbound.DispatchQueryUseCase
 import com.carry.dispatch.application.port.inbound.RejectAssignmentCommand
 import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.responses.ApiResponse as SwaggerApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
-import jakarta.validation.Valid
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.security.core.annotation.AuthenticationPrincipal
 
 @Tag(name = "Dispatch - Carrier", description = "배달원 배차 API")
 @RestController
@@ -36,9 +33,11 @@ class DispatchCarrierController(
     @ApiResponses(value = [SwaggerApiResponse(responseCode = "200", description = "배차 목록 조회 성공")])
     @GetMapping("/available")
     fun getAvailableDispatches(
-        @RequestParam carrierId: Long,
+        @Parameter(hidden = true) @AuthenticationPrincipal userId: Long,
+        @Parameter(description = "커서 (마지막 배차 ID)") @RequestParam(required = false) cursor: Long?,
+        @Parameter(description = "페이지 크기", example = "20") @RequestParam(defaultValue = "20") size: Int,
     ): ResponseEntity<ApiResponse<List<DispatchResponse>>> {
-        val dispatches = dispatchQueryUseCase.getAvailableDispatches(carrierId)
+        val dispatches = dispatchQueryUseCase.getAvailableDispatches(userId, cursor, size)
         return ResponseEntity.ok(ApiResponse.success(dispatches.map { DispatchResponse.from(it) }))
     }
 
@@ -52,10 +51,10 @@ class DispatchCarrierController(
     @PostMapping("/{dispatchId}/claim")
     fun claimDispatch(
         @PathVariable dispatchId: Long,
-        @Valid @RequestBody request: ClaimDispatchRequest,
+        @Parameter(hidden = true) @AuthenticationPrincipal userId: Long,
     ): ResponseEntity<ApiResponse<DispatchResponse>> {
         val dispatch = dispatchCommandUseCase.claimDispatch(
-            ClaimDispatchCommand(dispatchId, request.carrierId),
+            ClaimDispatchCommand(dispatchId, userId),
         )
         return ResponseEntity.ok(ApiResponse.success(DispatchResponse.from(dispatch)))
     }
@@ -65,10 +64,10 @@ class DispatchCarrierController(
     @PostMapping("/{dispatchId}/accept")
     fun acceptAssignment(
         @PathVariable dispatchId: Long,
-        @Valid @RequestBody request: AcceptAssignmentRequest,
+        @Parameter(hidden = true) @AuthenticationPrincipal userId: Long,
     ): ResponseEntity<ApiResponse<DispatchResponse>> {
         val dispatch = dispatchCommandUseCase.acceptAssignment(
-            AcceptAssignmentCommand(dispatchId, request.carrierId),
+            AcceptAssignmentCommand(dispatchId, userId),
         )
         return ResponseEntity.ok(ApiResponse.success(DispatchResponse.from(dispatch)))
     }
@@ -78,10 +77,10 @@ class DispatchCarrierController(
     @PostMapping("/{dispatchId}/reject")
     fun rejectAssignment(
         @PathVariable dispatchId: Long,
-        @Valid @RequestBody request: RejectAssignmentRequest,
+        @Parameter(hidden = true) @AuthenticationPrincipal userId: Long,
     ): ResponseEntity<ApiResponse<DispatchResponse>> {
         val dispatch = dispatchCommandUseCase.rejectAssignment(
-            RejectAssignmentCommand(dispatchId, request.carrierId),
+            RejectAssignmentCommand(dispatchId, userId),
         )
         return ResponseEntity.ok(ApiResponse.success(DispatchResponse.from(dispatch)))
     }
@@ -90,9 +89,11 @@ class DispatchCarrierController(
     @ApiResponses(value = [SwaggerApiResponse(responseCode = "200", description = "배차 목록 조회 성공")])
     @GetMapping("/my")
     fun getMyDispatches(
-        @RequestParam carrierId: Long,
+        @Parameter(hidden = true) @AuthenticationPrincipal userId: Long,
+        @Parameter(description = "커서 (마지막 배차 ID)") @RequestParam(required = false) cursor: Long?,
+        @Parameter(description = "페이지 크기", example = "20") @RequestParam(defaultValue = "20") size: Int,
     ): ResponseEntity<ApiResponse<List<DispatchResponse>>> {
-        val dispatches = dispatchQueryUseCase.getDispatchesByCarrier(carrierId)
+        val dispatches = dispatchQueryUseCase.getDispatchesByCarrier(userId, cursor, size)
         return ResponseEntity.ok(ApiResponse.success(dispatches.map { DispatchResponse.from(it) }))
     }
 

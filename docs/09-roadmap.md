@@ -202,7 +202,7 @@ Saga에 직접 관여하지 않는 기반 도메인을 먼저 구현한다.
 ```
 
 Gateway 역할:
-- 라우팅 (`/api/v1/orders/**` → carry-order)
+- 라우팅 (`/api/v2/orders/**` → carry-order)
 - 인증 (JWT 검증)
 - Rate Limiting
 - CORS

@@ -7,6 +7,7 @@ import com.carry.dispatch.application.port.inbound.CarrierAreaUseCase
 import com.carry.dispatch.application.port.inbound.RegisterAreaCommand
 import com.carry.dispatch.application.port.inbound.RemoveAreaCommand
 import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.responses.ApiResponse as SwaggerApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.security.core.annotation.AuthenticationPrincipal
 
 @Tag(name = "Carrier Area", description = "배달원 권역 관리 API")
 @RestController
@@ -37,11 +39,11 @@ class CarrierAreaController(
     )
     @PostMapping
     fun registerArea(
-        @RequestParam carrierId: Long,
+        @Parameter(hidden = true) @AuthenticationPrincipal userId: Long,
         @Valid @RequestBody request: RegisterAreaRequest,
     ): ResponseEntity<ApiResponse<CarrierAreaResponse>> {
         val carrierArea = carrierAreaUseCase.registerArea(
-            RegisterAreaCommand(carrierId, request.areaCode, request.areaName),
+            RegisterAreaCommand(userId, request.areaCode, request.areaName),
         )
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(CarrierAreaResponse.from(carrierArea)))
     }
@@ -50,10 +52,10 @@ class CarrierAreaController(
     @ApiResponses(value = [SwaggerApiResponse(responseCode = "204", description = "권역 해제 성공")])
     @DeleteMapping
     fun removeArea(
-        @RequestParam carrierId: Long,
+        @Parameter(hidden = true) @AuthenticationPrincipal userId: Long,
         @RequestParam areaCode: String,
     ): ResponseEntity<Void> {
-        carrierAreaUseCase.removeArea(RemoveAreaCommand(carrierId, areaCode))
+        carrierAreaUseCase.removeArea(RemoveAreaCommand(userId, areaCode))
         return ResponseEntity.noContent().build()
     }
 
@@ -61,9 +63,9 @@ class CarrierAreaController(
     @ApiResponses(value = [SwaggerApiResponse(responseCode = "200", description = "권역 목록 조회 성공")])
     @GetMapping
     fun getAreasByCarrier(
-        @RequestParam carrierId: Long,
+        @Parameter(hidden = true) @AuthenticationPrincipal userId: Long,
     ): ResponseEntity<ApiResponse<List<CarrierAreaResponse>>> {
-        val areas = carrierAreaUseCase.getAreasByCarrier(carrierId)
+        val areas = carrierAreaUseCase.getAreasByCarrier(userId)
         return ResponseEntity.ok(ApiResponse.success(areas.map { CarrierAreaResponse.from(it) }))
     }
 }

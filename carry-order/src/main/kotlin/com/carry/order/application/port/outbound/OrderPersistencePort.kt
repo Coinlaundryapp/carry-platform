@@ -5,5 +5,5 @@ import com.carry.order.domain.model.Order
 interface OrderPersistencePort {
     fun save(order: Order): Order
     fun findById(id: Long): Order?
-    fun findByCustomerId(customerId: Long): List<Order>
+    fun findByCustomerId(customerId: Long, cursor: Long?, size: Int): List<Order>
 }

@@ -4,6 +4,7 @@ import com.carry.notification.adapter.outbound.persistence.entity.NotificationJp
 import com.carry.notification.adapter.outbound.persistence.repository.NotificationJpaRepository
 import com.carry.notification.application.port.outbound.NotificationPersistencePort
 import com.carry.notification.domain.model.Notification
+import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Component
 
 @Component
@@ -26,8 +27,8 @@ class NotificationPersistenceAdapter(
         return notificationJpaRepository.findById(notificationId).orElse(null)?.toDomain()
     }
 
-    override fun findByRecipientId(recipientId: Long): List<Notification> {
-        return notificationJpaRepository.findByRecipientIdOrderByCreatedAtDesc(recipientId)
+    override fun findByRecipientId(recipientId: Long, cursor: Long?, size: Int): List<Notification> {
+        return notificationJpaRepository.findByRecipientIdWithCursor(recipientId, cursor, PageRequest.of(0, size))
             .map { it.toDomain() }
     }
 }

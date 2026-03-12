@@ -12,9 +12,13 @@ dependencyManagement {
 dependencies {
     api("org.springframework.boot:spring-boot-starter-actuator")
     api("io.micrometer:micrometer-tracing-bridge-otel")
+    api("io.opentelemetry:opentelemetry-api")
     api("io.opentelemetry:opentelemetry-exporter-otlp")
     api("io.micrometer:micrometer-registry-prometheus")
 
     // Kafka tracing propagation
     api("io.micrometer:micrometer-tracing")
+
+    // Structured JSON logging
+    api("net.logstash.logback:logstash-logback-encoder:8.0")
 }

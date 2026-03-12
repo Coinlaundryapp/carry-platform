@@ -18,7 +18,7 @@ class NotificationQueryService(
             ?: throw NotificationNotFoundException(notificationId)
     }
 
-    override fun getNotificationsByRecipient(recipientId: Long): List<Notification> {
-        return notificationPersistencePort.findByRecipientId(recipientId)
+    override fun getNotificationsByRecipient(recipientId: Long, cursor: Long?, size: Int): List<Notification> {
+        return notificationPersistencePort.findByRecipientId(recipientId, cursor, size)
     }
 }

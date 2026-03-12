@@ -5,6 +5,7 @@ import com.carry.dispatch.adapter.outbound.persistence.repository.DispatchJpaRep
 import com.carry.dispatch.application.port.outbound.DispatchPersistencePort
 import com.carry.dispatch.domain.model.Dispatch
 import com.carry.dispatch.domain.vo.DispatchStatus
+import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Component
 
 @Component
@@ -31,8 +32,8 @@ class DispatchPersistenceAdapter(
         return dispatchJpaRepository.findByOrderId(orderId)?.toDomain()
     }
 
-    override fun findPendingByAreaCodes(areaCodes: List<String>): List<Dispatch> {
-        return dispatchJpaRepository.findByStatusAndAreaCodeIn(DispatchStatus.PENDING, areaCodes)
+    override fun findPendingByAreaCodes(areaCodes: List<String>, cursor: Long?, size: Int): List<Dispatch> {
+        return dispatchJpaRepository.findPendingByAreaCodesWithCursor(DispatchStatus.PENDING, areaCodes, cursor, PageRequest.of(0, size))
             .map { it.toDomain() }
     }
 
@@ -41,8 +42,8 @@ class DispatchPersistenceAdapter(
             .map { it.toDomain() }
     }
 
-    override fun findByCarrierId(carrierId: Long): List<Dispatch> {
-        return dispatchJpaRepository.findByCarrierIdOrderByCreatedAtDesc(carrierId)
+    override fun findByCarrierId(carrierId: Long, cursor: Long?, size: Int): List<Dispatch> {
+        return dispatchJpaRepository.findByCarrierIdWithCursor(carrierId, cursor, PageRequest.of(0, size))
             .map { it.toDomain() }
     }
 }

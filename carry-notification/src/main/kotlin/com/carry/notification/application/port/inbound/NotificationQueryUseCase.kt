@@ -4,5 +4,5 @@ import com.carry.notification.domain.model.Notification
 
 interface NotificationQueryUseCase {
     fun getNotification(notificationId: Long): Notification
-    fun getNotificationsByRecipient(recipientId: Long): List<Notification>
+    fun getNotificationsByRecipient(recipientId: Long, cursor: Long?, size: Int): List<Notification>
 }

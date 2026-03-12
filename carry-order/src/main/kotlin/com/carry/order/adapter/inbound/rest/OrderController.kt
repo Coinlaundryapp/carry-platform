@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
 @Tag(name = "Order", description = "주문 관리 API")
@@ -54,8 +55,12 @@ class OrderController(
     @Operation(summary = "내 주문 목록 조회")
     @ApiResponses(value = [SwaggerApiResponse(responseCode = "200", description = "주문 목록 조회 성공")])
     @GetMapping("/my")
-    fun getMyOrders(@Parameter(hidden = true) @AuthenticationPrincipal userId: Long): ResponseEntity<ApiResponse<List<OrderResponse>>> {
-        val orders = orderQueryUseCase.getOrdersByCustomer(userId)
+    fun getMyOrders(
+        @Parameter(hidden = true) @AuthenticationPrincipal userId: Long,
+        @Parameter(description = "마지막으로 조회한 주문 ID (첫 페이지는 생략)") @RequestParam(required = false) cursor: Long?,
+        @Parameter(description = "페이지 크기") @RequestParam(defaultValue = "20") size: Int,
+    ): ResponseEntity<ApiResponse<List<OrderResponse>>> {
+        val orders = orderQueryUseCase.getOrdersByCustomer(userId, cursor, size)
         return ResponseEntity.ok(ApiResponse.success(orders.map { OrderResponse.from(it) }))
     }
 
