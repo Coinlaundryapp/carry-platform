@@ -117,7 +117,7 @@
 
 | 모듈 | 설명 | 주요 API |
 |------|------|----------|
-| `carry-user` | 사용자 프로필, 배송지 관리 | `GET /api/v1/users/me`, `POST /api/v1/shipping-addresses` |
+| `carry-user` | 사용자 프로필, 배송지 관리 | `GET /api/v2/users/me`, `POST /api/v2/shipping-addresses` |
 | `carry-laundromat` | 세탁소 등록, 주변 검색 | `GET /api/v1/laundromats`, `POST /api/v1/laundromats` |
 | `carry-price` | 가격 정책, 금액 계산 | `GET /api/v1/prices`, `POST /api/v1/prices/calculate` |
 | `carry-geo` | 지오코딩, 역지오코딩 | `GET /api/v2/geo/geocode`, `GET /api/v2/geo/reverse-geocode` |

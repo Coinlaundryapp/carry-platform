@@ -22,14 +22,14 @@ domain/exception/         # 도메인 예외
 
 | Method | Endpoint | 설명 |
 |--------|----------|------|
-| GET | `/api/v1/users/me` | 내 프로필 조회 |
-| PUT | `/api/v1/users/me` | 프로필 수정 |
-| DELETE | `/api/v1/users/me` | 회원 탈퇴 |
-| GET | `/api/v1/shipping-addresses` | 배송지 목록 |
-| POST | `/api/v1/shipping-addresses` | 배송지 등록 |
-| PUT | `/api/v1/shipping-addresses/{id}` | 배송지 수정 |
-| DELETE | `/api/v1/shipping-addresses/{id}` | 배송지 삭제 |
-| PUT | `/api/v1/shipping-addresses/{id}/default` | 기본 배송지 설정 |
+| GET | `/api/v2/users/me` | 내 프로필 조회 |
+| PUT | `/api/v2/users/me` | 프로필 수정 |
+| DELETE | `/api/v2/users/me` | 회원 탈퇴 |
+| GET | `/api/v2/shipping-addresses` | 배송지 목록 |
+| POST | `/api/v2/shipping-addresses` | 배송지 등록 |
+| PUT | `/api/v2/shipping-addresses/{id}` | 배송지 수정 |
+| DELETE | `/api/v2/shipping-addresses/{id}` | 배송지 삭제 |
+| PUT | `/api/v2/shipping-addresses/{id}/default` | 기본 배송지 설정 |
 
 ## 주요 도메인 모델
 

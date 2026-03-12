@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController
 
 @Tag(name = "User", description = "사용자 프로필 관리 API")
 @RestController
-@RequestMapping("/api/v1/users")
+@RequestMapping("/api/v2/users")
 class UserController(
     private val userQueryUseCase: UserQueryUseCase,
     private val userCommandUseCase: UserCommandUseCase,

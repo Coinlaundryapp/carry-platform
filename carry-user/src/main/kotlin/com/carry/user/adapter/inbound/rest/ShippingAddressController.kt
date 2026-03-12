@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController
 
 @Tag(name = "Shipping Address", description = "배송지 관리 API")
 @RestController
-@RequestMapping("/api/v1/shipping-addresses")
+@RequestMapping("/api/v2/shipping-addresses")
 class ShippingAddressController(
     private val shippingAddressUseCase: ShippingAddressUseCase,
 ) {
