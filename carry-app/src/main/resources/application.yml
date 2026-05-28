@@ -5,6 +5,12 @@ spring:
     virtual:
       enabled: true
 
+  # Graceful shutdown:
+  # - 종료 신호(SIGTERM) 수신 시 새 요청은 받지 않고, 진행 중인 요청·메시지를 마무리한 뒤 종료
+  # - phase별 최대 30초까지 대기, 시한 초과 시 강제 종료
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
   jpa:
     hibernate:
       ddl-auto: validate
@@ -24,9 +30,14 @@ spring:
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      # 종료 시 record 단위로 오프셋이 커밋되도록 하여, 진행 중이던 메시지 이후가
+      # 다음 기동에서 다시 처리되지 않게 한다 (BATCH 모드 대비 부분 처리 위험 ↓).
+      enable-auto-commit: false
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    listener:
+      ack-mode: RECORD
 
 jwt:
   access-token-expiration: 3600000
@@ -60,6 +71,8 @@ springdoc:
 
 server:
   port: 8080
+  # 종료 신호 수신 후 진행 중인 HTTP 요청을 마무리하고 종료 (spring.lifecycle.timeout-per-shutdown-phase 적용)
+  shutdown: graceful
 
 logging:
   pattern:
