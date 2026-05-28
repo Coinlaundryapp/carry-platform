@@ -29,6 +29,12 @@ jobs:
     needs: build-and-test
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
+    # GHCR(packages)에 새 패키지를 생성/푸시하려면 GITHUB_TOKEN에 packages: write가 필요하다.
+    # 워크플로에 permissions 블록이 없으면 기본 권한만 부여되어 첫 푸시가 `denied: installation
+    # not allowed to Create organization package`로 거부된다.
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
       # github.repository에 대문자가 포함되면 buildx가 거부한다 (Docker 이미지 이름은 전부 소문자여야 함).
