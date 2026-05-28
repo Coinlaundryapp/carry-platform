@@ -11,6 +11,20 @@ spring:
   lifecycle:
     timeout-per-shutdown-phase: 30s
 
+  # HikariCP 커넥션 풀:
+  # - 기본값(maximum-pool-size=10, connection-timeout=30s)은 트래픽이 늘면 thread starvation
+  #   / 무한 대기로 이어지므로 명시적으로 묶어둔다.
+  # - leak-detection-threshold: 5초 이상 borrow된 채로 반납되지 않은 커넥션을 경고 (개발 단계 누수 감지).
+  datasource:
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 3000          # 3초. 기본 30초는 사용자 체감 지연이 큼.
+      idle-timeout: 600000              # 10분
+      max-lifetime: 1800000             # 30분 (DB 측 wait_timeout보다 짧게)
+      leak-detection-threshold: 5000    # 5초
+      pool-name: CarryHikariPool
+
   jpa:
     hibernate:
       ddl-auto: validate
