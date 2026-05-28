@@ -84,6 +84,7 @@ class OrderCommandServiceTest {
             assertThat(result.id).isEqualTo(42L)
             assertThat(result.status).isEqualTo(OrderStatus.CREATED)
             verify { eventPublisher.publish("Order", "42", "OrderCreatedEvent", any(), any()) }
+            verify { metrics.incrementCounter("carry.order.created") }
         }
 
         @Test
@@ -118,6 +119,7 @@ class OrderCommandServiceTest {
 
             verify { orderPersistencePort.save(any()) }
             verify { eventPublisher.publish("Order", "1", "OrderCancelledEvent", any(), any()) }
+            verify { metrics.incrementCounter("carry.order.cancelled", "by" to "CUSTOMER") }
         }
 
         @Test

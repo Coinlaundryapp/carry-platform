@@ -88,6 +88,7 @@ class PaymentCommandServiceTest {
             assertThat(result.status).isEqualTo(PaymentStatus.COMPLETED)
             assertThat(result.pgTransactionId).isEqualTo("tx_success_123")
             verify { eventPublisher.publish("Payment", "10", "PaymentCompletedEvent", any(), any()) }
+            verify { metrics.incrementCounter("carry.payment.success", "pg" to "TOSS_PAYMENTS") }
         }
 
         @Test
@@ -113,6 +114,7 @@ class PaymentCommandServiceTest {
             assertThat(result.status).isEqualTo(PaymentStatus.FAILED)
             assertThat(result.failReason).isEqualTo("잔액 부족")
             verify { eventPublisher.publish("Payment", "10", "PaymentFailedEvent", any(), any()) }
+            verify { metrics.incrementCounter("carry.payment.failure", "pg" to "TOSS_PAYMENTS") }
         }
 
         @Test

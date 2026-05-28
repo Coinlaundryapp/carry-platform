@@ -84,6 +84,7 @@ class DispatchCommandServiceTest {
             assertThat(result.status).isEqualTo(DispatchStatus.ACCEPTED)
             assertThat(result.carrierId).isEqualTo(200L)
             verify { eventPublisher.publish("Dispatch", "10", "DispatchAcceptedEvent", any(), any()) }
+            verify { metrics.incrementCounter("carry.dispatch.accepted", "via" to "claim") }
         }
 
         @Test
@@ -147,6 +148,7 @@ class DispatchCommandServiceTest {
 
             assertThat(result.status).isEqualTo(DispatchStatus.ACCEPTED)
             verify { eventPublisher.publish("Dispatch", "10", "DispatchAcceptedEvent", any(), any()) }
+            verify { metrics.incrementCounter("carry.dispatch.accepted", "via" to "assignment") }
         }
     }
 
@@ -175,6 +177,7 @@ class DispatchCommandServiceTest {
             assertThat(result.carrierId).isNull()
             verify { penaltyRecordPersistencePort.save(any()) }
             verify(exactly = 0) { eventPublisher.publish(any(), any(), any(), any(), any()) }
+            verify { metrics.incrementCounter("carry.dispatch.rejected") }
         }
     }
 }

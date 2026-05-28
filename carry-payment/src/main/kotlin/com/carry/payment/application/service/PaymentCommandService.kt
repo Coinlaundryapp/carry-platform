@@ -79,7 +79,7 @@ class PaymentCommandService(
                 ),
             )
 
-            metrics.incrementCounter("payment.completed.count")
+            metrics.incrementCounter("carry.payment.success", "pg" to command.pgProvider.name)
             return saved
         } else {
             payment.markFailed(pgResult.failReason ?: "알 수 없는 오류")
@@ -96,7 +96,7 @@ class PaymentCommandService(
                 ),
             )
 
-            metrics.incrementCounter("payment.failed.count")
+            metrics.incrementCounter("carry.payment.failure", "pg" to command.pgProvider.name)
             return saved
         }
     }

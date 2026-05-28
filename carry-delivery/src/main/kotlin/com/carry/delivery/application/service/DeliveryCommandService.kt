@@ -1,5 +1,6 @@
 package com.carry.delivery.application.service
 
+import com.carry.common.metrics.MetricsPort
 import com.carry.delivery.application.port.inbound.DeliveryCommandUseCase
 import com.carry.delivery.application.port.outbound.DeliveryPersistencePort
 import com.carry.delivery.application.port.outbound.PaymentQueryPort
@@ -14,12 +15,15 @@ import com.carry.event.port.EventPublisherPort
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
+import java.time.Duration
+import java.time.Instant
 
 @Service
 class DeliveryCommandService(
     private val deliveryPersistencePort: DeliveryPersistencePort,
     private val paymentQueryPort: PaymentQueryPort,
     private val eventPublisher: EventPublisherPort,
+    private val metrics: MetricsPort,
 ) : DeliveryCommandUseCase {
 
     @Transactional
@@ -111,6 +115,11 @@ class DeliveryCommandService(
                 carrierId = saved.carrierId,
             ),
         )
+
+        // 배달 라이프사이클 길이 — Delivery aggregate 생성(=DispatchAccepted 사가 처리 시점)부터
+        // 배달 완료까지. Clock 주입은 ROADMAP Phase 5에서 처리하므로 여기선 Instant.now() 직접 호출.
+        metrics.incrementCounter("carry.delivery.completed")
+        metrics.recordTimer("carry.delivery.duration", Duration.between(saved.createdAt, Instant.now()))
 
         return saved
     }

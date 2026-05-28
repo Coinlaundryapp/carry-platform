@@ -17,7 +17,7 @@ class OutboxMetricsScheduler(
 
     @PostConstruct
     fun registerGauge() {
-        Gauge.builder("outbox.pending.count", pendingCount) { it.toDouble() }
+        Gauge.builder("carry.outbox.pending", pendingCount) { it.toDouble() }
             .description("Number of pending outbox events awaiting CDC pickup")
             .register(registry)
     }

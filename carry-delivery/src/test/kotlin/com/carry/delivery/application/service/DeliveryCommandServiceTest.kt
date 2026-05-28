@@ -1,5 +1,6 @@
 package com.carry.delivery.application.service
 
+import com.carry.common.metrics.MetricsPort
 import com.carry.delivery.application.port.outbound.DeliveryPersistencePort
 import com.carry.delivery.application.port.outbound.PaymentQueryPort
 import com.carry.delivery.domain.exception.OrderNotPaidException
@@ -19,6 +20,7 @@ import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
+import java.time.Duration
 import java.time.Instant
 
 class DeliveryCommandServiceTest {
@@ -26,9 +28,10 @@ class DeliveryCommandServiceTest {
     private val deliveryPersistencePort = mockk<DeliveryPersistencePort>(relaxed = true)
     private val paymentQueryPort = mockk<PaymentQueryPort>()
     private val eventPublisher = mockk<EventPublisherPort>(relaxed = true)
+    private val metrics = mockk<MetricsPort>(relaxed = true)
 
     private val sut = DeliveryCommandService(
-        deliveryPersistencePort, paymentQueryPort, eventPublisher,
+        deliveryPersistencePort, paymentQueryPort, eventPublisher, metrics,
     )
 
     private val now = Instant.now()
@@ -134,6 +137,8 @@ class DeliveryCommandServiceTest {
 
             assertThat(saved.captured.status).isEqualTo(DeliveryStatus.DELIVERED)
             verify { eventPublisher.publish("Delivery", "1", "DeliveryCompletedEvent", any(), any()) }
+            verify { metrics.incrementCounter("carry.delivery.completed") }
+            verify { metrics.recordTimer("carry.delivery.duration", any<Duration>()) }
         }
 
         @Test

@@ -21,7 +21,7 @@ import org.springframework.util.backoff.FixedBackOff
  * Kafka Consumer 에러 핸들링 정책:
  *   1) 일시적 실패는 [BACKOFF_INTERVAL_MS] 간격으로 최대 [MAX_RETRIES]회 재시도.
  *   2) 모든 재시도 소진 시 원본 토픽에 `.DLQ` 접미사를 붙인 토픽으로 발행하고
- *      `kafka.dlq.count` 메트릭을 증가시킨다.
+ *      `carry.kafka.dlq` 메트릭을 증가시킨다.
  *   3) [NON_RETRYABLE_EXCEPTIONS]에 등록된 영구 실패(예: 직렬화 오류)는 즉시 DLQ로.
  *
  * `DeadLetterPublishingRecoverer`가 원본 토픽·파티션·오프셋·예외 메시지 등을
@@ -48,7 +48,7 @@ class KafkaConfig {
             TopicPartition(record.topic() + DLQ_SUFFIX, record.partition())
 
         /**
-         * DLQ 발행 직후 `kafka.dlq.count` 메트릭을 증가시키는 데코레이터.
+         * DLQ 발행 직후 `carry.kafka.dlq` 메트릭을 증가시키는 데코레이터.
          *
          * Spring Kafka가 사용자 예외를 `ListenerExecutionFailedException`으로 wrapping해
          * 핸들러에 전달하므로, 메트릭 태그는 원인 예외(cause)의 클래스명을 사용한다.
@@ -59,7 +59,7 @@ class KafkaConfig {
                 delegate.accept(record, ex)
                 val rootCause = ex.cause ?: ex
                 metrics.incrementCounter(
-                    "kafka.dlq.count",
+                    "carry.kafka.dlq",
                     "topic" to record.topic(),
                     "exception" to rootCause.javaClass.simpleName,
                 )

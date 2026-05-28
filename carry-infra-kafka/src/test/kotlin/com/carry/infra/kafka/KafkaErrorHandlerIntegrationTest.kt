@@ -122,7 +122,7 @@ class KafkaErrorHandlerIntegrationTest {
 
         verify {
             metrics.incrementCounter(
-                "kafka.dlq.count",
+                "carry.kafka.dlq",
                 "topic" to TOPIC_RETRYABLE,
                 "exception" to "IllegalStateException",
             )
@@ -146,7 +146,7 @@ class KafkaErrorHandlerIntegrationTest {
 
         verify {
             metrics.incrementCounter(
-                "kafka.dlq.count",
+                "carry.kafka.dlq",
                 "topic" to TOPIC_NON_RETRYABLE,
                 "exception" to "IllegalArgumentException",
             )
