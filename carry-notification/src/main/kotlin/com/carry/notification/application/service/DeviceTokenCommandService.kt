@@ -1,0 +1,30 @@
+package com.carry.notification.application.service
+
+import com.carry.notification.application.port.inbound.RegisterDeviceTokenCommand
+import com.carry.notification.application.port.inbound.RegisterDeviceTokenUseCase
+import com.carry.notification.application.port.outbound.DeviceTokenPersistencePort
+import com.carry.notification.domain.model.DeviceToken
+import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
+
+@Service
+class DeviceTokenCommandService(
+    private val deviceTokenPersistencePort: DeviceTokenPersistencePort,
+) : RegisterDeviceTokenUseCase {
+
+    @Transactional
+    override fun register(command: RegisterDeviceTokenCommand): DeviceToken {
+        val existing = deviceTokenPersistencePort.findByToken(command.token)
+        val deviceToken = if (existing == null) {
+            DeviceToken.create(
+                userId = command.userId,
+                token = command.token,
+                platform = command.platform,
+            )
+        } else {
+            existing.refresh(command.userId)
+            existing
+        }
+        return deviceTokenPersistencePort.save(deviceToken)
+    }
+}
