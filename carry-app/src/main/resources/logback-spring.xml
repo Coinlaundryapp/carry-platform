@@ -7,7 +7,7 @@
     <springProfile name="local">
         <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
             <encoder>
-                <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} [%mdc{traceId:-},%mdc{spanId:-}] - %msg%n</pattern>
+                <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} [trace=%mdc{traceId:-},span=%mdc{spanId:-},saga=%mdc{saga.traceId:-},order=%mdc{orderId:-}] - %msg%n</pattern>
             </encoder>
         </appender>
 
