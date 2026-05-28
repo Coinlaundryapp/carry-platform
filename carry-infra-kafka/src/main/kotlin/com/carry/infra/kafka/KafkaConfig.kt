@@ -44,14 +44,21 @@ class KafkaConfig {
         fun dlqDestinationResolver(record: ConsumerRecord<*, *>, @Suppress("UNUSED_PARAMETER") exception: Exception): TopicPartition =
             TopicPartition(record.topic() + DLQ_SUFFIX, record.partition())
 
-        /** DLQ 발행 직후 `kafka.dlq.count` 메트릭을 증가시키는 데코레이터. */
+        /**
+         * DLQ 발행 직후 `kafka.dlq.count` 메트릭을 증가시키는 데코레이터.
+         *
+         * Spring Kafka가 사용자 예외를 `ListenerExecutionFailedException`으로 wrapping해
+         * 핸들러에 전달하므로, 메트릭 태그는 원인 예외(cause)의 클래스명을 사용한다.
+         * cause가 없으면 전달된 예외 자체를 사용한다.
+         */
         fun wrapWithMetrics(delegate: ConsumerRecordRecoverer, metrics: MetricsPort): ConsumerRecordRecoverer =
             ConsumerRecordRecoverer { record, ex ->
                 delegate.accept(record, ex)
+                val rootCause = ex.cause ?: ex
                 metrics.incrementCounter(
                     "kafka.dlq.count",
                     "topic" to record.topic(),
-                    "exception" to ex.javaClass.simpleName,
+                    "exception" to rootCause.javaClass.simpleName,
                 )
             }
     }
