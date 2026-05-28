@@ -4,10 +4,13 @@ import com.carry.geo.adapter.outbound.external.naver.dto.NaverGeocodingResponse
 import com.carry.geo.application.port.outbound.GeocodingPort
 import com.carry.geo.domain.exception.GeocodingFailedException
 import com.carry.geo.domain.model.GeocodingResult
-import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
 
-@Component
+/**
+ * Naver 지오코딩 API 호출 — Circuit Breaker + Redis 캐싱 데코레이터로 감싸 노출되므로
+ * @Component가 아닌 [com.carry.geo.adapter.outbound.config.GeocodingResilienceConfig]에서
+ * 명시적으로 빈 등록된다.
+ */
 class NaverGeocodingAdapter(
     properties: NaverApiProperties,
 ) : GeocodingPort {

@@ -33,6 +33,7 @@ enum class ErrorCode(
     GEOCODING_FAILED(502, "Geocoding request failed"),
     REVERSE_GEOCODING_FAILED(502, "Reverse geocoding request failed"),
     ADDRESS_NOT_FOUND(404, "Address not found"),
+    GEOCODING_UNAVAILABLE(503, "Geocoding service is temporarily unavailable — retry later"),
 
     // Service Availability
     SERVICE_AREA_NOT_FOUND(404, "Service area not found"),
