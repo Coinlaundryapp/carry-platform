@@ -1,5 +1,6 @@
 package com.carry.notification.application.service
 
+import com.carry.common.logging.SagaLogContext
 import com.carry.event.delivery.DeliveryCompletedEvent
 import com.carry.event.delivery.PickupCompletedEvent
 import com.carry.event.dispatch.DispatchAcceptedEvent
@@ -24,103 +25,115 @@ class NotificationSagaHandler(
 
     @Transactional
     override fun onOrderCreated(event: OrderCreatedEvent) {
-        log.info("주문 생성 알림 처리: orderId={}, customerId={}", event.orderId, event.customerId)
-        notificationCommandUseCase.send(
-            SendNotificationCommand(
-                recipientId = event.customerId,
-                recipientContact = event.shippingAddress.recipientPhone,
-                type = NotificationType.ORDER_CREATED,
-                channel = NotificationChannel.KAKAO_ALARMTALK,
-                title = "주문이 접수되었습니다",
-                content = "주문번호 ${event.orderId}번이 정상적으로 접수되었습니다. 캐리어 배정을 진행합니다.",
-                referenceType = "ORDER",
-                referenceId = event.orderId,
-            ),
-        )
+        SagaLogContext.withOrderId(event.orderId) {
+            log.info("Notification saga: onOrderCreated customerId={}", event.customerId)
+            notificationCommandUseCase.send(
+                SendNotificationCommand(
+                    recipientId = event.customerId,
+                    recipientContact = event.shippingAddress.recipientPhone,
+                    type = NotificationType.ORDER_CREATED,
+                    channel = NotificationChannel.KAKAO_ALARMTALK,
+                    title = "주문이 접수되었습니다",
+                    content = "주문번호 ${event.orderId}번이 정상적으로 접수되었습니다. 캐리어 배정을 진행합니다.",
+                    referenceType = "ORDER",
+                    referenceId = event.orderId,
+                ),
+            )
+        }
     }
 
     @Transactional
     override fun onDispatchAccepted(event: DispatchAcceptedEvent) {
-        log.info("배차 수락 알림 처리: dispatchId={}, orderId={}", event.dispatchId, event.orderId)
-        notificationCommandUseCase.send(
-            SendNotificationCommand(
-                recipientId = event.orderId,
-                recipientContact = "",
-                type = NotificationType.DISPATCH_ACCEPTED,
-                channel = NotificationChannel.KAKAO_ALARMTALK,
-                title = "캐리어가 배정되었습니다",
-                content = "주문번호 ${event.orderId}번에 캐리어가 배정되었습니다. 곧 수거를 시작합니다.",
-                referenceType = "DISPATCH",
-                referenceId = event.dispatchId,
-            ),
-        )
+        SagaLogContext.withOrderId(event.orderId) {
+            log.info("Notification saga: onDispatchAccepted dispatchId={}", event.dispatchId)
+            notificationCommandUseCase.send(
+                SendNotificationCommand(
+                    recipientId = event.orderId,
+                    recipientContact = "",
+                    type = NotificationType.DISPATCH_ACCEPTED,
+                    channel = NotificationChannel.KAKAO_ALARMTALK,
+                    title = "캐리어가 배정되었습니다",
+                    content = "주문번호 ${event.orderId}번에 캐리어가 배정되었습니다. 곧 수거를 시작합니다.",
+                    referenceType = "DISPATCH",
+                    referenceId = event.dispatchId,
+                ),
+            )
+        }
     }
 
     @Transactional
     override fun onPickupCompleted(event: PickupCompletedEvent) {
-        log.info("픽업 완료 알림 처리: deliveryId={}, orderId={}", event.deliveryId, event.orderId)
-        notificationCommandUseCase.send(
-            SendNotificationCommand(
-                recipientId = event.customerId,
-                recipientContact = "",
-                type = NotificationType.PICKUP_COMPLETED,
-                channel = NotificationChannel.KAKAO_ALARMTALK,
-                title = "세탁물 수거가 완료되었습니다",
-                content = "주문번호 ${event.orderId}번 세탁물 수거가 완료되었습니다. 세탁을 시작합니다.",
-                referenceType = "DELIVERY",
-                referenceId = event.deliveryId,
-            ),
-        )
+        SagaLogContext.withOrderId(event.orderId) {
+            log.info("Notification saga: onPickupCompleted deliveryId={}", event.deliveryId)
+            notificationCommandUseCase.send(
+                SendNotificationCommand(
+                    recipientId = event.customerId,
+                    recipientContact = "",
+                    type = NotificationType.PICKUP_COMPLETED,
+                    channel = NotificationChannel.KAKAO_ALARMTALK,
+                    title = "세탁물 수거가 완료되었습니다",
+                    content = "주문번호 ${event.orderId}번 세탁물 수거가 완료되었습니다. 세탁을 시작합니다.",
+                    referenceType = "DELIVERY",
+                    referenceId = event.deliveryId,
+                ),
+            )
+        }
     }
 
     @Transactional
     override fun onInvoiceIssued(event: InvoiceIssuedEvent) {
-        log.info("청구서 발행 알림 처리: invoiceId={}, orderId={}", event.invoiceId, event.orderId)
-        notificationCommandUseCase.send(
-            SendNotificationCommand(
-                recipientId = event.orderId,
-                recipientContact = "",
-                type = NotificationType.INVOICE_ISSUED,
-                channel = NotificationChannel.KAKAO_ALARMTALK,
-                title = "청구서가 발행되었습니다",
-                content = "주문번호 ${event.orderId}번 청구서가 발행되었습니다. 결제 금액: ${event.totalAmount}원",
-                referenceType = "ORDER",
-                referenceId = event.orderId,
-            ),
-        )
+        SagaLogContext.withOrderId(event.orderId) {
+            log.info("Notification saga: onInvoiceIssued invoiceId={} amount={}", event.invoiceId, event.totalAmount)
+            notificationCommandUseCase.send(
+                SendNotificationCommand(
+                    recipientId = event.orderId,
+                    recipientContact = "",
+                    type = NotificationType.INVOICE_ISSUED,
+                    channel = NotificationChannel.KAKAO_ALARMTALK,
+                    title = "청구서가 발행되었습니다",
+                    content = "주문번호 ${event.orderId}번 청구서가 발행되었습니다. 결제 금액: ${event.totalAmount}원",
+                    referenceType = "ORDER",
+                    referenceId = event.orderId,
+                ),
+            )
+        }
     }
 
     @Transactional
     override fun onPaymentCompleted(event: PaymentCompletedEvent) {
-        log.info("결제 완료 알림 처리: paymentId={}, orderId={}", event.paymentId, event.orderId)
-        notificationCommandUseCase.send(
-            SendNotificationCommand(
-                recipientId = event.orderId,
-                recipientContact = "",
-                type = NotificationType.PAYMENT_COMPLETED,
-                channel = NotificationChannel.KAKAO_ALARMTALK,
-                title = "결제가 완료되었습니다",
-                content = "주문번호 ${event.orderId}번 결제가 완료되었습니다. 결제 금액: ${event.amount}원",
-                referenceType = "ORDER",
-                referenceId = event.orderId,
-            ),
-        )
+        SagaLogContext.withOrderId(event.orderId) {
+            log.info("Notification saga: onPaymentCompleted paymentId={} amount={}", event.paymentId, event.amount)
+            notificationCommandUseCase.send(
+                SendNotificationCommand(
+                    recipientId = event.orderId,
+                    recipientContact = "",
+                    type = NotificationType.PAYMENT_COMPLETED,
+                    channel = NotificationChannel.KAKAO_ALARMTALK,
+                    title = "결제가 완료되었습니다",
+                    content = "주문번호 ${event.orderId}번 결제가 완료되었습니다. 결제 금액: ${event.amount}원",
+                    referenceType = "ORDER",
+                    referenceId = event.orderId,
+                ),
+            )
+        }
     }
 
     @Transactional
     override fun onDeliveryCompleted(event: DeliveryCompletedEvent) {
-        log.info("배달 완료 알림 처리: deliveryId={}, orderId={}", event.deliveryId, event.orderId)
-        notificationCommandUseCase.send(
-            SendNotificationCommand(
-                recipientId = event.orderId,
-                recipientContact = "",
-                type = NotificationType.DELIVERY_COMPLETED,
-                channel = NotificationChannel.KAKAO_ALARMTALK,
-                title = "배달이 완료되었습니다",
-                content = "주문번호 ${event.orderId}번 세탁물 배달이 완료되었습니다. 이용해 주셔서 감사합니다.",
-                referenceType = "DELIVERY",
-                referenceId = event.deliveryId,
-            ),
-        )
+        SagaLogContext.withOrderId(event.orderId) {
+            log.info("Notification saga: onDeliveryCompleted deliveryId={}", event.deliveryId)
+            notificationCommandUseCase.send(
+                SendNotificationCommand(
+                    recipientId = event.orderId,
+                    recipientContact = "",
+                    type = NotificationType.DELIVERY_COMPLETED,
+                    channel = NotificationChannel.KAKAO_ALARMTALK,
+                    title = "배달이 완료되었습니다",
+                    content = "주문번호 ${event.orderId}번 세탁물 배달이 완료되었습니다. 이용해 주셔서 감사합니다.",
+                    referenceType = "DELIVERY",
+                    referenceId = event.deliveryId,
+                ),
+            )
+        }
     }
 }

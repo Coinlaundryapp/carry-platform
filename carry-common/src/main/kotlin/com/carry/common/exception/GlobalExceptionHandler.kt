@@ -17,12 +17,23 @@ class GlobalExceptionHandler {
 
     private val log = LoggerFactory.getLogger(javaClass)
 
+    /**
+     * 비즈니스 예외 로그 레벨 정책 (ROADMAP Phase 3.3):
+     *  - **5xx**(예: `PG_GATEWAY_UNAVAILABLE 503`, `GEOCODING_UNAVAILABLE 503`): `error` — 실제 인프라 장애.
+     *  - **4xx**(예: `ORDER_NOT_FOUND 404`, `INVOICE_ALREADY_PAID 409`): `info` — 정상적인 비즈니스 조건이며
+     *    오류 알럿이 울려서는 안 된다. 트래픽 패턴 분석 용도로만 노출.
+     */
     @ExceptionHandler(BusinessException::class)
     fun handleBusinessException(e: BusinessException): ResponseEntity<ApiResponse<Nothing>> {
-        log.warn("Business exception: [{}] {}", e.errorCode.name, e.message)
+        val status = e.errorCode.status
+        if (status >= 500) {
+            log.error("Business exception (5xx): [{}] {}", e.errorCode.name, e.message)
+        } else {
+            log.info("Business exception ({}): [{}] {}", status, e.errorCode.name, e.message)
+        }
         return ResponseEntity
-            .status(e.errorCode.status)
-            .body(ApiResponse.error(e.errorCode.status, e.errorCode.name, e.message, MDC.get("traceId")))
+            .status(status)
+            .body(ApiResponse.error(status, e.errorCode.name, e.message, MDC.get("traceId")))
     }
 
     @ExceptionHandler(MethodArgumentNotValidException::class)
