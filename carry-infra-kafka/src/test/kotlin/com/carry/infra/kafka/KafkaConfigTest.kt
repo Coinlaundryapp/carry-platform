@@ -55,4 +55,24 @@ class KafkaConfigTest {
             )
         }
     }
+
+    @Test
+    fun `wrapWithMetrics는 cause가 있으면 cause 클래스명을 메트릭 태그로 사용한다 — Spring Kafka의 ListenerExecutionFailedException 래핑 대응`() {
+        val delegate = mockk<ConsumerRecordRecoverer>(relaxed = true)
+        val wrapped = KafkaConfig.wrapWithMetrics(delegate, metrics)
+        val record = ConsumerRecord<Any, Any>("carry.Order.events", 0, 0L, "key", "value")
+        val rootCause = IllegalStateException("real failure")
+        val wrappedException = RuntimeException("Listener execution failed", rootCause)
+
+        wrapped.accept(record, wrappedException)
+
+        verifyOrder {
+            delegate.accept(record, wrappedException)
+            metrics.incrementCounter(
+                "kafka.dlq.count",
+                "topic" to "carry.Order.events",
+                "exception" to "IllegalStateException",
+            )
+        }
+    }
 }
