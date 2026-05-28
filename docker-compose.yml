@@ -76,5 +76,46 @@ services:
     environment:
       COLLECTOR_OTLP_ENABLED: "true"
 
+  # Phase 3.2 — 메트릭 수집·시각화 스택.
+  # Prometheus가 carry-platform 앱의 `/actuator/prometheus`를 직접 스크레이프하고,
+  # Grafana는 Prometheus를 데이터소스로 사용한다. OTel Collector는 traces 전용.
+  prometheus:
+    image: prom/prometheus:v3.0.1
+    container_name: carry-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infra/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - carry-prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.enable-lifecycle"
+    # 컨테이너 → 호스트 접근. Docker Desktop(Mac/Windows)은 host.docker.internal 자동 제공,
+    # Linux Docker Engine에서는 아래 host-gateway 매핑 필요.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  grafana:
+    image: grafana/grafana-oss:11.4.0
+    container_name: carry-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    volumes:
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - carry-grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
 volumes:
   carry-postgres-data:
+  carry-prometheus-data:
+  carry-grafana-data:
