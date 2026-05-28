@@ -9,6 +9,7 @@ import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
 import jakarta.persistence.Table
+import jakarta.persistence.Version
 import java.time.Instant
 
 @Entity
@@ -40,6 +41,16 @@ class DispatchJpaEntity(
     var acceptedAt: Instant?,
     var cancelReason: String?,
 ) : BaseEntity() {
+
+    /**
+     * JPA optimistic locking 카운터. 두 트랜잭션이 동일 PENDING 배차를 동시 claim/assign
+     * 하면 두 번째 트랜잭션 commit에서 `OptimisticLockingFailureException`이 발생한다.
+     */
+    @Version
+    @Column(nullable = false)
+    var version: Long = 0
+        protected set
+
 
     fun toDomain(): Dispatch = Dispatch.reconstitute(
         id = id,
