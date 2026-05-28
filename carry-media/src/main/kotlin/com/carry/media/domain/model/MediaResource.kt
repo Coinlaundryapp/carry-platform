@@ -78,7 +78,7 @@ class MediaResource private constructor(
     fun getPublicUrl(baseUrl: String): String = "$baseUrl/$folder/${accessKey}.$extension"
 
     private fun transitTo(target: MediaStatus) {
-        check(_status.canTransitionTo(target)) {
+        if (!_status.canTransitionTo(target)) {
             throw InvalidMediaStatusTransitionException(_status, target)
         }
         _status = target

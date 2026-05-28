@@ -12,10 +12,10 @@ import com.carry.dispatch.application.port.outbound.PenaltyRecordPersistencePort
 import com.carry.dispatch.domain.exception.CarrierNotInAreaException
 import com.carry.dispatch.domain.exception.DispatchNotFoundException
 import com.carry.dispatch.domain.model.Dispatch
+import com.carry.common.metrics.MetricsPort
 import com.carry.event.dispatch.DispatchAcceptedEvent
 import com.carry.event.dispatch.DispatchCancelledEvent
-import com.carry.infra.kafka.outbox.OutboxEventPublisher
-import com.carry.infra.observability.metrics.BusinessMetrics
+import com.carry.event.port.EventPublisherPort
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -24,8 +24,8 @@ class DispatchCommandService(
     private val dispatchPersistencePort: DispatchPersistencePort,
     private val carrierAreaPersistencePort: CarrierAreaPersistencePort,
     private val penaltyRecordPersistencePort: PenaltyRecordPersistencePort,
-    private val outboxEventPublisher: OutboxEventPublisher,
-    private val businessMetrics: BusinessMetrics,
+    private val eventPublisher: EventPublisherPort,
+    private val metrics: MetricsPort,
 ) : DispatchCommandUseCase {
 
     @Transactional
@@ -40,7 +40,7 @@ class DispatchCommandService(
         dispatch.claimByCarrier(command.carrierId)
         val saved = dispatchPersistencePort.save(dispatch)
 
-        outboxEventPublisher.publish(
+        eventPublisher.publish(
             aggregateType = "Dispatch",
             aggregateId = saved.orderId.toString(),
             eventType = "DispatchAcceptedEvent",
@@ -52,7 +52,7 @@ class DispatchCommandService(
             ),
         )
 
-        businessMetrics.incrementDispatchAccepted()
+        metrics.incrementCounter("dispatch.accepted.count")
         return saved
     }
 
@@ -69,7 +69,7 @@ class DispatchCommandService(
         dispatch.acceptAssignment()
         val saved = dispatchPersistencePort.save(dispatch)
 
-        outboxEventPublisher.publish(
+        eventPublisher.publish(
             aggregateType = "Dispatch",
             aggregateId = saved.orderId.toString(),
             eventType = "DispatchAcceptedEvent",
@@ -81,7 +81,7 @@ class DispatchCommandService(
             ),
         )
 
-        businessMetrics.incrementDispatchAccepted()
+        metrics.incrementCounter("dispatch.accepted.count")
         return saved
     }
 
@@ -100,7 +100,7 @@ class DispatchCommandService(
         dispatch.cancel(command.reason)
         dispatchPersistencePort.save(dispatch)
 
-        outboxEventPublisher.publish(
+        eventPublisher.publish(
             aggregateType = "Dispatch",
             aggregateId = dispatch.orderId.toString(),
             eventType = "DispatchCancelledEvent",

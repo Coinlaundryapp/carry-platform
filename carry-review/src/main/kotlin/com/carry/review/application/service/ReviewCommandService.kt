@@ -1,7 +1,7 @@
 package com.carry.review.application.service
 
+import com.carry.event.port.EventPublisherPort
 import com.carry.event.review.ReviewCreatedEvent
-import com.carry.infra.kafka.outbox.OutboxEventPublisher
 import com.carry.review.application.port.inbound.CreateReviewCommand
 import com.carry.review.application.port.inbound.ReviewCommandUseCase
 import com.carry.review.application.port.inbound.UpdateReviewCommand
@@ -16,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional
 @Service
 class ReviewCommandService(
     private val reviewPersistencePort: ReviewPersistencePort,
-    private val outboxEventPublisher: OutboxEventPublisher,
+    private val eventPublisher: EventPublisherPort,
 ) : ReviewCommandUseCase {
 
     @Transactional
@@ -31,7 +31,7 @@ class ReviewCommandService(
 
         val saved = reviewPersistencePort.save(review)
 
-        outboxEventPublisher.publish(
+        eventPublisher.publish(
             aggregateType = "Review",
             aggregateId = saved.id.toString(),
             eventType = "ReviewCreatedEvent",

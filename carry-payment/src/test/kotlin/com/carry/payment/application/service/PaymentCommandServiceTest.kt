@@ -1,7 +1,7 @@
 package com.carry.payment.application.service
 
-import com.carry.infra.kafka.outbox.OutboxEventPublisher
-import com.carry.infra.observability.metrics.BusinessMetrics
+import com.carry.common.metrics.MetricsPort
+import com.carry.event.port.EventPublisherPort
 import com.carry.payment.application.port.inbound.RequestPaymentCommand
 import com.carry.payment.application.port.outbound.InvoicePersistencePort
 import com.carry.payment.application.port.outbound.PaymentPersistencePort
@@ -33,12 +33,12 @@ class PaymentCommandServiceTest {
     private val paymentPersistencePort = mockk<PaymentPersistencePort>(relaxed = true)
     private val invoicePersistencePort = mockk<InvoicePersistencePort>(relaxed = true)
     private val pgProviderRegistry = mockk<PgProviderRegistry>()
-    private val outboxEventPublisher = mockk<OutboxEventPublisher>(relaxed = true)
-    private val businessMetrics = mockk<BusinessMetrics>(relaxed = true)
+    private val eventPublisher = mockk<EventPublisherPort>(relaxed = true)
+    private val metrics = mockk<MetricsPort>(relaxed = true)
     private val paymentGateway = mockk<PaymentGatewayPort>()
 
     private val sut = PaymentCommandService(
-        paymentPersistencePort, invoicePersistencePort, pgProviderRegistry, outboxEventPublisher, businessMetrics,
+        paymentPersistencePort, invoicePersistencePort, pgProviderRegistry, eventPublisher, metrics,
     )
 
     private val now = Instant.now()
@@ -87,7 +87,7 @@ class PaymentCommandServiceTest {
             assertThat(result.id).isEqualTo(42L)
             assertThat(result.status).isEqualTo(PaymentStatus.COMPLETED)
             assertThat(result.pgTransactionId).isEqualTo("tx_success_123")
-            verify { outboxEventPublisher.publish("Payment", "10", "PaymentCompletedEvent", any(), any()) }
+            verify { eventPublisher.publish("Payment", "10", "PaymentCompletedEvent", any(), any()) }
         }
 
         @Test
@@ -112,7 +112,7 @@ class PaymentCommandServiceTest {
 
             assertThat(result.status).isEqualTo(PaymentStatus.FAILED)
             assertThat(result.failReason).isEqualTo("잔액 부족")
-            verify { outboxEventPublisher.publish("Payment", "10", "PaymentFailedEvent", any(), any()) }
+            verify { eventPublisher.publish("Payment", "10", "PaymentFailedEvent", any(), any()) }
         }
 
         @Test

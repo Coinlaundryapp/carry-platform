@@ -9,7 +9,7 @@ import com.carry.delivery.domain.vo.DeliveryStatus
 import com.carry.delivery.domain.vo.DeliveryStepType
 import com.carry.delivery.domain.vo.StepStatus
 import com.carry.event.delivery.SelectedOptionSnapshot
-import com.carry.infra.kafka.outbox.OutboxEventPublisher
+import com.carry.event.port.EventPublisherPort
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -25,10 +25,10 @@ class DeliveryCommandServiceTest {
 
     private val deliveryPersistencePort = mockk<DeliveryPersistencePort>(relaxed = true)
     private val paymentQueryPort = mockk<PaymentQueryPort>()
-    private val outboxEventPublisher = mockk<OutboxEventPublisher>(relaxed = true)
+    private val eventPublisher = mockk<EventPublisherPort>(relaxed = true)
 
     private val sut = DeliveryCommandService(
-        deliveryPersistencePort, paymentQueryPort, outboxEventPublisher,
+        deliveryPersistencePort, paymentQueryPort, eventPublisher,
     )
 
     private val now = Instant.now()
@@ -82,7 +82,7 @@ class DeliveryCommandServiceTest {
 
             assertThat(saved.captured.status).isEqualTo(DeliveryStatus.PICKED_UP)
             assertThat(saved.captured.actualWeight).isEqualByComparingTo(BigDecimal("5.0"))
-            verify { outboxEventPublisher.publish("Delivery", "1", "PickupCompletedEvent", any(), any()) }
+            verify { eventPublisher.publish("Delivery", "1", "PickupCompletedEvent", any(), any()) }
         }
     }
 
@@ -99,7 +99,7 @@ class DeliveryCommandServiceTest {
             sut.startWashing(1L, listOf(3L))
 
             assertThat(saved.captured.status).isEqualTo(DeliveryStatus.IN_LAUNDRY)
-            verify { outboxEventPublisher.publish("Delivery", "1", "LaundryStartedEvent", any(), any()) }
+            verify { eventPublisher.publish("Delivery", "1", "LaundryStartedEvent", any(), any()) }
         }
     }
 
@@ -133,7 +133,7 @@ class DeliveryCommandServiceTest {
             sut.completeDelivery(1L, listOf(5L))
 
             assertThat(saved.captured.status).isEqualTo(DeliveryStatus.DELIVERED)
-            verify { outboxEventPublisher.publish("Delivery", "1", "DeliveryCompletedEvent", any(), any()) }
+            verify { eventPublisher.publish("Delivery", "1", "DeliveryCompletedEvent", any(), any()) }
         }
 
         @Test

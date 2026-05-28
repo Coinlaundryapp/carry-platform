@@ -1,5 +1,7 @@
 package com.carry.payment.application.port.outbound
 
+import com.carry.common.exception.BusinessException
+import com.carry.common.exception.ErrorCode
 import com.carry.payment.domain.vo.PgProvider
 import org.springframework.stereotype.Component
 
@@ -16,6 +18,6 @@ class PgProviderRegistry(
 
     fun resolve(provider: PgProvider): PaymentGatewayPort {
         return adapterMap[provider]
-            ?: throw IllegalArgumentException("지원하지 않는 PG사입니다: $provider")
+            ?: throw BusinessException(ErrorCode.UNSUPPORTED_PG_PROVIDER, "지원하지 않는 PG사입니다: $provider")
     }
 }

@@ -3,7 +3,7 @@ package com.carry.payment.application.service
 import com.carry.event.delivery.PickupCompletedEvent
 import com.carry.event.payment.InvoiceIssuedEvent
 import com.carry.event.payment.InvoiceLineItemDto
-import com.carry.infra.kafka.outbox.OutboxEventPublisher
+import com.carry.event.port.EventPublisherPort
 import com.carry.payment.application.port.inbound.InvoiceQueryUseCase
 import com.carry.payment.application.port.outbound.InvoicePersistencePort
 import com.carry.payment.domain.exception.InvoiceNotFoundException
@@ -17,7 +17,7 @@ import java.math.BigDecimal
 @Service
 class InvoiceService(
     private val invoicePersistencePort: InvoicePersistencePort,
-    private val outboxEventPublisher: OutboxEventPublisher,
+    private val eventPublisher: EventPublisherPort,
 ) : InvoiceQueryUseCase {
 
     companion object {
@@ -46,7 +46,7 @@ class InvoiceService(
 
         val saved = invoicePersistencePort.save(invoice)
 
-        outboxEventPublisher.publish(
+        eventPublisher.publish(
             aggregateType = "Payment",
             aggregateId = event.orderId.toString(),
             eventType = "InvoiceIssuedEvent",
