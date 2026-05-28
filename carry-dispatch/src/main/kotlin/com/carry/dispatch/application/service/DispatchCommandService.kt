@@ -52,7 +52,8 @@ class DispatchCommandService(
             ),
         )
 
-        metrics.incrementCounter("dispatch.accepted.count")
+        // `via=claim`: 캐리어 본인이 PENDING 배차를 직접 잡은 경로.
+        metrics.incrementCounter("carry.dispatch.accepted", "via" to "claim")
         return saved
     }
 
@@ -81,7 +82,8 @@ class DispatchCommandService(
             ),
         )
 
-        metrics.incrementCounter("dispatch.accepted.count")
+        // `via=assignment`: 코디네이터가 ASSIGNED로 지정한 배차를 캐리어가 수락한 경로.
+        metrics.incrementCounter("carry.dispatch.accepted", "via" to "assignment")
         return saved
     }
 
@@ -91,6 +93,7 @@ class DispatchCommandService(
         val penaltyRecord = dispatch.rejectAssignment()
         val saved = dispatchPersistencePort.save(dispatch)
         penaltyRecordPersistencePort.save(penaltyRecord)
+        metrics.incrementCounter("carry.dispatch.rejected")
         return saved
     }
 

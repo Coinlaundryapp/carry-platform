@@ -42,7 +42,7 @@ class KafkaConfigTest {
     }
 
     @Test
-    fun `wrapWithMetrics는 delegate 위임 후 kafka_dlq_count 메트릭을 토픽과 예외 태그로 증가시킨다`() {
+    fun `wrapWithMetrics는 delegate 위임 후 carry_kafka_dlq 메트릭을 토픽과 예외 태그로 증가시킨다`() {
         val delegate = mockk<ConsumerRecordRecoverer>(relaxed = true)
         val wrapped = KafkaConfig.wrapWithMetrics(delegate, metrics)
         val record = ConsumerRecord<Any, Any>("carry.Order.events", 0, 0L, "key", "value")
@@ -53,7 +53,7 @@ class KafkaConfigTest {
         verifyOrder {
             delegate.accept(record, ex)
             metrics.incrementCounter(
-                "kafka.dlq.count",
+                "carry.kafka.dlq",
                 "topic" to "carry.Order.events",
                 "exception" to "IllegalStateException",
             )
@@ -85,7 +85,7 @@ class KafkaConfigTest {
         verifyOrder {
             delegate.accept(record, wrappedException)
             metrics.incrementCounter(
-                "kafka.dlq.count",
+                "carry.kafka.dlq",
                 "topic" to "carry.Order.events",
                 "exception" to "IllegalStateException",
             )

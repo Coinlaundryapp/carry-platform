@@ -75,7 +75,7 @@ class OrderCommandService(
             ),
         )
 
-        metrics.incrementCounter("order.created.count")
+        metrics.incrementCounter("carry.order.created")
         return saved
     }
 
@@ -93,6 +93,7 @@ class OrderCommandService(
             payload = OrderCancelledEvent(orderId, reason, cancelledBy),
         )
 
-        metrics.incrementCounter("order.cancelled.count")
+        // `reason`은 자유 텍스트라 태그로 부적합(고카디널리티). 취소 주체(by)만 enum값으로 태깅.
+        metrics.incrementCounter("carry.order.cancelled", "by" to by.name)
     }
 }
