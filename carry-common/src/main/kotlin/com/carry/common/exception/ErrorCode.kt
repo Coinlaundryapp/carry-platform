@@ -50,6 +50,7 @@ enum class ErrorCode(
     PAYMENT_ALREADY_COMPLETED(409, "Payment already completed"),
     PAYMENT_NOT_REFUNDABLE(409, "Payment is not in a refundable state"),
     PAYMENT_FAILED(502, "Payment processing failed"),
+    PG_GATEWAY_UNAVAILABLE(503, "Payment gateway is temporarily unavailable — retry later"),
     UNSUPPORTED_PG_PROVIDER(400, "Unsupported payment gateway provider"),
     ORDER_NOT_PAID(402, "Order payment is not completed"),
 

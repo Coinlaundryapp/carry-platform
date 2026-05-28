@@ -11,8 +11,8 @@ import com.carry.payment.application.port.inbound.PaymentCommandUseCase
 import com.carry.payment.application.port.inbound.RequestPaymentCommand
 import com.carry.payment.application.port.outbound.InvoicePersistencePort
 import com.carry.payment.application.port.outbound.PaymentPersistencePort
+import com.carry.payment.application.port.outbound.PaymentGatewayResolver
 import com.carry.payment.application.port.outbound.PgPaymentRequest
-import com.carry.payment.application.port.outbound.PgProviderRegistry
 import com.carry.payment.domain.exception.InvoiceAlreadyPaidException
 import com.carry.payment.domain.exception.InvoiceNotFoundException
 import com.carry.payment.domain.exception.PaymentGatewayException
@@ -27,7 +27,7 @@ import org.springframework.transaction.annotation.Transactional
 class PaymentCommandService(
     private val paymentPersistencePort: PaymentPersistencePort,
     private val invoicePersistencePort: InvoicePersistencePort,
-    private val pgProviderRegistry: PgProviderRegistry,
+    private val paymentGatewayResolver: PaymentGatewayResolver,
     private val eventPublisher: EventPublisherPort,
     private val metrics: MetricsPort,
 ) : PaymentCommandUseCase {
@@ -49,7 +49,7 @@ class PaymentCommandService(
             amount = invoice.totalAmount,
         )
 
-        val gateway = pgProviderRegistry.resolve(command.pgProvider)
+        val gateway = paymentGatewayResolver.resolve(command.pgProvider)
         val pgResult = gateway.requestPayment(
             PgPaymentRequest(
                 orderId = command.orderId,
@@ -110,7 +110,7 @@ class PaymentCommandService(
             throw BusinessException(ErrorCode.PAYMENT_NOT_REFUNDABLE, "환불 가능한 상태가 아닙니다: ${payment.status}")
         }
 
-        val gateway = pgProviderRegistry.resolve(payment.pgProvider)
+        val gateway = paymentGatewayResolver.resolve(payment.pgProvider)
         val cancelResult = gateway.cancelPayment(payment.pgTransactionId!!)
 
         if (!cancelResult.success) {

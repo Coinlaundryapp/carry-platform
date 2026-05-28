@@ -71,6 +71,22 @@ management:
     key-values:
       application: carry-platform
 
+# Resilience4j Circuit Breaker — 외부 PG 장애 시 fast-fail로 스레드 블로킹·연쇄 장애 방지.
+# 슬라이딩 윈도우(최근 10건) 중 50% 실패 시 30초간 OPEN.
+# HALF_OPEN 상태에서 3건 시험 통과하면 다시 CLOSED.
+resilience4j:
+  circuitbreaker:
+    configs:
+      pg-gateway:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        register-health-indicator: true
+
 springdoc:
   api-docs:
     path: /api-docs
