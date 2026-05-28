@@ -6,8 +6,11 @@ import org.apache.kafka.common.TopicPartition
 import org.slf4j.LoggerFactory
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.boot.autoconfigure.kafka.ConcurrentKafkaListenerContainerFactoryConfigurer
 import org.springframework.kafka.annotation.EnableKafka
+import org.springframework.kafka.config.ContainerCustomizer
 import org.springframework.kafka.core.KafkaTemplate
+import org.springframework.kafka.listener.ConcurrentMessageListenerContainer
 import org.springframework.kafka.listener.ConsumerRecordRecoverer
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer
 import org.springframework.kafka.listener.DefaultErrorHandler
@@ -62,6 +65,17 @@ class KafkaConfig {
                 )
             }
     }
+
+    /**
+     * Graceful shutdown 시 fenced(즉, 리밸런싱·종료 신호로 더 이상 메시지 처리 권한이
+     * 없어진) 컨테이너를 즉시 멈추도록 설정한다. 이미 처리 중이던 record는 마무리하고
+     * 다음 poll에서 깨끗하게 빠져나가, 부분 처리로 인한 중복·유실 위험을 줄인다.
+     */
+    @Bean
+    fun kafkaListenerContainerCustomizer(): ContainerCustomizer<String, String, ConcurrentMessageListenerContainer<String, String>> =
+        ContainerCustomizer { container ->
+            container.containerProperties.isStopContainerWhenFenced = true
+        }
 
     @Bean
     fun kafkaListenerErrorHandler(

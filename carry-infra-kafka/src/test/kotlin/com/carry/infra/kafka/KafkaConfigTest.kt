@@ -1,17 +1,21 @@
 package com.carry.infra.kafka
 
 import com.carry.common.metrics.MetricsPort
+import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verifyOrder
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import org.springframework.kafka.listener.ConcurrentMessageListenerContainer
 import org.springframework.kafka.listener.ConsumerRecordRecoverer
+import org.springframework.kafka.listener.ContainerProperties
 import org.springframework.kafka.support.serializer.DeserializationException
 
 class KafkaConfigTest {
 
     private val metrics = mockk<MetricsPort>(relaxed = true)
+    private val config = KafkaConfig()
 
     @Test
     fun `dlqDestinationResolver는 원본 토픽에 _DLQ 접미사를 붙이고 파티션을 유지한다`() {
@@ -54,6 +58,18 @@ class KafkaConfigTest {
                 "exception" to "IllegalStateException",
             )
         }
+    }
+
+    @Test
+    fun `ContainerCustomizer는 stopContainerWhenFenced를 true로 설정해 graceful shutdown 보장`() {
+        val container = mockk<ConcurrentMessageListenerContainer<String, String>>(relaxed = true)
+        val props = ContainerProperties("test-topic")
+        every { container.containerProperties } returns props
+
+        val customizer = config.kafkaListenerContainerCustomizer()
+        customizer.configure(container)
+
+        assertThat(props.isStopContainerWhenFenced).isTrue()
     }
 
     @Test
