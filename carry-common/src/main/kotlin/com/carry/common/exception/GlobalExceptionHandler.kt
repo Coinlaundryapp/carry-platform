@@ -3,6 +3,7 @@ package com.carry.common.exception
 import com.carry.common.response.ApiResponse
 import org.slf4j.LoggerFactory
 import org.slf4j.MDC
+import org.springframework.dao.OptimisticLockingFailureException
 import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.web.bind.MethodArgumentNotValidException
@@ -55,6 +56,25 @@ class GlobalExceptionHandler {
         return ResponseEntity
             .badRequest()
             .body(ApiResponse.error(400, ErrorCode.INVALID_INPUT.name, "Malformed request body", MDC.get("traceId")))
+    }
+
+    /**
+     * JPA `@Version` 기반 optimistic locking이 동시 수정 충돌을 감지하면 던지는 예외.
+     * 클라이언트는 같은 요청을 재시도하면 일반적으로 해소된다.
+     */
+    @ExceptionHandler(OptimisticLockingFailureException::class)
+    fun handleOptimisticLocking(e: OptimisticLockingFailureException): ResponseEntity<ApiResponse<Nothing>> {
+        log.warn("Optimistic locking conflict: {}", e.message)
+        return ResponseEntity
+            .status(ErrorCode.CONCURRENT_MODIFICATION.status)
+            .body(
+                ApiResponse.error(
+                    ErrorCode.CONCURRENT_MODIFICATION.status,
+                    ErrorCode.CONCURRENT_MODIFICATION.name,
+                    ErrorCode.CONCURRENT_MODIFICATION.message,
+                    MDC.get("traceId"),
+                ),
+            )
     }
 
     @ExceptionHandler(Exception::class)

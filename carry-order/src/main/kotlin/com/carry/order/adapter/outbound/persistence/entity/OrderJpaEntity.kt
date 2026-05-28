@@ -14,6 +14,7 @@ import jakarta.persistence.Enumerated
 import jakarta.persistence.FetchType
 import jakarta.persistence.OneToMany
 import jakarta.persistence.Table
+import jakarta.persistence.Version
 import java.math.BigDecimal
 import java.time.Instant
 
@@ -70,6 +71,16 @@ class OrderJpaEntity(
     @OneToMany(mappedBy = "order", cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.EAGER)
     val selectedOptions: MutableList<OrderSelectedOptionJpaEntity> = mutableListOf(),
 ) : BaseEntity() {
+
+    /**
+     * JPA optimistic locking 카운터. 두 트랜잭션이 동일 주문을 동시 변경(특히 취소)할 때
+     * 두 번째 트랜잭션 commit에서 `OptimisticLockingFailureException`이 발생한다.
+     */
+    @Version
+    @Column(nullable = false)
+    var version: Long = 0
+        protected set
+
 
     fun toDomain(): Order = Order.reconstitute(
         id = id!!,

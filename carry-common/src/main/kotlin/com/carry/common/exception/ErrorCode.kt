@@ -10,6 +10,7 @@ enum class ErrorCode(
     FORBIDDEN(403, "Forbidden"),
     NOT_FOUND(404, "Resource not found"),
     CONFLICT(409, "Resource conflict"),
+    CONCURRENT_MODIFICATION(409, "Concurrent modification detected — retry the request"),
     INTERNAL_ERROR(500, "Internal server error"),
 
     // User
