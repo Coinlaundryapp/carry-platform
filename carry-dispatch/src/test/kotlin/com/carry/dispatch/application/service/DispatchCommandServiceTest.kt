@@ -12,8 +12,8 @@ import com.carry.dispatch.domain.model.CarrierArea
 import com.carry.dispatch.domain.model.Dispatch
 import com.carry.dispatch.domain.vo.AssignedBy
 import com.carry.dispatch.domain.vo.DispatchStatus
-import com.carry.infra.kafka.outbox.OutboxEventPublisher
-import com.carry.infra.observability.metrics.BusinessMetrics
+import com.carry.common.metrics.MetricsPort
+import com.carry.event.port.EventPublisherPort
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -30,11 +30,11 @@ class DispatchCommandServiceTest {
     private val dispatchPersistencePort = mockk<DispatchPersistencePort>(relaxed = true)
     private val carrierAreaPersistencePort = mockk<CarrierAreaPersistencePort>()
     private val penaltyRecordPersistencePort = mockk<PenaltyRecordPersistencePort>(relaxed = true)
-    private val outboxEventPublisher = mockk<OutboxEventPublisher>(relaxed = true)
-    private val businessMetrics = mockk<BusinessMetrics>(relaxed = true)
+    private val eventPublisher = mockk<EventPublisherPort>(relaxed = true)
+    private val metrics = mockk<MetricsPort>(relaxed = true)
 
     private val sut = DispatchCommandService(
-        dispatchPersistencePort, carrierAreaPersistencePort, penaltyRecordPersistencePort, outboxEventPublisher, businessMetrics,
+        dispatchPersistencePort, carrierAreaPersistencePort, penaltyRecordPersistencePort, eventPublisher, metrics,
     )
 
     private val now = Instant.now()
@@ -83,7 +83,7 @@ class DispatchCommandServiceTest {
 
             assertThat(result.status).isEqualTo(DispatchStatus.ACCEPTED)
             assertThat(result.carrierId).isEqualTo(200L)
-            verify { outboxEventPublisher.publish("Dispatch", "10", "DispatchAcceptedEvent", any(), any()) }
+            verify { eventPublisher.publish("Dispatch", "10", "DispatchAcceptedEvent", any(), any()) }
         }
 
         @Test
@@ -120,7 +120,7 @@ class DispatchCommandServiceTest {
 
             assertThat(result.status).isEqualTo(DispatchStatus.ASSIGNED)
             assertThat(result.carrierId).isEqualTo(200L)
-            verify(exactly = 0) { outboxEventPublisher.publish(any(), any(), any(), any(), any()) }
+            verify(exactly = 0) { eventPublisher.publish(any(), any(), any(), any(), any()) }
         }
     }
 
@@ -146,7 +146,7 @@ class DispatchCommandServiceTest {
             val result = sut.acceptAssignment(AcceptAssignmentCommand(1L, 200L))
 
             assertThat(result.status).isEqualTo(DispatchStatus.ACCEPTED)
-            verify { outboxEventPublisher.publish("Dispatch", "10", "DispatchAcceptedEvent", any(), any()) }
+            verify { eventPublisher.publish("Dispatch", "10", "DispatchAcceptedEvent", any(), any()) }
         }
     }
 
@@ -174,7 +174,7 @@ class DispatchCommandServiceTest {
             assertThat(result.status).isEqualTo(DispatchStatus.PENDING)
             assertThat(result.carrierId).isNull()
             verify { penaltyRecordPersistencePort.save(any()) }
-            verify(exactly = 0) { outboxEventPublisher.publish(any(), any(), any(), any(), any()) }
+            verify(exactly = 0) { eventPublisher.publish(any(), any(), any(), any(), any()) }
         }
     }
 }

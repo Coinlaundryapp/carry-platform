@@ -26,6 +26,7 @@ enum class ErrorCode(
     PRICE_POLICY_NOT_FOUND(404, "Price policy not found"),
     PRICE_POLICY_ALREADY_EXISTS(409, "Price policy already exists for the given condition"),
     OPTION_NOT_FOUND(404, "Option not found in price policy"),
+    OPTION_NOT_SELECTABLE(400, "Option is not selectable"),
 
     // Geo
     GEOCODING_FAILED(502, "Geocoding request failed"),
@@ -41,11 +42,14 @@ enum class ErrorCode(
     // Order
     ORDER_NOT_FOUND(404, "Order not found"),
     INVALID_ORDER_STATUS_TRANSITION(400, "Invalid order status transition"),
+    ORDER_NOT_CANCELLABLE(409, "Order cannot be cancelled in current status"),
 
     // Payment
     PAYMENT_NOT_FOUND(404, "Payment not found"),
     PAYMENT_ALREADY_COMPLETED(409, "Payment already completed"),
+    PAYMENT_NOT_REFUNDABLE(409, "Payment is not in a refundable state"),
     PAYMENT_FAILED(502, "Payment processing failed"),
+    UNSUPPORTED_PG_PROVIDER(400, "Unsupported payment gateway provider"),
     ORDER_NOT_PAID(402, "Order payment is not completed"),
 
     // Invoice
@@ -56,17 +60,22 @@ enum class ErrorCode(
     DISPATCH_NOT_FOUND(404, "Dispatch not found"),
     DISPATCH_NOT_PENDING(400, "Dispatch is not in pending status"),
     DISPATCH_ALREADY_ACCEPTED(409, "Dispatch already accepted"),
+    DISPATCH_NOT_CANCELLABLE(409, "Dispatch cannot be cancelled in current status"),
+    DISPATCH_TIMEOUT_NOT_ALLOWED(400, "Dispatch timeout is only allowed in pending status"),
     CARRIER_NOT_IN_AREA(403, "Carrier is not registered in the dispatch area"),
     CARRIER_AREA_NOT_FOUND(404, "Carrier area registration not found"),
 
     // Delivery
     DELIVERY_NOT_FOUND(404, "Delivery not found"),
     DELIVERY_INVALID_STATUS(400, "Delivery is not in expected status"),
+    DELIVERY_WEIGHT_REQUIRED(400, "Pickup weight must be greater than 0"),
+    DELIVERY_PHOTO_REQUIRED(400, "At least one photo is required"),
 
     // Media
     MEDIA_NOT_FOUND(404, "Media resource not found"),
     MEDIA_UPLOAD_FAILED(502, "Media upload failed"),
     INVALID_FILE_TYPE(400, "Invalid file type"),
+    INVALID_MEDIA_STATUS_TRANSITION(400, "Invalid media status transition"),
 
     // Review
     REVIEW_NOT_FOUND(404, "Review not found"),
@@ -75,6 +84,7 @@ enum class ErrorCode(
 
     // Notification
     NOTIFICATION_NOT_FOUND(404, "Notification not found"),
+    INVALID_DEVICE_PLATFORM(400, "Unsupported device platform"),
 
     // Operation
     TERM_NOT_FOUND(404, "Term not found"),

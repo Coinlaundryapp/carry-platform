@@ -135,7 +135,7 @@ class Order private constructor(
     }
 
     fun cancel(reason: String, by: CancelledBy) {
-        check(_status.isCancellable()) {
+        if (!_status.isCancellable()) {
             throw OrderNotCancellableException(id, _status)
         }
         _status = OrderStatus.CANCELLED
@@ -147,7 +147,7 @@ class Order private constructor(
     fun isCancellable(): Boolean = _status.isCancellable()
 
     private fun transitTo(target: OrderStatus) {
-        check(_status.canTransitionTo(target)) {
+        if (!_status.canTransitionTo(target)) {
             throw InvalidOrderStatusTransitionException(_status, target)
         }
         _status = target

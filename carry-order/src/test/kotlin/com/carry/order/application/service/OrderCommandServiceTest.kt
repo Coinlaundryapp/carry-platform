@@ -1,7 +1,9 @@
 package com.carry.order.application.service
 
-import com.carry.infra.kafka.outbox.OutboxEventPublisher
-import com.carry.infra.observability.metrics.BusinessMetrics
+import com.carry.common.exception.BusinessException
+import com.carry.common.exception.ErrorCode
+import com.carry.common.metrics.MetricsPort
+import com.carry.event.port.EventPublisherPort
 import com.carry.order.application.port.inbound.CreateOrderCommand
 import com.carry.order.application.port.inbound.SelectedOptionCommand
 import com.carry.order.application.port.outbound.LaundromatQueryPort
@@ -30,11 +32,11 @@ class OrderCommandServiceTest {
     private val userQueryPort = mockk<UserQueryPort>()
     private val laundromatQueryPort = mockk<LaundromatQueryPort>()
     private val serviceAvailabilityQueryPort = mockk<ServiceAvailabilityQueryPort>(relaxed = true)
-    private val outboxEventPublisher = mockk<OutboxEventPublisher>(relaxed = true)
-    private val businessMetrics = mockk<BusinessMetrics>(relaxed = true)
+    private val eventPublisher = mockk<EventPublisherPort>(relaxed = true)
+    private val metrics = mockk<MetricsPort>(relaxed = true)
 
     private val sut = OrderCommandService(
-        orderPersistencePort, userQueryPort, laundromatQueryPort, serviceAvailabilityQueryPort, outboxEventPublisher, businessMetrics,
+        orderPersistencePort, userQueryPort, laundromatQueryPort, serviceAvailabilityQueryPort, eventPublisher, metrics,
     )
 
     private val address = OrderShippingAddress(
@@ -81,7 +83,7 @@ class OrderCommandServiceTest {
 
             assertThat(result.id).isEqualTo(42L)
             assertThat(result.status).isEqualTo(OrderStatus.CREATED)
-            verify { outboxEventPublisher.publish("Order", "42", "OrderCreatedEvent", any(), any()) }
+            verify { eventPublisher.publish("Order", "42", "OrderCreatedEvent", any(), any()) }
         }
 
         @Test
@@ -90,8 +92,9 @@ class OrderCommandServiceTest {
             every { laundromatQueryPort.existsById(100L) } returns false
 
             assertThatThrownBy { sut.createOrder(aCommand()) }
-                .isInstanceOf(IllegalStateException::class.java)
+                .isInstanceOf(BusinessException::class.java)
                 .hasMessageContaining("세탁소")
+                .extracting("errorCode").isEqualTo(ErrorCode.LAUNDROMAT_NOT_FOUND)
         }
     }
 
@@ -114,7 +117,7 @@ class OrderCommandServiceTest {
             sut.cancelOrder(1L, "고객 변심", "CUSTOMER")
 
             verify { orderPersistencePort.save(any()) }
-            verify { outboxEventPublisher.publish("Order", "1", "OrderCancelledEvent", any(), any()) }
+            verify { eventPublisher.publish("Order", "1", "OrderCancelledEvent", any(), any()) }
         }
 
         @Test

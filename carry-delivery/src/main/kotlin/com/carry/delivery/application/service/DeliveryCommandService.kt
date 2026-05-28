@@ -10,7 +10,7 @@ import com.carry.event.delivery.DeliveryCompletedEvent
 import com.carry.event.delivery.LaundryStartedEvent
 import com.carry.event.delivery.PickupCompletedEvent
 import com.carry.event.delivery.SelectedOptionSnapshot
-import com.carry.infra.kafka.outbox.OutboxEventPublisher
+import com.carry.event.port.EventPublisherPort
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
@@ -19,7 +19,7 @@ import java.math.BigDecimal
 class DeliveryCommandService(
     private val deliveryPersistencePort: DeliveryPersistencePort,
     private val paymentQueryPort: PaymentQueryPort,
-    private val outboxEventPublisher: OutboxEventPublisher,
+    private val eventPublisher: EventPublisherPort,
 ) : DeliveryCommandUseCase {
 
     @Transactional
@@ -37,7 +37,7 @@ class DeliveryCommandService(
         delivery.completePickup(weight, photoIds)
         val saved = deliveryPersistencePort.save(delivery)
 
-        outboxEventPublisher.publish(
+        eventPublisher.publish(
             aggregateType = "Delivery",
             aggregateId = saved.id.toString(),
             eventType = "PickupCompletedEvent",
@@ -63,7 +63,7 @@ class DeliveryCommandService(
         delivery.startWashing(photoIds)
         val saved = deliveryPersistencePort.save(delivery)
 
-        outboxEventPublisher.publish(
+        eventPublisher.publish(
             aggregateType = "Delivery",
             aggregateId = saved.id.toString(),
             eventType = "LaundryStartedEvent",
@@ -101,7 +101,7 @@ class DeliveryCommandService(
         delivery.completeDelivery(photoIds)
         val saved = deliveryPersistencePort.save(delivery)
 
-        outboxEventPublisher.publish(
+        eventPublisher.publish(
             aggregateType = "Delivery",
             aggregateId = saved.id.toString(),
             eventType = "DeliveryCompletedEvent",

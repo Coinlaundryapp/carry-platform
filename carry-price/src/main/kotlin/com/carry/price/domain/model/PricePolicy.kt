@@ -1,5 +1,7 @@
 package com.carry.price.domain.model
 
+import com.carry.common.exception.BusinessException
+import com.carry.common.exception.ErrorCode
 import com.carry.price.domain.vo.OptionPrice
 import com.carry.price.domain.vo.OptionType
 import com.carry.price.domain.vo.PriceCondition
@@ -38,8 +40,10 @@ class PricePolicy private constructor(
     fun calculateTotal(selectedOptions: List<Pair<OptionType, SubOptionType>>): Int {
         return selectedOptions.sumOf { (optionType, subOptionType) ->
             val optionPrice = findOptionPrice(optionType, subOptionType)
-                ?: throw IllegalArgumentException("존재하지 않는 옵션입니다: $optionType/$subOptionType")
-            check(optionPrice.selectable) { "선택 불가능한 옵션입니다: $optionType/$subOptionType" }
+                ?: throw BusinessException(ErrorCode.OPTION_NOT_FOUND, "존재하지 않는 옵션입니다: $optionType/$subOptionType")
+            if (!optionPrice.selectable) {
+                throw BusinessException(ErrorCode.OPTION_NOT_SELECTABLE, "선택 불가능한 옵션입니다: $optionType/$subOptionType")
+            }
             optionPrice.price
         }
     }

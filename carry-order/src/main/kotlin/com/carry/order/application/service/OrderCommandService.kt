@@ -1,11 +1,13 @@
 package com.carry.order.application.service
 
+import com.carry.common.exception.BusinessException
+import com.carry.common.exception.ErrorCode
+import com.carry.common.metrics.MetricsPort
 import com.carry.event.order.OrderCancelledEvent
 import com.carry.event.order.OrderCreatedEvent
 import com.carry.event.order.SelectedOptionDto
 import com.carry.event.order.ShippingAddressDto
-import com.carry.infra.kafka.outbox.OutboxEventPublisher
-import com.carry.infra.observability.metrics.BusinessMetrics
+import com.carry.event.port.EventPublisherPort
 import com.carry.order.application.port.inbound.CreateOrderCommand
 import com.carry.order.application.port.inbound.OrderCommandUseCase
 import com.carry.order.application.port.outbound.LaundromatQueryPort
@@ -25,14 +27,16 @@ class OrderCommandService(
     private val userQueryPort: UserQueryPort,
     private val laundromatQueryPort: LaundromatQueryPort,
     private val serviceAvailabilityQueryPort: ServiceAvailabilityQueryPort,
-    private val outboxEventPublisher: OutboxEventPublisher,
-    private val businessMetrics: BusinessMetrics,
+    private val eventPublisher: EventPublisherPort,
+    private val metrics: MetricsPort,
 ) : OrderCommandUseCase {
 
     @Transactional
     override fun createOrder(command: CreateOrderCommand): Order {
         val address = userQueryPort.getShippingAddress(command.customerId, command.shippingAddressId)
-        check(laundromatQueryPort.existsById(command.laundromatId)) { "세탁소를 찾을 수 없습니다: ${command.laundromatId}" }
+        if (!laundromatQueryPort.existsById(command.laundromatId)) {
+            throw BusinessException(ErrorCode.LAUNDROMAT_NOT_FOUND, "세탁소를 찾을 수 없습니다: ${command.laundromatId}")
+        }
         serviceAvailabilityQueryPort.checkAvailability(address.areaCode, command.desiredPickupAt, command.desiredDeliveryAt)
 
         val order = Order.create(
@@ -47,7 +51,7 @@ class OrderCommandService(
 
         val saved = orderPersistencePort.save(order)
 
-        outboxEventPublisher.publish(
+        eventPublisher.publish(
             aggregateType = "Order",
             aggregateId = saved.id.toString(),
             eventType = "OrderCreatedEvent",
@@ -71,7 +75,7 @@ class OrderCommandService(
             ),
         )
 
-        businessMetrics.incrementOrderCreated()
+        metrics.incrementCounter("order.created.count")
         return saved
     }
 
@@ -82,13 +86,13 @@ class OrderCommandService(
         order.cancel(reason, by)
         orderPersistencePort.save(order)
 
-        outboxEventPublisher.publish(
+        eventPublisher.publish(
             aggregateType = "Order",
             aggregateId = orderId.toString(),
             eventType = "OrderCancelledEvent",
             payload = OrderCancelledEvent(orderId, reason, cancelledBy),
         )
 
-        businessMetrics.incrementOrderCancelled()
+        metrics.incrementCounter("order.cancelled.count")
     }
 }

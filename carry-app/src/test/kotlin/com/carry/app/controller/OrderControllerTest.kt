@@ -3,6 +3,8 @@ package com.carry.app.controller
 import com.carry.order.adapter.inbound.rest.OrderController
 import com.carry.order.application.port.inbound.OrderCommandUseCase
 import com.carry.order.application.port.inbound.OrderQueryUseCase
+import com.carry.order.domain.exception.OrderNotCancellableException
+import com.carry.order.domain.exception.OrderNotFoundException
 import com.carry.order.domain.model.Order
 import com.carry.order.domain.vo.OrderShippingAddress
 import com.carry.order.domain.vo.OrderStatus
@@ -157,6 +159,18 @@ class OrderControllerTest {
                 jsonPath("$.data.laundromatId") { value(10) }
             }
         }
+
+        @Test
+        fun `존재하지 않는 주문 조회 시 404와 ORDER_NOT_FOUND 코드를 반환한다`() {
+            every { orderQueryUseCase.getOrder(999L) } throws OrderNotFoundException(999L)
+
+            mockMvc.get("/api/v2/orders/999") {
+                with(carrierAuth())
+            }.andExpect {
+                status { isNotFound() }
+                jsonPath("$.code") { value("ORDER_NOT_FOUND") }
+            }
+        }
     }
 
     @Nested
@@ -187,6 +201,22 @@ class OrderControllerTest {
                 content = """{"reason": ""}"""
             }.andExpect {
                 status { isBadRequest() }
+            }
+        }
+
+        @Test
+        fun `취소 불가 상태일 때 409와 ORDER_NOT_CANCELLABLE 코드를 반환한다`() {
+            every { orderCommandUseCase.cancelOrder(1L, any(), any()) } throws
+                OrderNotCancellableException(1L, OrderStatus.COMPLETED)
+
+            mockMvc.post("/api/v2/orders/1/cancel") {
+                with(carrierAuth())
+                with(csrf())
+                contentType = MediaType.APPLICATION_JSON
+                content = """{"reason": "고객 변심"}"""
+            }.andExpect {
+                status { isConflict() }
+                jsonPath("$.code") { value("ORDER_NOT_CANCELLABLE") }
             }
         }
     }

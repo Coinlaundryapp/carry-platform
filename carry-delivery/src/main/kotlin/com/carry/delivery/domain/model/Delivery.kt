@@ -79,8 +79,8 @@ class Delivery private constructor(
     }
 
     fun completePickup(weight: BigDecimal, photoIds: List<Long>) {
-        require(weight > BigDecimal.ZERO) { throw DeliveryWeightRequiredException() }
-        require(photoIds.isNotEmpty()) { throw DeliveryPhotoRequiredException() }
+        if (weight <= BigDecimal.ZERO) throw DeliveryWeightRequiredException()
+        if (photoIds.isEmpty()) throw DeliveryPhotoRequiredException()
         transitTo(DeliveryStatus.PICKED_UP)
         _actualWeight = weight
         getStep(DeliveryStepType.PICKUP)?.complete(photoIds)
@@ -88,13 +88,13 @@ class Delivery private constructor(
     }
 
     fun startWashing(photoIds: List<Long>) {
-        require(photoIds.isNotEmpty()) { throw DeliveryPhotoRequiredException() }
+        if (photoIds.isEmpty()) throw DeliveryPhotoRequiredException()
         transitTo(DeliveryStatus.IN_LAUNDRY)
         getStep(DeliveryStepType.WASHING)?.complete(photoIds)
     }
 
     fun completeDrying(photoIds: List<Long>) {
-        require(photoIds.isNotEmpty()) { throw DeliveryPhotoRequiredException() }
+        if (photoIds.isEmpty()) throw DeliveryPhotoRequiredException()
         transitTo(DeliveryStatus.LAUNDRY_COMPLETE)
         getStep(DeliveryStepType.DRYING)?.complete(photoIds)
     }
@@ -104,7 +104,7 @@ class Delivery private constructor(
     }
 
     fun completeDelivery(photoIds: List<Long>) {
-        require(photoIds.isNotEmpty()) { throw DeliveryPhotoRequiredException() }
+        if (photoIds.isEmpty()) throw DeliveryPhotoRequiredException()
         transitTo(DeliveryStatus.DELIVERED)
         getStep(DeliveryStepType.DELIVERY)?.complete(photoIds)
     }

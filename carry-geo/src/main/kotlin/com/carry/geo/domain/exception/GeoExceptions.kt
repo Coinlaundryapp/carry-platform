@@ -1,10 +1,21 @@
 package com.carry.geo.domain.exception
 
-class GeocodingFailedException(message: String, cause: Throwable? = null) :
-    RuntimeException(message, cause)
+import com.carry.common.exception.BusinessException
+import com.carry.common.exception.ErrorCode
 
-class ReverseGeocodingFailedException(message: String, cause: Throwable? = null) :
-    RuntimeException(message, cause)
+class GeocodingFailedException(message: String, cause: Throwable? = null) : BusinessException(
+    ErrorCode.GEOCODING_FAILED,
+    message,
+    cause,
+)
 
-class GeocodingResultEmptyException(address: String) :
-    RuntimeException("주소에 대한 지오코딩 결과가 없습니다: $address")
+class ReverseGeocodingFailedException(message: String, cause: Throwable? = null) : BusinessException(
+    ErrorCode.REVERSE_GEOCODING_FAILED,
+    message,
+    cause,
+)
+
+class GeocodingResultEmptyException(address: String) : BusinessException(
+    ErrorCode.ADDRESS_NOT_FOUND,
+    "주소에 대한 지오코딩 결과가 없습니다: $address",
+)

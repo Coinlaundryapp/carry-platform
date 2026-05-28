@@ -1,10 +1,12 @@
 package com.carry.payment.application.service
 
+import com.carry.common.exception.BusinessException
+import com.carry.common.exception.ErrorCode
+import com.carry.common.metrics.MetricsPort
 import com.carry.event.payment.PaymentCompletedEvent
 import com.carry.event.payment.PaymentFailedEvent
 import com.carry.event.payment.RefundCompletedEvent
-import com.carry.infra.kafka.outbox.OutboxEventPublisher
-import com.carry.infra.observability.metrics.BusinessMetrics
+import com.carry.event.port.EventPublisherPort
 import com.carry.payment.application.port.inbound.PaymentCommandUseCase
 import com.carry.payment.application.port.inbound.RequestPaymentCommand
 import com.carry.payment.application.port.outbound.InvoicePersistencePort
@@ -26,8 +28,8 @@ class PaymentCommandService(
     private val paymentPersistencePort: PaymentPersistencePort,
     private val invoicePersistencePort: InvoicePersistencePort,
     private val pgProviderRegistry: PgProviderRegistry,
-    private val outboxEventPublisher: OutboxEventPublisher,
-    private val businessMetrics: BusinessMetrics,
+    private val eventPublisher: EventPublisherPort,
+    private val metrics: MetricsPort,
 ) : PaymentCommandUseCase {
 
     @Transactional
@@ -65,7 +67,7 @@ class PaymentCommandService(
 
             val saved = paymentPersistencePort.save(payment)
 
-            outboxEventPublisher.publish(
+            eventPublisher.publish(
                 aggregateType = "Payment",
                 aggregateId = command.orderId.toString(),
                 eventType = "PaymentCompletedEvent",
@@ -77,13 +79,13 @@ class PaymentCommandService(
                 ),
             )
 
-            businessMetrics.incrementPaymentCompleted()
+            metrics.incrementCounter("payment.completed.count")
             return saved
         } else {
             payment.markFailed(pgResult.failReason ?: "알 수 없는 오류")
             val saved = paymentPersistencePort.save(payment)
 
-            outboxEventPublisher.publish(
+            eventPublisher.publish(
                 aggregateType = "Payment",
                 aggregateId = command.orderId.toString(),
                 eventType = "PaymentFailedEvent",
@@ -94,7 +96,7 @@ class PaymentCommandService(
                 ),
             )
 
-            businessMetrics.incrementPaymentFailed()
+            metrics.incrementCounter("payment.failed.count")
             return saved
         }
     }
@@ -104,8 +106,8 @@ class PaymentCommandService(
         val payment = paymentPersistencePort.findByOrderId(orderId)
             ?: throw PaymentNotFoundException("orderId=$orderId")
 
-        check(payment.status == PaymentStatus.COMPLETED) {
-            "환불 가능한 상태가 아닙니다: ${payment.status}"
+        if (payment.status != PaymentStatus.COMPLETED) {
+            throw BusinessException(ErrorCode.PAYMENT_NOT_REFUNDABLE, "환불 가능한 상태가 아닙니다: ${payment.status}")
         }
 
         val gateway = pgProviderRegistry.resolve(payment.pgProvider)
@@ -124,7 +126,7 @@ class PaymentCommandService(
             invoicePersistencePort.save(it)
         }
 
-        outboxEventPublisher.publish(
+        eventPublisher.publish(
             aggregateType = "Payment",
             aggregateId = orderId.toString(),
             eventType = "RefundCompletedEvent",

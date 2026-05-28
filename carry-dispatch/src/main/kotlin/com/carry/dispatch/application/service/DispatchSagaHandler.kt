@@ -6,14 +6,14 @@ import com.carry.dispatch.domain.model.Dispatch
 import com.carry.event.dispatch.DispatchCancelledEvent
 import com.carry.event.order.OrderCancelledEvent
 import com.carry.event.order.OrderCreatedEvent
-import com.carry.infra.kafka.outbox.OutboxEventPublisher
+import com.carry.event.port.EventPublisherPort
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 @Service
 class DispatchSagaHandler(
     private val dispatchPersistencePort: DispatchPersistencePort,
-    private val outboxEventPublisher: OutboxEventPublisher,
+    private val eventPublisher: EventPublisherPort,
 ) : DispatchSagaEventHandler {
 
     @Transactional
@@ -34,7 +34,7 @@ class DispatchSagaHandler(
             dispatch.cancel(event.reason)
             dispatchPersistencePort.save(dispatch)
 
-            outboxEventPublisher.publish(
+            eventPublisher.publish(
                 aggregateType = "Dispatch",
                 aggregateId = dispatch.orderId.toString(),
                 eventType = "DispatchCancelledEvent",
