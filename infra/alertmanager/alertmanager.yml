@@ -1,0 +1,54 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  group_by: ['alertname', 'route']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: 'webhook-logger'
+  routes:
+    - matchers:
+        - route="oncall"
+      receiver: 'slack-critical'
+      continue: true
+    - matchers:
+        - route="slack"
+      receiver: 'slack-warning'
+      continue: true
+    - matchers:
+        - route="business"
+      receiver: 'webhook-logger'
+
+receivers:
+  - name: 'webhook-logger'
+    webhook_configs:
+      - url: 'http://alert-webhook-logger:8080/'
+        send_resolved: true
+  - name: 'slack-critical'
+    # 본 PR에서는 placeholder URL을 webhook-logger의 stub 경로로 직접 가리킨다.
+    # env 주입(SLACK_WEBHOOK_URL_*) 자동화는 후속 PR로 미룸 — Alertmanager는 env 치환을
+    # 자체적으로 안 하고 envsubst init이 필요한데, 본 PoC에선 학습 목적상 불필요.
+    slack_configs:
+      - api_url: 'http://alert-webhook-logger:8080/slack-stub-critical'
+        channel: '#alerts-critical'
+        send_resolved: true
+        title: '[CRITICAL] {{ .CommonLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *Summary:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          *Runbook:* {{ .Annotations.runbook_url }}
+          {{ end }}
+  - name: 'slack-warning'
+    slack_configs:
+      - api_url: 'http://alert-webhook-logger:8080/slack-stub-warning'
+        channel: '#alerts-warning'
+        send_resolved: true
+        title: '[WARNING] {{ .CommonLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *Summary:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          *Runbook:* {{ .Annotations.runbook_url }}
+          {{ end }}

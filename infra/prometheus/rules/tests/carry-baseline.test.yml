@@ -1,0 +1,258 @@
+# promtool test rules — Phase 3.4 알럿 기준선
+rule_files:
+  - ../carry-baseline.rules.yml
+evaluation_interval: 30s
+tests:
+  - interval: 30s
+    name: ApiHighLatencyP99 음성 (p99 ~2s)
+    input_series:
+      # 카운터 형태: le="2"와 le="+Inf"가 동일 속도로 증가 → p99 ~2s
+      - series: http_server_requests_seconds_bucket{le="2",uri="/orders"}
+        values: '0+99x20'
+      - series: http_server_requests_seconds_bucket{le="+Inf",uri="/orders"}
+        values: '0+100x20'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: ApiHighLatencyP99
+        # 음성 — exp_alerts 생략 = no fire
+  - interval: 30s
+    name: ApiHighLatencyP99 firing (p99 ~4s)
+    input_series:
+      # 카운터 형태: le="2" 50% 비율, le="4" 99% 비율, le="+Inf" 100% 비율로 증가
+      # → quantile 0.99는 le="4" 버킷 근처 → p99 ~4s
+      - series: http_server_requests_seconds_bucket{le="2",uri="/orders"}
+        values: '0+50x20'
+      - series: http_server_requests_seconds_bucket{le="4",uri="/orders"}
+        values: '0+99x20'
+      - series: http_server_requests_seconds_bucket{le="+Inf",uri="/orders"}
+        values: '0+100x20'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: ApiHighLatencyP99
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              route: slack
+              team: carry
+              service: carry-platform
+            exp_annotations:
+              summary: 'API p99 응답 시간이 3초를 초과했습니다'
+              description: 'p99=4s (>3s, 5분 평균)'
+              runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/api-p99-latency.md'
+  - interval: 30s
+    name: ApiHighErrorRate 음성
+    input_series:
+      - series: http_server_requests_seconds_count{status="200"}
+        values: '0+10x20'
+      - series: http_server_requests_seconds_count{status="500"}
+        values: '0+0x20'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: ApiHighErrorRate
+  - interval: 30s
+    name: ApiHighErrorRate firing
+    input_series:
+      # 5xx 10% (200 OK 90개, 500 10개 / 분)
+      - series: http_server_requests_seconds_count{status="200"}
+        values: '0+90x20'
+      - series: http_server_requests_seconds_count{status="500"}
+        values: '0+10x20'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: ApiHighErrorRate
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              route: slack
+              team: carry
+              service: carry-platform
+            exp_annotations:
+              summary: '5xx 에러율이 5%를 초과했습니다'
+              description: '5xx rate=10% (>5%, 5분 평균)'
+              runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/api-error-rate.md'
+  - interval: 30s
+    name: KafkaConsumerLag 음성
+    input_series:
+      - series: kafka_consumer_fetch_manager_records_lag{topic="order-created"}
+        values: '500x25'
+    alert_rule_test:
+      - eval_time: 11m
+        alertname: KafkaConsumerLag
+  - interval: 30s
+    name: KafkaConsumerLag firing
+    input_series:
+      - series: kafka_consumer_fetch_manager_records_lag{topic="order-created"}
+        values: '2000x25'
+    alert_rule_test:
+      - eval_time: 11m
+        alertname: KafkaConsumerLag
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              route: slack
+              team: carry
+              service: carry-platform
+              topic: 'order-created'
+            exp_annotations:
+              summary: 'Kafka consumer lag이 1000을 초과했습니다 (topic=order-created)'
+              description: 'lag=2000 (>1000, 10분 지속)'
+              runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/kafka-consumer-lag.md'
+  - interval: 30s
+    name: DispatchTimeoutRate 음성 (timeout 메트릭 absent)
+    input_series:
+      - series: carry_dispatch_accepted_total{via="claim"}
+        values: '0+10x40'
+      - series: carry_dispatch_rejected_total
+        values: '0+1x40'
+      # carry_dispatch_timeout_total 일부러 정의 안 함
+    alert_rule_test:
+      - eval_time: 16m
+        alertname: DispatchTimeoutRate
+  - interval: 30s
+    name: DispatchTimeoutRate firing
+    input_series:
+      - series: carry_dispatch_accepted_total{via="claim"}
+        values: '0+7x40'
+      - series: carry_dispatch_rejected_total
+        values: '0+0x40'
+      - series: carry_dispatch_timeout_total
+        values: '0+3x40'
+    alert_rule_test:
+      - eval_time: 16m
+        alertname: DispatchTimeoutRate
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              route: business
+              team: carry
+              service: carry-platform
+            exp_annotations:
+              summary: '배차 타임아웃율이 20%를 초과했습니다'
+              description: 'timeout rate=30% (>20%, 15분 평균)'
+              runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/dispatch-timeout-rate.md'
+  - interval: 30s
+    name: PaymentHighFailureRate 음성
+    input_series:
+      - series: carry_payment_success_total{pg="toss"}
+        values: '0+10x20'
+      - series: carry_payment_failure_total{pg="toss"}
+        values: '0+0x20'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: PaymentHighFailureRate
+  - interval: 30s
+    name: PaymentHighFailureRate firing
+    input_series:
+      - series: carry_payment_success_total{pg="toss"}
+        values: '0+9x20'
+      - series: carry_payment_failure_total{pg="toss"}
+        values: '0+1x20'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: PaymentHighFailureRate
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              route: oncall
+              team: carry
+              service: carry-platform
+            exp_annotations:
+              summary: '결제 실패율이 5%를 초과했습니다 (CRITICAL)'
+              description: 'failure rate=10% (>5%, 5분 평균)'
+              runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/payment-failure-rate.md'
+  - interval: 30s
+    name: KafkaDlqNonEmpty 음성 (DLQ 변화 없음)
+    input_series:
+      # 30s × 14 = 7분 동안 카운터 5로 평탄 → increase=0 → no fire
+      - series: carry_kafka_dlq_total{topic="order-created.DLQ",exception="RuntimeException"}
+        values: '5+0x13'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: KafkaDlqNonEmpty
+  - interval: 30s
+    name: KafkaDlqNonEmpty firing (5분 내 카운터 증가)
+    input_series:
+      # 30s 간격으로 0..5에서 1씩 늘다가 5에서 평탄. eval_time=6m 직전 5분 동안 increase>0.
+      - series: carry_kafka_dlq_total{topic="order-created.DLQ",exception="RuntimeException"}
+        values: '0 1 2 3 4 5 5 5 5 5 5 5 5 5'
+    alert_rule_test:
+      # for: 1m + 5분 증분 lookback이라 eval_time을 충분히 뒤로 둔다 (6분).
+      - eval_time: 6m
+        alertname: KafkaDlqNonEmpty
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              route: slack
+              team: carry
+              service: carry-platform
+              topic: 'order-created.DLQ'
+            exp_annotations:
+              summary: 'Kafka DLQ에 메시지가 쌓였습니다 (topic=order-created.DLQ)'
+              description: '5분 증분=2.2222222222222223건'
+              runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/kafka-dlq-nonempty.md'
+  - interval: 30s
+    name: HikariPoolSaturation 음성
+    input_series:
+      - series: hikaricp_connections_active{pool="CarryHikariPool"}
+        values: '10x25'
+      - series: hikaricp_connections_max{pool="CarryHikariPool"}
+        values: '20x25'
+    alert_rule_test:
+      - eval_time: 11m
+        alertname: HikariPoolSaturation
+  - interval: 30s
+    name: HikariPoolSaturation firing
+    input_series:
+      - series: hikaricp_connections_active{pool="CarryHikariPool"}
+        values: '18x25'
+      - series: hikaricp_connections_max{pool="CarryHikariPool"}
+        values: '20x25'
+    alert_rule_test:
+      - eval_time: 11m
+        alertname: HikariPoolSaturation
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              route: slack
+              team: carry
+              service: carry-platform
+              pool: 'CarryHikariPool'
+            exp_annotations:
+              summary: 'HikariCP 커넥션 풀 사용률이 80%를 초과했습니다'
+              description: 'active/max=90% (>80%, 10분 지속)'
+              runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/hikari-pool-saturation.md'
+  - interval: 30m
+    name: OrderVolumeDropDoD 음성 (어제 rate 0 → guard 작동)
+    input_series:
+      - series: carry_order_created_total
+        # 60 samples (30m × 60 = 30h), 카운터 평탄
+        values: '100+0x59'
+    alert_rule_test:
+      - eval_time: 29h
+        alertname: OrderVolumeDropDoD
+        # exp_alerts 생략 = no fire
+  - interval: 30m
+    name: OrderVolumeDropDoD firing (DoD drop 75%)
+    input_series:
+      - series: carry_order_created_total
+        # 30m × 62 = 31h. 시점별 의도 (position k → t = 30m × k):
+        #   positions 0~6   (t=0~3h):    카운터 0          — 어제 윈도우 직전 (seg1: 0+0x6 → 7 samples)
+        #   positions 7~55  (t=3.5~27.5h): 0→7200*48=345600 — 7200 증분/step = 14400/h (4/s); 어제 윈도우 (3h, 4h] 포함
+        #   positions 56~61 (t=28~30.5h):  349200→358200    — 1800 증분/step = 3600/h (1/s) — 오늘 drop (seg3: 349200+1800x5 → 6 samples)
+        # 어제 윈도우 (3h, 4h]: rate (14400-0)/3600 = 4/s
+        # 오늘 윈도우 (27h, 28h]: rate (349200-345600)/3600 = 1/s
+        # ratio = 0.25 < 0.5 → fires (for: 30m도 28h~29h 구간에서 유지)
+        values: '0+0x6 0+7200x48 349200+1800x5'
+    alert_rule_test:
+      - eval_time: 29h
+        alertname: OrderVolumeDropDoD
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              route: business
+              team: carry
+              service: carry-platform
+            exp_annotations:
+              summary: '주문 생성률이 전일 대비 50% 이하로 떨어졌습니다'
+              description: 'today/yesterday=25% (<50%, 1h 비교)'
+              runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/order-volume-drop.md'

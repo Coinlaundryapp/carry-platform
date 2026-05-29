@@ -1,0 +1,145 @@
+# Phase 3.4 — 알럿 기준선
+# 룰별 PromQL/threshold/route 근거는 docs/superpowers/specs/2026-05-29-phase-3-4-alert-baseline-design.md 섹션 4.
+groups:
+  - name: carry-baseline
+    interval: 30s
+    rules:
+      # Rule #1 — API p99 응답시간 SLO (5분 평균)
+      - alert: ApiHighLatencyP99
+        expr: histogram_quantile(0.99, sum by(le) (rate(http_server_requests_seconds_bucket[5m]))) > 3
+        for: 5m
+        labels:
+          severity: warning
+          route: slack
+          team: carry
+          service: carry-platform
+        annotations:
+          summary: 'API p99 응답 시간이 3초를 초과했습니다'
+          description: 'p99={{ $value }}s (>3s, 5분 평균)'
+          runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/api-p99-latency.md'
+
+      # Rule #2 — 5xx 에러율 SLO (5분 평균)
+      - alert: ApiHighErrorRate
+        expr: |
+          sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m]))
+          / clamp_min(sum(rate(http_server_requests_seconds_count[5m])), 0.001) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          route: slack
+          team: carry
+          service: carry-platform
+        annotations:
+          summary: '5xx 에러율이 5%를 초과했습니다'
+          description: '5xx rate={{ $value | humanizePercentage }} (>5%, 5분 평균)'
+          runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/api-error-rate.md'
+
+      # Rule #3 — Kafka consumer lag (토픽별, 10분 지속)
+      - alert: KafkaConsumerLag
+        expr: sum by(topic) (kafka_consumer_fetch_manager_records_lag) > 1000
+        for: 10m
+        labels:
+          severity: warning
+          route: slack
+          team: carry
+          service: carry-platform
+        annotations:
+          summary: 'Kafka consumer lag이 1000을 초과했습니다 (topic={{ $labels.topic }})'
+          description: 'lag={{ $value }} (>1000, 10분 지속)'
+          runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/kafka-consumer-lag.md'
+
+      # Rule #4 — 배차 타임아웃율 (15분 평균, absent 가드)
+      # ⚠ carry_dispatch_timeout_total 메트릭은 아직 미구현(known debt #1).
+      # `and sum(rate(...timeout...) > 0` 가드로 메트릭 absent 시 firing 차단.
+      # 메트릭 도입 시 룰이 자동 활성화된다.
+      - alert: DispatchTimeoutRate
+        expr: |
+          (
+            sum(rate(carry_dispatch_timeout_total[15m]))
+            / clamp_min(
+                sum(rate(carry_dispatch_accepted_total[15m]))
+                + sum(rate(carry_dispatch_rejected_total[15m]))
+                + sum(rate(carry_dispatch_timeout_total[15m])),
+                0.001)
+          ) > 0.2
+          and sum(rate(carry_dispatch_timeout_total[15m])) > 0
+        for: 15m
+        labels:
+          severity: warning
+          route: business
+          team: carry
+          service: carry-platform
+        annotations:
+          summary: '배차 타임아웃율이 20%를 초과했습니다'
+          description: 'timeout rate={{ $value | humanizePercentage }} (>20%, 15분 평균)'
+          runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/dispatch-timeout-rate.md'
+
+      # Rule #5 — 결제 실패율 (CRITICAL, 5분 평균)
+      - alert: PaymentHighFailureRate
+        expr: |
+          sum(rate(carry_payment_failure_total[5m]))
+          / clamp_min(
+              sum(rate(carry_payment_success_total[5m]))
+              + sum(rate(carry_payment_failure_total[5m])),
+              0.001) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          route: oncall
+          team: carry
+          service: carry-platform
+        annotations:
+          summary: '결제 실패율이 5%를 초과했습니다 (CRITICAL)'
+          description: 'failure rate={{ $value | humanizePercentage }} (>5%, 5분 평균)'
+          runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/payment-failure-rate.md'
+
+      # Rule #6 — Kafka DLQ 비어있지 않음 (5분 증분, 1분 유지)
+      - alert: KafkaDlqNonEmpty
+        expr: sum by(topic) (increase(carry_kafka_dlq_total[5m])) > 0
+        for: 1m
+        labels:
+          severity: warning
+          route: slack
+          team: carry
+          service: carry-platform
+        annotations:
+          summary: 'Kafka DLQ에 메시지가 쌓였습니다 (topic={{ $labels.topic }})'
+          description: '5분 증분={{ $value }}건'
+          runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/kafka-dlq-nonempty.md'
+
+      # Rule #7 — HikariCP 커넥션 풀 사용률 (10분 지속)
+      - alert: HikariPoolSaturation
+        expr: |
+          hikaricp_connections_active{pool="CarryHikariPool"}
+          / hikaricp_connections_max{pool="CarryHikariPool"} > 0.8
+        for: 10m
+        labels:
+          severity: warning
+          route: slack
+          team: carry
+          service: carry-platform
+        annotations:
+          summary: 'HikariCP 커넥션 풀 사용률이 80%를 초과했습니다'
+          description: 'active/max={{ $value | humanizePercentage }} (>80%, 10분 지속)'
+          runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/hikari-pool-saturation.md'
+
+      # Rule #8 — 주문 생성 DoD 감소 (전일 동시간 대비 50% 이하, 30분 지속)
+      # offset 1d로 24시간 전과 비교. 어제 rate가 너무 낮으면 false positive 방지를 위해
+      # `and ... > 0.01` 가드 추가.
+      - alert: OrderVolumeDropDoD
+        expr: |
+          (
+            sum(rate(carry_order_created_total[1h]))
+            / clamp_min(sum(rate(carry_order_created_total[1h] offset 1d)), 0.001)
+          ) < 0.5
+          and sum(rate(carry_order_created_total[1h] offset 1d)) > 0.01
+        for: 30m
+        labels:
+          severity: warning
+          route: business
+          team: carry
+          service: carry-platform
+        annotations:
+          summary: '주문 생성률이 전일 대비 50% 이하로 떨어졌습니다'
+          description: 'today/yesterday={{ $value | humanizePercentage }} (<50%, 1h 비교)'
+          runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/order-volume-drop.md'

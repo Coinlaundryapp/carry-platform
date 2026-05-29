@@ -1,0 +1,73 @@
+name: validate-alerts
+
+on:
+  push:
+    paths:
+      - 'infra/prometheus/**'
+      - 'infra/alertmanager/**'
+      - '.github/workflows/validate-alerts.yml'
+  pull_request:
+    paths:
+      - 'infra/prometheus/**'
+      - 'infra/alertmanager/**'
+      - '.github/workflows/validate-alerts.yml'
+
+jobs:
+  promtool-check-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: promtool check rules
+        # --entrypoint promtool: prom/prometheus 이미지의 default ENTRYPOINT는
+        # prometheus 바이너리이므로 promtool을 직접 호출하려면 명시 오버라이드 필요.
+        run: |
+          docker run --rm --entrypoint promtool \
+            -v "$PWD/infra/prometheus":/p \
+            prom/prometheus:v3.0.1 \
+            check rules /p/rules/carry-baseline.rules.yml
+
+  promtool-test-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: promtool test rules
+        run: |
+          docker run --rm --entrypoint promtool \
+            -v "$PWD/infra/prometheus":/p \
+            prom/prometheus:v3.0.1 \
+            test rules /p/rules/tests/carry-baseline.test.yml
+
+  amtool-check-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: amtool check-config
+        # --entrypoint amtool: prom/alertmanager 이미지의 default ENTRYPOINT는
+        # alertmanager 바이너리. amtool 직접 호출 시 오버라이드 필요.
+        run: |
+          docker run --rm --entrypoint amtool \
+            -v "$PWD/infra/alertmanager":/a \
+            prom/alertmanager:v0.27.0 \
+            check-config /a/alertmanager.yml
+
+  runbook-link-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 룰의 runbook_url이 가리키는 파일이 모두 존재하는지
+        run: |
+          set -e
+          missing=0
+          for url in $(grep -oE 'runbook_url: .*' infra/prometheus/rules/carry-baseline.rules.yml | awk '{print $2}' | tr -d "'"); do
+            # GitHub URL → repo 상대 경로 변환
+            path=$(echo "$url" | sed -E 's|.*/develop/||')
+            if [ ! -f "$path" ]; then
+              echo "MISSING: $path (from $url)"
+              missing=$((missing+1))
+            fi
+          done
+          if [ $missing -gt 0 ]; then
+            echo "Missing $missing runbook(s)"
+            exit 1
+          fi
+          echo "All runbook_url paths resolve."

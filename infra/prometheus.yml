@@ -32,3 +32,12 @@ scrape_configs:
   # - job_name: otel-collector
   #   static_configs:
   #     - targets: ['otel-collector:8889']
+
+# Phase 3.4 — 알럿 룰 로드 + Alertmanager 타깃
+rule_files:
+  - "/etc/prometheus/rules/*.rules.yml"   # *.rules.yml만 — 테스트 픽스처(*.test.yml) 제외
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
