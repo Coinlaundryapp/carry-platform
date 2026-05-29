@@ -3,4 +3,17 @@
 groups:
   - name: carry-baseline
     interval: 30s
-    rules: []
+    rules:
+      # Rule #1 — API p99 응답시간 SLO (5분 평균)
+      - alert: ApiHighLatencyP99
+        expr: histogram_quantile(0.99, sum by(le) (rate(http_server_requests_seconds_bucket[5m]))) > 3
+        for: 5m
+        labels:
+          severity: warning
+          route: slack
+          team: carry
+          service: carry-platform
+        annotations:
+          summary: 'API p99 응답 시간이 3초를 초과했습니다'
+          description: 'p99={{ $value }}s (>3s, 5분 평균)'
+          runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/api-p99-latency.md'

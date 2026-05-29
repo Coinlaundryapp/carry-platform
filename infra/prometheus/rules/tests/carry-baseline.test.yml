@@ -2,4 +2,40 @@
 rule_files:
   - ../carry-baseline.rules.yml
 evaluation_interval: 30s
-tests: []
+tests:
+  - interval: 30s
+    name: ApiHighLatencyP99 음성 (p99 ~2s)
+    input_series:
+      # 카운터 형태: le="2"와 le="+Inf"가 동일 속도로 증가 → p99 ~2s
+      - series: http_server_requests_seconds_bucket{le="2",uri="/orders"}
+        values: '0+99x20'
+      - series: http_server_requests_seconds_bucket{le="+Inf",uri="/orders"}
+        values: '0+100x20'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: ApiHighLatencyP99
+        # 음성 — exp_alerts 생략 = no fire
+  - interval: 30s
+    name: ApiHighLatencyP99 firing (p99 ~4s)
+    input_series:
+      # 카운터 형태: le="2" 50% 비율, le="4" 99% 비율, le="+Inf" 100% 비율로 증가
+      # → quantile 0.99는 le="4" 버킷 근처 → p99 ~4s
+      - series: http_server_requests_seconds_bucket{le="2",uri="/orders"}
+        values: '0+50x20'
+      - series: http_server_requests_seconds_bucket{le="4",uri="/orders"}
+        values: '0+99x20'
+      - series: http_server_requests_seconds_bucket{le="+Inf",uri="/orders"}
+        values: '0+100x20'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: ApiHighLatencyP99
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              route: slack
+              team: carry
+              service: carry-platform
+            exp_annotations:
+              summary: 'API p99 응답 시간이 3초를 초과했습니다'
+              description: 'p99=4s (>3s, 5분 평균)'
+              runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/api-p99-latency.md'
