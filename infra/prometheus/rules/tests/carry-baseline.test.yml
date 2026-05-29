@@ -39,3 +39,34 @@ tests:
               summary: 'API p99 응답 시간이 3초를 초과했습니다'
               description: 'p99=4s (>3s, 5분 평균)'
               runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/api-p99-latency.md'
+  - interval: 30s
+    name: ApiHighErrorRate 음성
+    input_series:
+      - series: http_server_requests_seconds_count{status="200"}
+        values: '0+10x20'
+      - series: http_server_requests_seconds_count{status="500"}
+        values: '0+0x20'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: ApiHighErrorRate
+  - interval: 30s
+    name: ApiHighErrorRate firing
+    input_series:
+      # 5xx 10% (200 OK 90개, 500 10개 / 분)
+      - series: http_server_requests_seconds_count{status="200"}
+        values: '0+90x20'
+      - series: http_server_requests_seconds_count{status="500"}
+        values: '0+10x20'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: ApiHighErrorRate
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              route: slack
+              team: carry
+              service: carry-platform
+            exp_annotations:
+              summary: '5xx 에러율이 5%를 초과했습니다'
+              description: '5xx rate=10% (>5%, 5분 평균)'
+              runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/api-error-rate.md'
