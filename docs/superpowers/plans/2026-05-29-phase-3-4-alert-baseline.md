@@ -938,7 +938,7 @@ feat(observability): Phase 3.4 — Grafana에 Active firing alerts 패널 추가
 
 ### Task 2.4: Chunk 2 통합 스모크 (수동)
 
-- [ ] **Step 1: 전체 스택 부팅**
+- [x] **Step 1: 전체 스택 부팅**
 
 ```powershell
 docker compose up -d prometheus alertmanager alert-webhook-logger grafana
@@ -947,7 +947,7 @@ docker compose ps
 ```
 Expected: `prometheus`, `alertmanager`, `alert-webhook-logger`, `grafana` 4개 모두 `Up`/healthy
 
-- [ ] **Step 2: Prometheus 룰 로드 확인**
+- [x] **Step 2: Prometheus 룰 로드 확인**
 
 브라우저 `http://localhost:9090/rules` → 그룹 `carry-baseline`에 8개 룰 표시 확인 (스크린샷 PR description용으로 보관)
 또는 API:
@@ -956,11 +956,11 @@ Expected: `prometheus`, `alertmanager`, `alert-webhook-logger`, `grafana` 4개 �
 ```
 Expected: `8`
 
-- [ ] **Step 3: Alertmanager 라우팅 트리 확인**
+- [x] **Step 3: Alertmanager 라우팅 트리 확인**
 
 브라우저 `http://localhost:9093/#/status` → Cluster: ready, Config: 표시되는 alertmanager.yml과 일치. `http://localhost:9093/#/alerts` → 현재 firing 없음.
 
-- [ ] **Step 4: 임의 알럿 firing 트리거 (수동 검증)**
+- [x] **Step 4: 임의 알럿 firing 트리거 (수동 검증)**
 
 ```powershell
 $alert = @'
@@ -987,7 +987,7 @@ docker logs --tail 50 carry-alert-webhook-logger
 ```
 Expected: webhook-logger 로그에 POST body 출력(label/annotation 포함).
 
-- [ ] **Step 5: 정리**
+- [x] **Step 5: 정리**
 
 ```powershell
 docker compose down -v   # PR 실험 데이터 정리 (선택)
@@ -995,7 +995,7 @@ docker compose down -v   # PR 실험 데이터 정리 (선택)
 
 이 단계의 결과(스크린샷·로그 발췌)는 PR description "수동 스모크" 섹션에 첨부.
 
-- [ ] **Step 6: 청크 종료 (commit 추가 없음 — 검증 단계)**
+- [x] **Step 6: 청크 종료 (commit 추가 없음 — 검증 단계)**
 
 ---
 
