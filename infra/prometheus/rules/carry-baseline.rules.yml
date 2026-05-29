@@ -1,0 +1,6 @@
+# Phase 3.4 — 알럿 기준선
+# 룰별 PromQL/threshold/route 근거는 docs/superpowers/specs/2026-05-29-phase-3-4-alert-baseline-design.md 섹션 4.
+groups:
+  - name: carry-baseline
+    interval: 30s
+    rules: []

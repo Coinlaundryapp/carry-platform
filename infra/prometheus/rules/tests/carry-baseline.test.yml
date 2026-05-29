@@ -1,0 +1,5 @@
+# promtool test rules — Phase 3.4 알럿 기준선
+rule_files:
+  - ../carry-baseline.rules.yml
+evaluation_interval: 30s
+tests: []
