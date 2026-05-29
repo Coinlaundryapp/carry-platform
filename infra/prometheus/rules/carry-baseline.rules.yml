@@ -73,3 +73,22 @@ groups:
           summary: '배차 타임아웃율이 20%를 초과했습니다'
           description: 'timeout rate={{ $value | humanizePercentage }} (>20%, 15분 평균)'
           runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/dispatch-timeout-rate.md'
+
+      # Rule #5 — 결제 실패율 (CRITICAL, 5분 평균)
+      - alert: PaymentHighFailureRate
+        expr: |
+          sum(rate(carry_payment_failure_total[5m]))
+          / clamp_min(
+              sum(rate(carry_payment_success_total[5m]))
+              + sum(rate(carry_payment_failure_total[5m])),
+              0.001) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          route: oncall
+          team: carry
+          service: carry-platform
+        annotations:
+          summary: '결제 실패율이 5%를 초과했습니다 (CRITICAL)'
+          description: 'failure rate={{ $value | humanizePercentage }} (>5%, 5분 평균)'
+          runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/payment-failure-rate.md'
