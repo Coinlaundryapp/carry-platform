@@ -33,3 +33,17 @@ groups:
           summary: '5xx 에러율이 5%를 초과했습니다'
           description: '5xx rate={{ $value | humanizePercentage }} (>5%, 5분 평균)'
           runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/api-error-rate.md'
+
+      # Rule #3 — Kafka consumer lag (토픽별, 10분 지속)
+      - alert: KafkaConsumerLag
+        expr: sum by(topic) (kafka_consumer_fetch_manager_records_lag) > 1000
+        for: 10m
+        labels:
+          severity: warning
+          route: slack
+          team: carry
+          service: carry-platform
+        annotations:
+          summary: 'Kafka consumer lag이 1000을 초과했습니다 (topic={{ $labels.topic }})'
+          description: 'lag={{ $value }} (>1000, 10분 지속)'
+          runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/kafka-consumer-lag.md'

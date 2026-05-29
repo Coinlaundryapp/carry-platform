@@ -70,3 +70,30 @@ tests:
               summary: '5xx 에러율이 5%를 초과했습니다'
               description: '5xx rate=10% (>5%, 5분 평균)'
               runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/api-error-rate.md'
+  - interval: 30s
+    name: KafkaConsumerLag 음성
+    input_series:
+      - series: kafka_consumer_fetch_manager_records_lag{topic="order-created"}
+        values: '500x25'
+    alert_rule_test:
+      - eval_time: 11m
+        alertname: KafkaConsumerLag
+  - interval: 30s
+    name: KafkaConsumerLag firing
+    input_series:
+      - series: kafka_consumer_fetch_manager_records_lag{topic="order-created"}
+        values: '2000x25'
+    alert_rule_test:
+      - eval_time: 11m
+        alertname: KafkaConsumerLag
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              route: slack
+              team: carry
+              service: carry-platform
+              topic: 'order-created'
+            exp_annotations:
+              summary: 'Kafka consumer lag이 1000을 초과했습니다 (topic=order-created)'
+              description: 'lag=2000 (>1000, 10분 지속)'
+              runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/kafka-consumer-lag.md'
