@@ -51,7 +51,11 @@
 - 형식 `'A+Bxc'` = 시작 A, 매 step +B, **c+1개** 샘플 생성
 - **카운터 메트릭** (`*_total`, `http_server_requests_seconds_*`, `carry_kafka_dlq_total`)은 `rate()`/`increase()`로 평가되므로 **반드시 증가 형태**여야 함. 평탄한 시리즈(`'5x20'`)는 rate=0이 되어 양성 케이스가 firing하지 못한다.
 - **게이지 메트릭** (`hikaricp_connections_*`, `kafka_consumer_fetch_manager_records_lag`)은 직접 비교되므로 평탄한 시리즈 OK
-- **`exp_annotations` 사용 금지**: `humanizePercentage` 등 템플릿을 rule annotations에 두면 promtool은 rendered string과 비교한다. 정확한 rendered 값을 예측하기 어렵고 부서지기 쉬우므로 본 청크의 테스트는 `exp_labels`만 검증한다 (annotations 검증은 amtool 라우팅 + 수동 스모크에서 사람이 확인)
+- **`exp_annotations` 처리** (Chunk 1 실행 중 발견 — 플랜 사후 수정): promtool v3.0.1은 `exp_alerts`를 명시한 양성 케이스에서 annotations 비교를 **강제**한다(생략 옵션 없음). 따라서 양성 테스트마다 **rendered 값을 정확히 기록**해야 한다 — `humanizePercentage`는 `'10%'` 형태, KafkaDlqNonEmpty의 `5분 증분={{ $value }}건`은 `'5분 증분=2.2222222222222223건'`처럼 부동소수점 그대로. 룰 annotation 표현식을 바꾸면 테스트 expectation도 재기록해야 함(브리틀 ↑). 음성 케이스는 `exp_alerts`를 생략하므로 영향 없음.
+
+- **docker 실행 시 `--entrypoint` 오버라이드 필수** (Chunk 1 실행 중 발견): `prom/prometheus:v3.0.1`과 `prom/alertmanager:v0.27.0` 이미지의 `ENTRYPOINT`는 서비스 바이너리(`prometheus`/`alertmanager`)다. promtool/amtool을 호출하려면 반드시 `--entrypoint promtool` / `--entrypoint amtool` 옵션을 줘야 한다.
+  - 예: `docker run --rm --entrypoint promtool -v ${PWD}/infra/prometheus:/p prom/prometheus:v3.0.1 check rules /p/rules/carry-baseline.rules.yml`
+  - Chunk 1 안의 docker 명령 예시는 사후 안내가 부족하지만, Chunk 2·3에서 이 패턴을 따른다.
 
 ### Task 1.1: 디렉토리 골격 + 빈 룰 파일
 
@@ -1025,10 +1029,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: promtool check rules
+        # --entrypoint promtool: prom/prometheus 이미지의 default ENTRYPOINT는
+        # prometheus 바이너리이므로 promtool을 직접 호출하려면 명시 오버라이드 필요.
         run: |
-          docker run --rm -v "$PWD/infra/prometheus":/p \
+          docker run --rm --entrypoint promtool \
+            -v "$PWD/infra/prometheus":/p \
             prom/prometheus:v3.0.1 \
-            promtool check rules /p/rules/carry-baseline.rules.yml
+            check rules /p/rules/carry-baseline.rules.yml
 
   promtool-test-rules:
     runs-on: ubuntu-latest
@@ -1036,19 +1043,23 @@ jobs:
       - uses: actions/checkout@v4
       - name: promtool test rules
         run: |
-          docker run --rm -v "$PWD/infra/prometheus":/p \
+          docker run --rm --entrypoint promtool \
+            -v "$PWD/infra/prometheus":/p \
             prom/prometheus:v3.0.1 \
-            promtool test rules /p/rules/tests/carry-baseline.test.yml
+            test rules /p/rules/tests/carry-baseline.test.yml
 
   amtool-check-config:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: amtool check-config
+        # --entrypoint amtool: prom/alertmanager 이미지의 default ENTRYPOINT는
+        # alertmanager 바이너리. amtool 직접 호출 시 오버라이드 필요.
         run: |
-          docker run --rm -v "$PWD/infra/alertmanager":/a \
+          docker run --rm --entrypoint amtool \
+            -v "$PWD/infra/alertmanager":/a \
             prom/alertmanager:v0.27.0 \
-            amtool check-config /a/alertmanager.yml
+            check-config /a/alertmanager.yml
 
   runbook-link-check:
     runs-on: ubuntu-latest
