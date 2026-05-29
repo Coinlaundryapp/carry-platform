@@ -71,13 +71,15 @@ infra/
 ├── prometheus.yml                          # 수정: rule_files + alerting 추가
 ├── prometheus/
 │   └── rules/
-│       ├── carry-baseline.rules.yml        # 신규
+│       ├── carry-baseline.rules.yml        # 신규 — `.rules.yml` 접미사로 글롭 매칭
 │       └── tests/
-│           └── carry-baseline.test.yml     # 신규 (promtool test rules 형식)
+│           └── carry-baseline.test.yml     # 신규 — `.test.yml` 접미사로 글롭 제외
 ├── alertmanager/
 │   └── alertmanager.yml                    # 신규
 └── grafana/dashboards/
     └── carry-business.json                 # 수정: Alertmanager 상태 패널 1개 추가
+                                            #   expr: `count(ALERTS{alertstate="firing"})`,
+                                            #   타입: stat, 임계값 0/1/5 (green/yellow/red)
 
 docker-compose.yml                          # 수정: alertmanager + alert-webhook-logger 서비스 2개 추가
 
@@ -185,14 +187,12 @@ alert-webhook-logger:
   # 호스트에서 curl http://localhost:9095/ 로 직접 검증 가능
 ```
 
-기존 `prometheus` 서비스의 `command:`에 다음 추가:
-```yaml
-  - "--web.enable-lifecycle"           # 이미 있음
-```
-그리고 `prometheus.yml`에 추가:
+기존 `prometheus` 서비스의 `command:`는 변경 없음 (`--web.enable-lifecycle` 이미 포함).
+
+`prometheus.yml`에 추가:
 ```yaml
 rule_files:
-  - "/etc/prometheus/rules/*.yml"
+  - "/etc/prometheus/rules/*.rules.yml"   # *.rules.yml만 매칭 — 테스트 픽스처(*.test.yml) 제외
 alerting:
   alertmanagers:
     - static_configs:
@@ -203,9 +203,11 @@ alerting:
 prometheus:
   volumes:
     - ./infra/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-    - ./infra/prometheus/rules:/etc/prometheus/rules:ro    # 신규
+    - ./infra/prometheus/rules:/etc/prometheus/rules:ro    # 신규 — 디렉토리 전체 마운트
     - carry-prometheus-data:/prometheus
 ```
+
+⚠ **글롭 주의**: `rules/` 디렉토리 전체를 마운트하므로 `tests/carry-baseline.test.yml`도 컨테이너에서 보인다. `rule_files`를 `*.yml` 와일드카드로 두면 Prometheus가 부팅 중 테스트 파일을 룰로 파싱 시도하다 실패한다. 반드시 `*.rules.yml`로 좁힐 것 — 룰 파일명을 `carry-baseline.rules.yml`로, 테스트 파일명을 `carry-baseline.test.yml`로 분리해 글롭이 한쪽만 매칭하도록 강제.
 
 새 named volume: `carry-alertmanager-data`.
 
@@ -221,7 +223,7 @@ GitHub Actions 워크플로 `.github/workflows/validate-alerts.yml`:
 name: validate-alerts
 on:
   push: { paths: ['infra/prometheus/**', 'infra/alertmanager/**', '.github/workflows/validate-alerts.yml'] }
-  pull_request: { paths: ['infra/prometheus/**', 'infra/alertmanager/**'] }
+  pull_request: { paths: ['infra/prometheus/**', 'infra/alertmanager/**', '.github/workflows/validate-alerts.yml'] }
 jobs:
   promtool-check:
     runs-on: ubuntu-latest
