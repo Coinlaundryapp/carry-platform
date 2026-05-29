@@ -47,3 +47,29 @@ groups:
           summary: 'Kafka consumer lag이 1000을 초과했습니다 (topic={{ $labels.topic }})'
           description: 'lag={{ $value }} (>1000, 10분 지속)'
           runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/kafka-consumer-lag.md'
+
+      # Rule #4 — 배차 타임아웃율 (15분 평균, absent 가드)
+      # ⚠ carry_dispatch_timeout_total 메트릭은 아직 미구현(known debt #1).
+      # `and sum(rate(...timeout...) > 0` 가드로 메트릭 absent 시 firing 차단.
+      # 메트릭 도입 시 룰이 자동 활성화된다.
+      - alert: DispatchTimeoutRate
+        expr: |
+          (
+            sum(rate(carry_dispatch_timeout_total[15m]))
+            / clamp_min(
+                sum(rate(carry_dispatch_accepted_total[15m]))
+                + sum(rate(carry_dispatch_rejected_total[15m]))
+                + sum(rate(carry_dispatch_timeout_total[15m])),
+                0.001)
+          ) > 0.2
+          and sum(rate(carry_dispatch_timeout_total[15m])) > 0
+        for: 15m
+        labels:
+          severity: warning
+          route: business
+          team: carry
+          service: carry-platform
+        annotations:
+          summary: '배차 타임아웃율이 20%를 초과했습니다'
+          description: 'timeout rate={{ $value | humanizePercentage }} (>20%, 15분 평균)'
+          runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/dispatch-timeout-rate.md'

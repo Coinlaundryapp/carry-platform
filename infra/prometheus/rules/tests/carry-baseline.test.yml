@@ -97,3 +97,36 @@ tests:
               summary: 'Kafka consumer lag이 1000을 초과했습니다 (topic=order-created)'
               description: 'lag=2000 (>1000, 10분 지속)'
               runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/kafka-consumer-lag.md'
+  - interval: 30s
+    name: DispatchTimeoutRate 음성 (timeout 메트릭 absent)
+    input_series:
+      - series: carry_dispatch_accepted_total{via="claim"}
+        values: '0+10x40'
+      - series: carry_dispatch_rejected_total
+        values: '0+1x40'
+      # carry_dispatch_timeout_total 일부러 정의 안 함
+    alert_rule_test:
+      - eval_time: 16m
+        alertname: DispatchTimeoutRate
+  - interval: 30s
+    name: DispatchTimeoutRate firing
+    input_series:
+      - series: carry_dispatch_accepted_total{via="claim"}
+        values: '0+7x40'
+      - series: carry_dispatch_rejected_total
+        values: '0+0x40'
+      - series: carry_dispatch_timeout_total
+        values: '0+3x40'
+    alert_rule_test:
+      - eval_time: 16m
+        alertname: DispatchTimeoutRate
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              route: business
+              team: carry
+              service: carry-platform
+            exp_annotations:
+              summary: '배차 타임아웃율이 20%를 초과했습니다'
+              description: 'timeout rate=30% (>20%, 15분 평균)'
+              runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/dispatch-timeout-rate.md'
