@@ -92,3 +92,17 @@ groups:
           summary: '결제 실패율이 5%를 초과했습니다 (CRITICAL)'
           description: 'failure rate={{ $value | humanizePercentage }} (>5%, 5분 평균)'
           runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/payment-failure-rate.md'
+
+      # Rule #6 — Kafka DLQ 비어있지 않음 (5분 증분, 1분 유지)
+      - alert: KafkaDlqNonEmpty
+        expr: sum by(topic) (increase(carry_kafka_dlq_total[5m])) > 0
+        for: 1m
+        labels:
+          severity: warning
+          route: slack
+          team: carry
+          service: carry-platform
+        annotations:
+          summary: 'Kafka DLQ에 메시지가 쌓였습니다 (topic={{ $labels.topic }})'
+          description: '5분 증분={{ $value }}건'
+          runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/kafka-dlq-nonempty.md'

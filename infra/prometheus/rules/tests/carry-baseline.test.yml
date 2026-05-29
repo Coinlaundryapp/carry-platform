@@ -160,3 +160,33 @@ tests:
               summary: '결제 실패율이 5%를 초과했습니다 (CRITICAL)'
               description: 'failure rate=10% (>5%, 5분 평균)'
               runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/payment-failure-rate.md'
+  - interval: 30s
+    name: KafkaDlqNonEmpty 음성 (DLQ 변화 없음)
+    input_series:
+      # 30s × 14 = 7분 동안 카운터 5로 평탄 → increase=0 → no fire
+      - series: carry_kafka_dlq_total{topic="order-created.DLQ",exception="RuntimeException"}
+        values: '5+0x13'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: KafkaDlqNonEmpty
+  - interval: 30s
+    name: KafkaDlqNonEmpty firing (5분 내 카운터 증가)
+    input_series:
+      # 30s 간격으로 0..5에서 1씩 늘다가 5에서 평탄. eval_time=6m 직전 5분 동안 increase>0.
+      - series: carry_kafka_dlq_total{topic="order-created.DLQ",exception="RuntimeException"}
+        values: '0 1 2 3 4 5 5 5 5 5 5 5 5 5'
+    alert_rule_test:
+      # for: 1m + 5분 증분 lookback이라 eval_time을 충분히 뒤로 둔다 (6분).
+      - eval_time: 6m
+        alertname: KafkaDlqNonEmpty
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              route: slack
+              team: carry
+              service: carry-platform
+              topic: 'order-created.DLQ'
+            exp_annotations:
+              summary: 'Kafka DLQ에 메시지가 쌓였습니다 (topic=order-created.DLQ)'
+              description: '5분 증분=2.2222222222222223건'
+              runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/kafka-dlq-nonempty.md'
