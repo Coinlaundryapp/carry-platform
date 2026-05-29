@@ -859,14 +859,14 @@ feat(observability): Phase 3.4 — docker-compose에 Alertmanager + webhook-logg
 
 JSON 직접 문자열 편집은 부서지기 쉬우므로 **Edit 도구의 정확한 anchor + 신규 패널 삽입** 방식을 쓴다. 기존 마지막 패널(id 14 "배달 소요 시간 p50 / p95")의 닫는 `}` + 다음 라인의 `]` 사이에 신규 패널을 추가한다.
 
-- [ ] **Step 1: 기존 마지막 패널의 정확한 anchor 확인**
+- [x] **Step 1: 기존 마지막 패널의 정확한 anchor 확인**
 
 ```powershell
 Get-Content infra/grafana/dashboards/carry-business.json | Select-String -Pattern '"id": 14' -Context 0,30
 ```
 Expected: id 14 패널의 시작부터 닫는 `}` 까지의 30 라인 출력. 이 출력에서 마지막 줄(닫는 `}`)과 그 다음 `]`을 anchor로 식별.
 
-- [ ] **Step 2: Edit 도구로 마지막 패널 닫는 `}` 직후 신규 패널 삽입**
+- [x] **Step 2: Edit 도구로 마지막 패널 닫는 `}` 직후 신규 패널 삽입**
 
 기존 (id 14 패널의 닫는 부분):
 ```json
@@ -912,7 +912,7 @@ Expected: id 14 패널의 시작부터 닫는 `}` 까지의 30 라인 출력. �
 
 ⚠ Edit 호출 시 정확한 컨텍스트(들여쓰기·트레일링 콤마 포함) 확인 후 진행. JSON 마지막 객체 뒤에는 콤마 없음 규칙.
 
-- [ ] **Step 2: JSON 유효성 검증**
+- [x] **Step 2: JSON 유효성 검증**
 
 ```powershell
 Get-Content infra/grafana/dashboards/carry-business.json | ConvertFrom-Json | Out-Null
@@ -920,7 +920,7 @@ if ($?) { Write-Host "Valid JSON" }
 ```
 Expected: `Valid JSON`
 
-- [ ] **Step 3: 신규 패널의 id가 unique한지 확인**
+- [x] **Step 3: 신규 패널의 id가 unique한지 확인**
 
 ```powershell
 $json = Get-Content infra/grafana/dashboards/carry-business.json -Raw | ConvertFrom-Json
