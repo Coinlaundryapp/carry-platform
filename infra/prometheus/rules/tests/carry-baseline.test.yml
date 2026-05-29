@@ -190,3 +190,34 @@ tests:
               summary: 'Kafka DLQ에 메시지가 쌓였습니다 (topic=order-created.DLQ)'
               description: '5분 증분=2.2222222222222223건'
               runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/kafka-dlq-nonempty.md'
+  - interval: 30s
+    name: HikariPoolSaturation 음성
+    input_series:
+      - series: hikaricp_connections_active{pool="CarryHikariPool"}
+        values: '10x25'
+      - series: hikaricp_connections_max{pool="CarryHikariPool"}
+        values: '20x25'
+    alert_rule_test:
+      - eval_time: 11m
+        alertname: HikariPoolSaturation
+  - interval: 30s
+    name: HikariPoolSaturation firing
+    input_series:
+      - series: hikaricp_connections_active{pool="CarryHikariPool"}
+        values: '18x25'
+      - series: hikaricp_connections_max{pool="CarryHikariPool"}
+        values: '20x25'
+    alert_rule_test:
+      - eval_time: 11m
+        alertname: HikariPoolSaturation
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              route: slack
+              team: carry
+              service: carry-platform
+              pool: 'CarryHikariPool'
+            exp_annotations:
+              summary: 'HikariCP 커넥션 풀 사용률이 80%를 초과했습니다'
+              description: 'active/max=90% (>80%, 10분 지속)'
+              runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/hikari-pool-saturation.md'

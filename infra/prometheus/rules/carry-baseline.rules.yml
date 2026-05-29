@@ -106,3 +106,19 @@ groups:
           summary: 'Kafka DLQ에 메시지가 쌓였습니다 (topic={{ $labels.topic }})'
           description: '5분 증분={{ $value }}건'
           runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/kafka-dlq-nonempty.md'
+
+      # Rule #7 — HikariCP 커넥션 풀 사용률 (10분 지속)
+      - alert: HikariPoolSaturation
+        expr: |
+          hikaricp_connections_active{pool="CarryHikariPool"}
+          / hikaricp_connections_max{pool="CarryHikariPool"} > 0.8
+        for: 10m
+        labels:
+          severity: warning
+          route: slack
+          team: carry
+          service: carry-platform
+        annotations:
+          summary: 'HikariCP 커넥션 풀 사용률이 80%를 초과했습니다'
+          description: 'active/max={{ $value | humanizePercentage }} (>80%, 10분 지속)'
+          runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/hikari-pool-saturation.md'
