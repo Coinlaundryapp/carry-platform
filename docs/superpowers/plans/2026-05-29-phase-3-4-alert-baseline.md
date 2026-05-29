@@ -754,7 +754,7 @@ Chunk 1 내부 commit이 충분히 잦아 추가 commit 불필요. 다음 청크
 **Files:**
 - Modify: `infra/prometheus.yml`
 
-- [ ] **Step 1: rule_files + alerting 섹션 추가**
+- [x] **Step 1: rule_files + alerting 섹션 추가**
 
 기존 파일 끝에 추가:
 ```yaml
@@ -769,7 +769,7 @@ alerting:
 
 ⚠ 글롭은 반드시 `*.rules.yml`. `*.yml`로 두면 `tests/carry-baseline.test.yml`까지 파싱하다 부팅 실패.
 
-- [ ] **Step 2: promtool check config 통과 확인 (전체 prometheus.yml)**
+- [x] **Step 2: promtool check config 통과 확인 (전체 prometheus.yml)**
 
 ```powershell
 docker run --rm -v ${PWD}/infra:/i prom/prometheus:v3.0.1 promtool check config /i/prometheus.yml
