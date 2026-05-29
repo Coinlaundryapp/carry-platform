@@ -122,3 +122,24 @@ groups:
           summary: 'HikariCP 커넥션 풀 사용률이 80%를 초과했습니다'
           description: 'active/max={{ $value | humanizePercentage }} (>80%, 10분 지속)'
           runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/hikari-pool-saturation.md'
+
+      # Rule #8 — 주문 생성 DoD 감소 (전일 동시간 대비 50% 이하, 30분 지속)
+      # offset 1d로 24시간 전과 비교. 어제 rate가 너무 낮으면 false positive 방지를 위해
+      # `and ... > 0.01` 가드 추가.
+      - alert: OrderVolumeDropDoD
+        expr: |
+          (
+            sum(rate(carry_order_created_total[1h]))
+            / clamp_min(sum(rate(carry_order_created_total[1h] offset 1d)), 0.001)
+          ) < 0.5
+          and sum(rate(carry_order_created_total[1h] offset 1d)) > 0.01
+        for: 30m
+        labels:
+          severity: warning
+          route: business
+          team: carry
+          service: carry-platform
+        annotations:
+          summary: '주문 생성률이 전일 대비 50% 이하로 떨어졌습니다'
+          description: 'today/yesterday={{ $value | humanizePercentage }} (<50%, 1h 비교)'
+          runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/order-volume-drop.md'
