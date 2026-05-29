@@ -787,7 +787,7 @@ feat(observability): Phase 3.4 — Prometheus rule_files + Alertmanager 타깃
 **Files:**
 - Modify: `docker-compose.yml`
 
-- [ ] **Step 1: alertmanager 서비스 + alert-webhook-logger 서비스 + 신규 볼륨 추가**
+- [x] **Step 1: alertmanager 서비스 + alert-webhook-logger 서비스 + 신규 볼륨 추가**
 
 `grafana:` 서비스 다음, `volumes:` 블록 이전에 삽입:
 ```yaml
@@ -839,7 +839,7 @@ prometheus 서비스 `volumes:`에 룰 디렉토리 마운트 추가:
       - carry-prometheus-data:/prometheus
 ```
 
-- [ ] **Step 2: docker-compose config 검증 (문법)**
+- [x] **Step 2: docker-compose config 검증 (문법)**
 
 ```powershell
 docker compose config --quiet
