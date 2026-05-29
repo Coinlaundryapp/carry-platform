@@ -60,7 +60,7 @@
 - Create: `infra/prometheus/rules/tests/carry-baseline.test.yml`
 - Create: `infra/alertmanager/alertmanager.yml`
 
-- [ ] **Step 1: 빈 룰 그룹 작성**
+- [x] **Step 1: 빈 룰 그룹 작성**
 
 `infra/prometheus/rules/carry-baseline.rules.yml`:
 ```yaml
@@ -72,7 +72,7 @@ groups:
     rules: []
 ```
 
-- [ ] **Step 2: 빈 테스트 파일 작성**
+- [x] **Step 2: 빈 테스트 파일 작성**
 
 `infra/prometheus/rules/tests/carry-baseline.test.yml`:
 ```yaml
@@ -83,7 +83,7 @@ evaluation_interval: 30s
 tests: []
 ```
 
-- [ ] **Step 3: Alertmanager 골격 작성**
+- [x] **Step 3: Alertmanager 골격 작성**
 
 `infra/alertmanager/alertmanager.yml`:
 ```yaml
@@ -143,7 +143,7 @@ receivers:
           {{ end }}
 ```
 
-- [ ] **Step 4: amtool check-config 통과 확인**
+- [x] **Step 4: amtool check-config 통과 확인**
 
 PowerShell:
 ```powershell
@@ -151,7 +151,7 @@ docker run --rm -v ${PWD}/infra/alertmanager:/a prom/alertmanager:v0.27.0 amtool
 ```
 Expected: `Checking '/a/alertmanager.yml'  SUCCESS`
 
-- [ ] **Step 5: promtool check rules 통과 확인 (빈 룰)**
+- [x] **Step 5: promtool check rules 통과 확인 (빈 룰)**
 
 PowerShell:
 ```powershell
@@ -159,7 +159,7 @@ docker run --rm -v ${PWD}/infra/prometheus:/p prom/prometheus:v3.0.1 promtool ch
 ```
 Expected: `SUCCESS: 0 rules found`
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```powershell
 git add infra/prometheus/rules/ infra/alertmanager/
@@ -182,7 +182,7 @@ TDD red→green으로 채운다.
 - Modify: `infra/prometheus/rules/tests/carry-baseline.test.yml`
 - Modify: `infra/prometheus/rules/carry-baseline.rules.yml`
 
-- [ ] **Step 1: 테스트 2 케이스 추가 (음성·양성)**
+- [x] **Step 1: 테스트 2 케이스 추가 (음성·양성)**
 
 `tests:` 블록에 추가:
 ```yaml
@@ -220,7 +220,7 @@ TDD red→green으로 채운다.
               service: carry-platform
 ```
 
-- [ ] **Step 2: promtool test rules 실행 — FAIL 확인**
+- [x] **Step 2: promtool test rules 실행 — FAIL 확인**
 
 PowerShell:
 ```powershell
@@ -228,7 +228,7 @@ docker run --rm -v ${PWD}/infra/prometheus:/p prom/prometheus:v3.0.1 promtool te
 ```
 Expected: `FAILED` (alertname ApiHighLatencyP99 not defined)
 
-- [ ] **Step 3: 룰 추가**
+- [x] **Step 3: 룰 추가**
 
 `carry-baseline.rules.yml`의 `rules:` 블록에 추가:
 ```yaml
@@ -246,11 +246,11 @@ Expected: `FAILED` (alertname ApiHighLatencyP99 not defined)
           runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/api-p99-latency.md'
 ```
 
-- [ ] **Step 4: promtool test rules 실행 — PASS 확인**
+- [x] **Step 4: promtool test rules 실행 — PASS 확인**
 
 Expected: `SUCCESS`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```
 feat(observability): Phase 3.4 — Rule #1 ApiHighLatencyP99
@@ -262,7 +262,7 @@ feat(observability): Phase 3.4 — Rule #1 ApiHighLatencyP99
 
 **Files:** 동일
 
-- [ ] **Step 1: 테스트 추가**
+- [x] **Step 1: 테스트 추가**
 
 ```yaml
   - interval: 30s
@@ -294,8 +294,8 @@ feat(observability): Phase 3.4 — Rule #1 ApiHighLatencyP99
               service: carry-platform
 ```
 
-- [ ] **Step 2: promtool test — FAIL 확인**
-- [ ] **Step 3: 룰 추가**
+- [x] **Step 2: promtool test — FAIL 확인**
+- [x] **Step 3: 룰 추가**
 
 ```yaml
       - alert: ApiHighErrorRate
@@ -314,8 +314,8 @@ feat(observability): Phase 3.4 — Rule #1 ApiHighLatencyP99
           runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/api-error-rate.md'
 ```
 
-- [ ] **Step 4: promtool test — PASS 확인**
-- [ ] **Step 5: Commit**
+- [x] **Step 4: promtool test — PASS 확인**
+- [x] **Step 5: Commit**
 
 ```
 feat(observability): Phase 3.4 — Rule #2 ApiHighErrorRate
@@ -325,7 +325,7 @@ feat(observability): Phase 3.4 — Rule #2 ApiHighErrorRate
 
 ### Task 1.4: Rule #3 `KafkaConsumerLag`
 
-- [ ] **Step 1: 테스트 추가 (lag 토픽 라벨 보존 확인 — by(topic))**
+- [x] **Step 1: 테스트 추가 (lag 토픽 라벨 보존 확인 — by(topic))**
 
 ```yaml
   - interval: 30s
@@ -353,8 +353,8 @@ feat(observability): Phase 3.4 — Rule #2 ApiHighErrorRate
               topic: 'order-created'
 ```
 
-- [ ] **Step 2: promtool test — FAIL**
-- [ ] **Step 3: 룰 추가**
+- [x] **Step 2: promtool test — FAIL**
+- [x] **Step 3: 룰 추가**
 
 ```yaml
       - alert: KafkaConsumerLag
@@ -371,8 +371,8 @@ feat(observability): Phase 3.4 — Rule #2 ApiHighErrorRate
           runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/kafka-consumer-lag.md'
 ```
 
-- [ ] **Step 4: promtool test — PASS**
-- [ ] **Step 5: Commit**: `feat(observability): Phase 3.4 — Rule #3 KafkaConsumerLag`
+- [x] **Step 4: promtool test — PASS**
+- [x] **Step 5: Commit**: `feat(observability): Phase 3.4 — Rule #3 KafkaConsumerLag`
 
 ---
 
@@ -380,7 +380,7 @@ feat(observability): Phase 3.4 — Rule #2 ApiHighErrorRate
 
 ⚠ 본 룰의 핵심은 `carry_dispatch_timeout_total` 메트릭이 **아직 코드에 없음**. 음성 케이스(absent → no fire)가 회귀 방어선이므로 먼저 작성.
 
-- [ ] **Step 1: 테스트 추가**
+- [x] **Step 1: 테스트 추가**
 
 ```yaml
   - interval: 30s
@@ -414,8 +414,8 @@ feat(observability): Phase 3.4 — Rule #2 ApiHighErrorRate
               service: carry-platform
 ```
 
-- [ ] **Step 2: promtool test — FAIL**
-- [ ] **Step 3: 룰 추가 (absent 가드 포함)**
+- [x] **Step 2: promtool test — FAIL**
+- [x] **Step 3: 룰 추가 (absent 가드 포함)**
 
 ```yaml
       - alert: DispatchTimeoutRate
@@ -444,14 +444,14 @@ feat(observability): Phase 3.4 — Rule #2 ApiHighErrorRate
           runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/dispatch-timeout-rate.md'
 ```
 
-- [ ] **Step 4: promtool test — PASS (음성·양성 둘 다)**
-- [ ] **Step 5: Commit**: `feat(observability): Phase 3.4 — Rule #4 DispatchTimeoutRate (absent 가드)`
+- [x] **Step 4: promtool test — PASS (음성·양성 둘 다)**
+- [x] **Step 5: Commit**: `feat(observability): Phase 3.4 — Rule #4 DispatchTimeoutRate (absent 가드)`
 
 ---
 
 ### Task 1.6: Rule #5 `PaymentHighFailureRate` (critical)
 
-- [ ] **Step 1: 테스트 추가**
+- [x] **Step 1: 테스트 추가**
 
 ```yaml
   - interval: 30s
@@ -482,8 +482,8 @@ feat(observability): Phase 3.4 — Rule #2 ApiHighErrorRate
               service: carry-platform
 ```
 
-- [ ] **Step 2: promtool test — FAIL**
-- [ ] **Step 3: 룰 추가**
+- [x] **Step 2: promtool test — FAIL**
+- [x] **Step 3: 룰 추가**
 
 ```yaml
       - alert: PaymentHighFailureRate
@@ -505,14 +505,14 @@ feat(observability): Phase 3.4 — Rule #2 ApiHighErrorRate
           runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/payment-failure-rate.md'
 ```
 
-- [ ] **Step 4: promtool test — PASS**
-- [ ] **Step 5: Commit**: `feat(observability): Phase 3.4 — Rule #5 PaymentHighFailureRate (critical)`
+- [x] **Step 4: promtool test — PASS**
+- [x] **Step 5: Commit**: `feat(observability): Phase 3.4 — Rule #5 PaymentHighFailureRate (critical)`
 
 ---
 
 ### Task 1.7: Rule #6 `KafkaDlqNonEmpty`
 
-- [ ] **Step 1: 테스트 추가**
+- [x] **Step 1: 테스트 추가**
 
 ```yaml
   - interval: 30s
@@ -544,8 +544,8 @@ feat(observability): Phase 3.4 — Rule #2 ApiHighErrorRate
               topic: 'order-created.DLQ'
 ```
 
-- [ ] **Step 2: promtool test — FAIL**
-- [ ] **Step 3: 룰 추가**
+- [x] **Step 2: promtool test — FAIL**
+- [x] **Step 3: 룰 추가**
 
 ```yaml
       - alert: KafkaDlqNonEmpty
@@ -562,14 +562,14 @@ feat(observability): Phase 3.4 — Rule #2 ApiHighErrorRate
           runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/kafka-dlq-nonempty.md'
 ```
 
-- [ ] **Step 4: promtool test — PASS**
-- [ ] **Step 5: Commit**: `feat(observability): Phase 3.4 — Rule #6 KafkaDlqNonEmpty`
+- [x] **Step 4: promtool test — PASS**
+- [x] **Step 5: Commit**: `feat(observability): Phase 3.4 — Rule #6 KafkaDlqNonEmpty`
 
 ---
 
 ### Task 1.8: Rule #7 `HikariPoolSaturation`
 
-- [ ] **Step 1: 테스트 추가**
+- [x] **Step 1: 테스트 추가**
 
 ```yaml
   - interval: 30s
@@ -601,8 +601,8 @@ feat(observability): Phase 3.4 — Rule #2 ApiHighErrorRate
               pool: 'CarryHikariPool'
 ```
 
-- [ ] **Step 2: promtool test — FAIL**
-- [ ] **Step 3: 룰 추가**
+- [x] **Step 2: promtool test — FAIL**
+- [x] **Step 3: 룰 추가**
 
 ```yaml
       - alert: HikariPoolSaturation
@@ -621,8 +621,8 @@ feat(observability): Phase 3.4 — Rule #2 ApiHighErrorRate
           runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/hikari-pool-saturation.md'
 ```
 
-- [ ] **Step 4: promtool test — PASS**
-- [ ] **Step 5: Commit**: `feat(observability): Phase 3.4 — Rule #7 HikariPoolSaturation`
+- [x] **Step 4: promtool test — PASS**
+- [x] **Step 5: Commit**: `feat(observability): Phase 3.4 — Rule #7 HikariPoolSaturation`
 
 ---
 
@@ -644,7 +644,7 @@ feat(observability): Phase 3.4 — Rule #2 ApiHighErrorRate
 
 **음성 케이스 (eval_time = 28h)**: 카운터를 평탄(`100+0x59`)으로 두면 모든 rate=0 → guard 실패 → no fire.
 
-- [ ] **Step 1: 테스트 추가 (음성 + 양성)**
+- [x] **Step 1: 테스트 추가 (음성 + 양성)**
 
 ```yaml
   - interval: 30m
@@ -686,8 +686,8 @@ feat(observability): Phase 3.4 — Rule #2 ApiHighErrorRate
 3. firing 조건이 한 evaluation cycle만 충족된다면 eval_time을 `28h30m` 또는 `29h`로 늘려 for: 30m 통과시킨다
 4. 그래도 실패하면 `for: 30m`을 임시로 `for: 0m`으로 낮춰 expr 자체가 양성·음성을 분리하는지 먼저 검증 후 원복
 
-- [ ] **Step 2: promtool test — FAIL**
-- [ ] **Step 3: 룰 추가**
+- [x] **Step 2: promtool test — FAIL**
+- [x] **Step 3: 룰 추가**
 
 ```yaml
       - alert: OrderVolumeDropDoD
@@ -709,14 +709,14 @@ feat(observability): Phase 3.4 — Rule #2 ApiHighErrorRate
           runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/order-volume-drop.md'
 ```
 
-- [ ] **Step 4: promtool test — PASS (값 조정 필요 시 input_series 미세조정)**
-- [ ] **Step 5: Commit**: `feat(observability): Phase 3.4 — Rule #8 OrderVolumeDropDoD (DoD 가드)`
+- [x] **Step 4: promtool test — PASS (값 조정 필요 시 input_series 미세조정)**
+- [x] **Step 5: Commit**: `feat(observability): Phase 3.4 — Rule #8 OrderVolumeDropDoD (DoD 가드)`
 
 ---
 
 ### Task 1.10: Chunk 1 전체 검증
 
-- [ ] **Step 1: 전체 룰/테스트 일괄 검증**
+- [x] **Step 1: 전체 룰/테스트 일괄 검증**
 
 ```powershell
 docker run --rm -v ${PWD}/infra/prometheus:/p prom/prometheus:v3.0.1 promtool check rules /p/rules/carry-baseline.rules.yml
@@ -729,7 +729,7 @@ Expected:
 - `Unit Testing: ... SUCCESS`
 - `Checking '/a/alertmanager.yml'  SUCCESS`
 
-- [ ] **Step 2: 룰 카탈로그 무결성 확인 — 모든 알럿이 runbook_url을 가지고 있는지**
+- [x] **Step 2: 룰 카탈로그 무결성 확인 — 모든 알럿이 runbook_url을 가지고 있는지**
 
 ```powershell
 docker run --rm -v ${PWD}/infra/prometheus:/p prom/prometheus:v3.0.1 promtool check rules /p/rules/carry-baseline.rules.yml
@@ -737,7 +737,7 @@ Select-String -Path infra/prometheus/rules/carry-baseline.rules.yml -Pattern 'ru
 ```
 Expected: 8
 
-- [ ] **Step 3: 청크 종료 commit (있으면)**
+- [x] **Step 3: 청크 종료 commit (있으면)**
 
 Chunk 1 내부 commit이 충분히 잦아 추가 commit 불필요. 다음 청크로.
 
