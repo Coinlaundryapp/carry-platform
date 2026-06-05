@@ -1,5 +1,6 @@
 package com.carry.serviceavailability.domain.model
 
+import com.carry.common.exception.BusinessException
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Nested
@@ -28,7 +29,7 @@ class OperatingScheduleTest {
         fun `시작 시간이 종료 시간보다 늦으면 예외가 발생한다`() {
             assertThatThrownBy {
                 OperatingSchedule.create(DayOfWeek.MONDAY, LocalTime.of(18, 0), LocalTime.of(9, 0))
-            }.isInstanceOf(IllegalArgumentException::class.java)
+            }.isInstanceOf(BusinessException::class.java)
         }
     }
 
@@ -55,7 +56,7 @@ class OperatingScheduleTest {
 
             assertThatThrownBy {
                 schedule.update(LocalTime.of(20, 0), LocalTime.of(10, 0))
-            }.isInstanceOf(IllegalArgumentException::class.java)
+            }.isInstanceOf(BusinessException::class.java)
         }
     }
 

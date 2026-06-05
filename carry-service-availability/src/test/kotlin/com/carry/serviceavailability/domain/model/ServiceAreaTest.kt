@@ -1,5 +1,6 @@
 package com.carry.serviceavailability.domain.model
 
+import com.carry.common.exception.BusinessException
 import com.carry.serviceavailability.domain.exception.AreaNotActiveException
 import com.carry.serviceavailability.domain.exception.HolidayException
 import com.carry.serviceavailability.domain.exception.OutsideOperatingHoursException
@@ -46,14 +47,14 @@ class ServiceAreaTest {
         @Test
         fun `지역 코드가 비어있으면 예외가 발생한다`() {
             assertThatThrownBy { ServiceArea.create("", "강남구") }
-                .isInstanceOf(IllegalArgumentException::class.java)
+                .isInstanceOf(BusinessException::class.java)
                 .hasMessageContaining("지역 코드")
         }
 
         @Test
         fun `지역명이 비어있으면 예외가 발생한다`() {
             assertThatThrownBy { ServiceArea.create("GANGNAM", "") }
-                .isInstanceOf(IllegalArgumentException::class.java)
+                .isInstanceOf(BusinessException::class.java)
                 .hasMessageContaining("지역명")
         }
     }
@@ -123,7 +124,7 @@ class ServiceAreaTest {
             val area = createArea()
             assertThatThrownBy {
                 area.setSchedule(DayOfWeek.MONDAY, LocalTime.of(18, 0), LocalTime.of(9, 0))
-            }.isInstanceOf(IllegalArgumentException::class.java)
+            }.isInstanceOf(BusinessException::class.java)
                 .hasMessageContaining("운영 시작 시간")
         }
     }

@@ -1,5 +1,6 @@
 package com.carry.laundromat.domain.model
 
+import com.carry.common.exception.requireInput
 import com.carry.laundromat.domain.vo.LaundromatAddress
 import com.carry.laundromat.domain.vo.LaundromatOption
 import com.carry.laundromat.domain.vo.Location
@@ -23,7 +24,7 @@ class Laundromat private constructor(
     val mediaResources: List<MediaResource> get() = _mediaResources.toList()
 
     fun updateInfo(name: String, address: LaundromatAddress, location: Location) {
-        require(name.isNotBlank()) { "세탁소 이름은 비어있을 수 없습니다" }
+        requireInput(name.isNotBlank()) { "세탁소 이름은 비어있을 수 없습니다" }
         _name = name
         _address = address
         _location = location
@@ -59,7 +60,7 @@ class Laundromat private constructor(
             location: Location,
             options: Set<LaundromatOption> = emptySet(),
         ): Laundromat {
-            require(name.isNotBlank()) { "세탁소 이름은 비어있을 수 없습니다" }
+            requireInput(name.isNotBlank()) { "세탁소 이름은 비어있을 수 없습니다" }
             return Laundromat(
                 id = null,
                 _name = name,

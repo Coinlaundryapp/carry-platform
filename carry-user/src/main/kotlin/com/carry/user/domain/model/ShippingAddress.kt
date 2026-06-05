@@ -1,5 +1,7 @@
 package com.carry.user.domain.model
 
+import com.carry.common.exception.requireInput
+import com.carry.common.exception.checkState
 import com.carry.user.domain.vo.Address
 import com.carry.user.domain.vo.Coordinates
 import java.time.Instant
@@ -36,10 +38,10 @@ class ShippingAddress private constructor(
         entranceInfo: String?,
         areaCode: String,
     ) {
-        require(alias.isNotBlank()) { "배송지 별칭은 비어있을 수 없습니다" }
-        require(recipientName.isNotBlank()) { "수령인 이름은 비어있을 수 없습니다" }
-        require(recipientPhone.isNotBlank()) { "수령인 전화번호는 비어있을 수 없습니다" }
-        require(areaCode.isNotBlank()) { "지역 코드는 비어있을 수 없습니다" }
+        requireInput(alias.isNotBlank()) { "배송지 별칭은 비어있을 수 없습니다" }
+        requireInput(recipientName.isNotBlank()) { "수령인 이름은 비어있을 수 없습니다" }
+        requireInput(recipientPhone.isNotBlank()) { "수령인 전화번호는 비어있을 수 없습니다" }
+        requireInput(areaCode.isNotBlank()) { "지역 코드는 비어있을 수 없습니다" }
         _alias = alias
         _address = address
         _coordinates = coordinates
@@ -54,7 +56,7 @@ class ShippingAddress private constructor(
     }
 
     fun unmarkAsDefault() {
-        check(_default) { "기본 배송지가 아닌 배송지의 기본 설정을 해제할 수 없습니다" }
+        checkState(_default) { "기본 배송지가 아닌 배송지의 기본 설정을 해제할 수 없습니다" }
         _default = false
     }
 
@@ -72,10 +74,10 @@ class ShippingAddress private constructor(
             areaCode: String,
             isDefault: Boolean = false,
         ): ShippingAddress {
-            require(alias.isNotBlank()) { "배송지 별칭은 비어있을 수 없습니다" }
-            require(recipientName.isNotBlank()) { "수령인 이름은 비어있을 수 없습니다" }
-            require(recipientPhone.isNotBlank()) { "수령인 전화번호는 비어있을 수 없습니다" }
-            require(areaCode.isNotBlank()) { "지역 코드는 비어있을 수 없습니다" }
+            requireInput(alias.isNotBlank()) { "배송지 별칭은 비어있을 수 없습니다" }
+            requireInput(recipientName.isNotBlank()) { "수령인 이름은 비어있을 수 없습니다" }
+            requireInput(recipientPhone.isNotBlank()) { "수령인 전화번호는 비어있을 수 없습니다" }
+            requireInput(areaCode.isNotBlank()) { "지역 코드는 비어있을 수 없습니다" }
             return ShippingAddress(
                 id = null,
                 userId = userId,

@@ -1,5 +1,6 @@
 package com.carry.review.domain.model
 
+import com.carry.common.exception.requireInput
 import com.carry.review.domain.vo.ReviewRating
 import java.time.Instant
 
@@ -26,7 +27,7 @@ class Review private constructor(
             rating: ReviewRating,
             mediaUrls: List<String> = emptyList(),
         ): Review {
-            require(rating.value in 1..5) { "평점은 1~5 사이여야 합니다" }
+            requireInput(rating.value in 1..5) { "평점은 1~5 사이여야 합니다" }
 
             val now = Instant.now()
             return Review(

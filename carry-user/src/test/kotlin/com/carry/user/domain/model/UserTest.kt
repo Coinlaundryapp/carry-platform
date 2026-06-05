@@ -1,5 +1,6 @@
 package com.carry.user.domain.model
 
+import com.carry.common.exception.BusinessException
 import com.carry.user.domain.vo.Email
 import com.carry.user.domain.vo.OAuthInfo
 import com.carry.user.domain.vo.OAuthProvider
@@ -59,14 +60,14 @@ class UserTest {
         @Test
         fun `빈 이름으로 생성하면 실패한다`() {
             assertThatThrownBy { createUser(name = "") }
-                .isInstanceOf(IllegalArgumentException::class.java)
+                .isInstanceOf(BusinessException::class.java)
                 .hasMessageContaining("이름")
         }
 
         @Test
         fun `공백 이름으로 생성하면 실패한다`() {
             assertThatThrownBy { createUser(name = "   ") }
-                .isInstanceOf(IllegalArgumentException::class.java)
+                .isInstanceOf(BusinessException::class.java)
                 .hasMessageContaining("이름")
         }
 
@@ -119,7 +120,7 @@ class UserTest {
             val user = reconstitutedUser(isActive = false)
 
             assertThatThrownBy { user.updateProfile("김철수", Phone("01098765432")) }
-                .isInstanceOf(IllegalStateException::class.java)
+                .isInstanceOf(BusinessException::class.java)
                 .hasMessageContaining("비활성 계정")
         }
 
@@ -128,7 +129,7 @@ class UserTest {
             val user = reconstitutedUser()
 
             assertThatThrownBy { user.updateProfile("", Phone("01098765432")) }
-                .isInstanceOf(IllegalArgumentException::class.java)
+                .isInstanceOf(BusinessException::class.java)
                 .hasMessageContaining("이름")
         }
     }
@@ -150,7 +151,7 @@ class UserTest {
             val user = reconstitutedUser(isActive = false)
 
             assertThatThrownBy { user.deactivate() }
-                .isInstanceOf(IllegalStateException::class.java)
+                .isInstanceOf(BusinessException::class.java)
                 .hasMessageContaining("이미 비활성")
         }
     }

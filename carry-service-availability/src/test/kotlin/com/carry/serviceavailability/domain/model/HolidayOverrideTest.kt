@@ -1,5 +1,6 @@
 package com.carry.serviceavailability.domain.model
 
+import com.carry.common.exception.BusinessException
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
@@ -20,7 +21,7 @@ class HolidayOverrideTest {
     fun `사유가 비어있으면 예외가 발생한다`() {
         assertThatThrownBy {
             HolidayOverride.create(LocalDate.of(2026, 1, 1), "")
-        }.isInstanceOf(IllegalArgumentException::class.java)
+        }.isInstanceOf(BusinessException::class.java)
             .hasMessageContaining("휴무 사유")
     }
 
@@ -28,7 +29,7 @@ class HolidayOverrideTest {
     fun `사유가 공백만이면 예외가 발생한다`() {
         assertThatThrownBy {
             HolidayOverride.create(LocalDate.of(2026, 1, 1), "   ")
-        }.isInstanceOf(IllegalArgumentException::class.java)
+        }.isInstanceOf(BusinessException::class.java)
             .hasMessageContaining("휴무 사유")
     }
 }
