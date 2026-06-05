@@ -1,5 +1,6 @@
 package com.carry.payment.domain.model
 
+import com.carry.common.exception.BusinessException
 import com.carry.payment.domain.vo.PaymentStatus
 import com.carry.payment.domain.vo.PgProvider
 import org.assertj.core.api.Assertions.assertThat
@@ -44,7 +45,7 @@ class PaymentTest {
         fun `결제 금액이 0 이하이면 예외가 발생한다`() {
             assertThatThrownBy {
                 Payment.create(1L, 10L, 100L, PgProvider.TOSS_PAYMENTS, 0L)
-            }.isInstanceOf(IllegalArgumentException::class.java)
+            }.isInstanceOf(BusinessException::class.java)
                 .hasMessageContaining("결제 금액")
         }
     }
@@ -80,25 +81,25 @@ class PaymentTest {
         fun `FAILED 상태에서 다시 PENDING으로 전이할 수 없다 - markCompleted 불가`() {
             val payment = reconstitutedPayment(PaymentStatus.FAILED)
             assertThatThrownBy { payment.markCompleted("tx_retry") }
-                .isInstanceOf(IllegalStateException::class.java)
+                .isInstanceOf(BusinessException::class.java)
         }
 
         @Test
         fun `COMPLETED 상태에서 markCompleted 호출 시 예외가 발생한다`() {
             val payment = reconstitutedPayment(PaymentStatus.COMPLETED)
             assertThatThrownBy { payment.markCompleted("tx_dup") }
-                .isInstanceOf(IllegalStateException::class.java)
+                .isInstanceOf(BusinessException::class.java)
         }
 
         @Test
         fun `REFUNDED 상태에서 어떤 전이도 불가하다`() {
             val payment = reconstitutedPayment(PaymentStatus.REFUNDED)
             assertThatThrownBy { payment.markCompleted("tx_x") }
-                .isInstanceOf(IllegalStateException::class.java)
+                .isInstanceOf(BusinessException::class.java)
             assertThatThrownBy { payment.markFailed("reason") }
-                .isInstanceOf(IllegalStateException::class.java)
+                .isInstanceOf(BusinessException::class.java)
             assertThatThrownBy { payment.markRefunded() }
-                .isInstanceOf(IllegalStateException::class.java)
+                .isInstanceOf(BusinessException::class.java)
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.carry.dispatch.domain.model
 
+import com.carry.common.exception.requireInput
 import java.time.Instant
 
 class CarrierArea private constructor(
@@ -15,7 +16,7 @@ class CarrierArea private constructor(
 
     companion object {
         fun create(carrierId: Long, areaCode: String, areaName: String): CarrierArea {
-            require(areaCode.isNotBlank()) { "구역 코드는 필수입니다" }
+            requireInput(areaCode.isNotBlank()) { "구역 코드는 필수입니다" }
             val now = Instant.now()
             return CarrierArea(null, carrierId, areaCode, areaName, true, now, now)
         }
