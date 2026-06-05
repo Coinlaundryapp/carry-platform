@@ -1,5 +1,7 @@
 package com.carry.payment.domain.model
 
+import com.carry.common.exception.checkState
+import com.carry.common.exception.requireInput
 import com.carry.payment.domain.exception.PaymentAlreadyCompletedException
 import com.carry.payment.domain.vo.PaymentStatus
 import com.carry.payment.domain.vo.PgProvider
@@ -32,7 +34,7 @@ class Payment private constructor(
             pgProvider: PgProvider,
             amount: Long,
         ): Payment {
-            require(amount > 0) { "결제 금액은 0보다 커야 합니다: $amount" }
+            requireInput(amount > 0) { "결제 금액은 0보다 커야 합니다: $amount" }
 
             val now = Instant.now()
             return Payment(
@@ -86,7 +88,7 @@ class Payment private constructor(
     }
 
     private fun transitTo(target: PaymentStatus) {
-        check(_status.canTransitionTo(target)) {
+        checkState(_status.canTransitionTo(target)) {
             "결제 상태 전이가 유효하지 않습니다: $_status → $target"
         }
         _status = target

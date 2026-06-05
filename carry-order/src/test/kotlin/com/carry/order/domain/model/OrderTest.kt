@@ -1,5 +1,6 @@
 package com.carry.order.domain.model
 
+import com.carry.common.exception.BusinessException
 import com.carry.order.domain.exception.InvalidOrderStatusTransitionException
 import com.carry.order.domain.exception.OrderNotCancellableException
 import com.carry.order.domain.vo.CancelledBy
@@ -71,7 +72,7 @@ class OrderTest {
         fun `옵션 없이 생성하면 예외가 발생한다`() {
             assertThatThrownBy {
                 Order.create(1L, 10L, "REGULAR", emptyList(), address, pickupAt, deliveryAt)
-            }.isInstanceOf(IllegalArgumentException::class.java)
+            }.isInstanceOf(BusinessException::class.java)
                 .hasMessageContaining("옵션")
         }
 
@@ -79,7 +80,7 @@ class OrderTest {
         fun `배달 시각이 수거 시각 이전이면 예외가 발생한다`() {
             assertThatThrownBy {
                 Order.create(1L, 10L, "REGULAR", options, address, deliveryAt, pickupAt)
-            }.isInstanceOf(IllegalArgumentException::class.java)
+            }.isInstanceOf(BusinessException::class.java)
                 .hasMessageContaining("배달 희망 시각")
         }
     }

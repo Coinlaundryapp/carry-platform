@@ -70,7 +70,7 @@ class PricePolicyTest {
             )
 
             assertThatThrownBy { createPolicy(duplicated) }
-                .isInstanceOf(IllegalArgumentException::class.java)
+                .isInstanceOf(BusinessException::class.java)
                 .hasMessageContaining("중복")
         }
     }

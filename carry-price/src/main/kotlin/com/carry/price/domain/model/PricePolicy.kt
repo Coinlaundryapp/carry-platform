@@ -1,5 +1,6 @@
 package com.carry.price.domain.model
 
+import com.carry.common.exception.requireInput
 import com.carry.common.exception.BusinessException
 import com.carry.common.exception.ErrorCode
 import com.carry.price.domain.vo.OptionPrice
@@ -32,7 +33,7 @@ class PricePolicy private constructor(
 
     fun replaceAllOptionPrices(prices: List<OptionPrice>) {
         val keys = prices.map { it.optionType to it.subOptionType }
-        require(keys.size == keys.distinct().size) { "중복된 옵션 가격이 있습니다" }
+        requireInput(keys.size == keys.distinct().size) { "중복된 옵션 가격이 있습니다" }
         _optionPrices.clear()
         _optionPrices.addAll(prices)
     }
@@ -60,7 +61,7 @@ class PricePolicy private constructor(
             optionPrices: List<OptionPrice> = emptyList(),
         ): PricePolicy {
             val keys = optionPrices.map { it.optionType to it.subOptionType }
-            require(keys.size == keys.distinct().size) { "중복된 옵션 가격이 있습니다" }
+            requireInput(keys.size == keys.distinct().size) { "중복된 옵션 가격이 있습니다" }
             return PricePolicy(
                 id = null,
                 condition = condition,

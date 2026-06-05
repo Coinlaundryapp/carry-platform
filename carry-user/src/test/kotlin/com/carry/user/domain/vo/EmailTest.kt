@@ -1,5 +1,6 @@
 package com.carry.user.domain.vo
 
+import com.carry.common.exception.BusinessException
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
@@ -24,21 +25,21 @@ class EmailTest {
     @Test
     fun `빈 이메일은 거부한다`() {
         assertThatThrownBy { Email("") }
-            .isInstanceOf(IllegalArgumentException::class.java)
+            .isInstanceOf(BusinessException::class.java)
             .hasMessageContaining("비어있을 수 없습니다")
     }
 
     @Test
     fun `공백만 있는 이메일은 거부한다`() {
         assertThatThrownBy { Email("   ") }
-            .isInstanceOf(IllegalArgumentException::class.java)
+            .isInstanceOf(BusinessException::class.java)
     }
 
     @ParameterizedTest
     @ValueSource(strings = ["invalid", "no-at-sign", "@no-local.com", "no-domain@"])
     fun `잘못된 형식의 이메일은 거부한다`(value: String) {
         assertThatThrownBy { Email(value) }
-            .isInstanceOf(IllegalArgumentException::class.java)
+            .isInstanceOf(BusinessException::class.java)
             .hasMessageContaining("올바르지 않은 이메일 형식")
     }
 

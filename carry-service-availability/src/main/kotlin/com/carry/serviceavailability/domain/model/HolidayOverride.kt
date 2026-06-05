@@ -1,5 +1,6 @@
 package com.carry.serviceavailability.domain.model
 
+import com.carry.common.exception.requireInput
 import java.time.LocalDate
 
 class HolidayOverride private constructor(
@@ -9,7 +10,7 @@ class HolidayOverride private constructor(
 ) {
     companion object {
         fun create(date: LocalDate, reason: String): HolidayOverride {
-            require(reason.isNotBlank()) { "휴무 사유는 비어있을 수 없습니다" }
+            requireInput(reason.isNotBlank()) { "휴무 사유는 비어있을 수 없습니다" }
             return HolidayOverride(null, date, reason)
         }
 

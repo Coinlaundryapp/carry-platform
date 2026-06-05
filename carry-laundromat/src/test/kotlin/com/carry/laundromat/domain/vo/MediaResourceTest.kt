@@ -1,5 +1,6 @@
 package com.carry.laundromat.domain.vo
 
+import com.carry.common.exception.BusinessException
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
@@ -16,12 +17,12 @@ class MediaResourceTest {
     @Test
     fun `빈 URL은 거부한다`() {
         assertThatThrownBy { MediaResource(url = "", extension = "jpg") }
-            .isInstanceOf(IllegalArgumentException::class.java)
+            .isInstanceOf(BusinessException::class.java)
     }
 
     @Test
     fun `빈 확장자는 거부한다`() {
         assertThatThrownBy { MediaResource(url = "https://example.com/img.jpg", extension = "") }
-            .isInstanceOf(IllegalArgumentException::class.java)
+            .isInstanceOf(BusinessException::class.java)
     }
 }

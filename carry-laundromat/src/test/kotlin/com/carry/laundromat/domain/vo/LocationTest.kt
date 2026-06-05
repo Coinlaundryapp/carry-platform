@@ -1,5 +1,6 @@
 package com.carry.laundromat.domain.vo
 
+import com.carry.common.exception.BusinessException
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
@@ -16,12 +17,12 @@ class LocationTest {
     @Test
     fun `위도 범위를 초과하면 거부한다`() {
         assertThatThrownBy { Location(91.0, 0.0) }
-            .isInstanceOf(IllegalArgumentException::class.java)
+            .isInstanceOf(BusinessException::class.java)
     }
 
     @Test
     fun `경도 범위를 초과하면 거부한다`() {
         assertThatThrownBy { Location(0.0, 181.0) }
-            .isInstanceOf(IllegalArgumentException::class.java)
+            .isInstanceOf(BusinessException::class.java)
     }
 }

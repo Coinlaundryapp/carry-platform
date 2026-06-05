@@ -1,5 +1,6 @@
 package com.carry.user.domain.model
 
+import com.carry.common.exception.BusinessException
 import com.carry.user.domain.vo.Address
 import com.carry.user.domain.vo.Coordinates
 import org.assertj.core.api.Assertions.assertThat
@@ -68,7 +69,7 @@ class ShippingAddressTest {
         @Test
         fun `빈 별칭으로 생성하면 실패한다`() {
             assertThatThrownBy { createAddress(alias = "") }
-                .isInstanceOf(IllegalArgumentException::class.java)
+                .isInstanceOf(BusinessException::class.java)
                 .hasMessageContaining("별칭")
         }
 
@@ -100,7 +101,7 @@ class ShippingAddressTest {
 
             assertThatThrownBy {
                 address.update("", defaultAddress, defaultCoords, "홍길동", "01012345678", null, "GANGNAM")
-            }.isInstanceOf(IllegalArgumentException::class.java)
+            }.isInstanceOf(BusinessException::class.java)
                 .hasMessageContaining("별칭")
         }
     }
@@ -131,7 +132,7 @@ class ShippingAddressTest {
             val address = reconstitutedAddress(isDefault = false)
 
             assertThatThrownBy { address.unmarkAsDefault() }
-                .isInstanceOf(IllegalStateException::class.java)
+                .isInstanceOf(BusinessException::class.java)
                 .hasMessageContaining("기본 배송지가 아닌")
         }
     }

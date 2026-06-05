@@ -1,5 +1,6 @@
 package com.carry.user.domain.vo
 
+import com.carry.common.exception.BusinessException
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
@@ -17,14 +18,14 @@ class AddressTest {
     @Test
     fun `빈 도로명 주소는 거부한다`() {
         assertThatThrownBy { Address("", "상세주소", "12345") }
-            .isInstanceOf(IllegalArgumentException::class.java)
+            .isInstanceOf(BusinessException::class.java)
             .hasMessageContaining("도로명 주소")
     }
 
     @Test
     fun `빈 우편번호는 거부한다`() {
         assertThatThrownBy { Address("도로명주소", "상세주소", "") }
-            .isInstanceOf(IllegalArgumentException::class.java)
+            .isInstanceOf(BusinessException::class.java)
             .hasMessageContaining("우편번호")
     }
 

@@ -1,5 +1,6 @@
 package com.carry.order.domain.model
 
+import com.carry.common.exception.requireInput
 import com.carry.order.domain.exception.InvalidOrderStatusTransitionException
 import com.carry.order.domain.exception.OrderNotCancellableException
 import com.carry.order.domain.vo.CancelledBy
@@ -50,8 +51,8 @@ class Order private constructor(
             desiredPickupAt: Instant,
             desiredDeliveryAt: Instant,
         ): Order {
-            require(selectedOptions.isNotEmpty()) { "최소 하나의 옵션을 선택해야 합니다" }
-            require(desiredDeliveryAt.isAfter(desiredPickupAt)) { "배달 희망 시각은 수거 희망 시각 이후여야 합니다" }
+            requireInput(selectedOptions.isNotEmpty()) { "최소 하나의 옵션을 선택해야 합니다" }
+            requireInput(desiredDeliveryAt.isAfter(desiredPickupAt)) { "배달 희망 시각은 수거 희망 시각 이후여야 합니다" }
 
             val now = Instant.now()
             return Order(
