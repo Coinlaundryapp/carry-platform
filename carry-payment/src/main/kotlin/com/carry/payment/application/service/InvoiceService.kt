@@ -7,6 +7,7 @@ import com.carry.event.port.EventPublisherPort
 import com.carry.payment.application.port.inbound.InvoiceQueryUseCase
 import com.carry.payment.application.port.outbound.InvoicePersistencePort
 import com.carry.payment.domain.exception.InvoiceNotFoundException
+import com.carry.payment.domain.exception.InvoiceNotOwnedException
 import com.carry.payment.domain.model.Invoice
 import com.carry.payment.domain.vo.ChargeType
 import com.carry.payment.domain.vo.InvoiceLineItem
@@ -70,8 +71,12 @@ class InvoiceService(
     }
 
     @Transactional(readOnly = true)
-    override fun getInvoiceByOrder(orderId: Long): Invoice {
-        return invoicePersistencePort.findByOrderId(orderId)
+    override fun getInvoiceByOrder(orderId: Long, requestingUserId: Long): Invoice {
+        val invoice = invoicePersistencePort.findByOrderId(orderId)
             ?: throw InvoiceNotFoundException("orderId=$orderId")
+        if (invoice.customerId != requestingUserId) {
+            throw InvoiceNotOwnedException(orderId, requestingUserId)
+        }
+        return invoice
     }
 }

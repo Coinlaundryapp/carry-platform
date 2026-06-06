@@ -27,3 +27,13 @@ class PaymentGatewayException(message: String) : BusinessException(
     ErrorCode.PAYMENT_FAILED,
     "PG사 연동 오류: $message",
 )
+
+class InvoiceNotOwnedException(orderId: Long, requestingUserId: Long) : BusinessException(
+    ErrorCode.INVOICE_NOT_OWNED,
+    "청구서에 대한 권한이 없습니다: orderId=$orderId, userId=$requestingUserId",
+)
+
+class PaymentNotOwnedException(orderId: Long, requestingUserId: Long) : BusinessException(
+    ErrorCode.PAYMENT_NOT_OWNED,
+    "결제에 대한 권한이 없습니다: orderId=$orderId, userId=$requestingUserId",
+)
