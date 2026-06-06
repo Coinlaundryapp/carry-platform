@@ -8,6 +8,8 @@ import com.carry.event.dispatch.DispatchAcceptedEvent
 import com.carry.event.dispatch.DispatchTimeoutEvent
 import com.carry.event.payment.InvoiceIssuedEvent
 import com.carry.event.payment.PaymentCompletedEvent
+import com.carry.event.payment.PaymentFailedEvent
+import com.carry.event.payment.RefundCompletedEvent
 import com.carry.order.application.port.outbound.OrderPersistencePort
 import com.carry.order.domain.model.Order
 import com.carry.order.domain.vo.CancelledBy
@@ -107,6 +109,38 @@ class OrderSagaHandlerTest {
         sut.onPaymentCompleted(PaymentCompletedEvent(300L, 1L, 200L, 15000L))
 
         assertThat(saved.captured.status).isEqualTo(OrderStatus.PAID)
+    }
+
+    @Test
+    fun `PaymentFailedEvent 수신 시 INVOICED에서 PAYMENT_FAILED로 전이한다`() {
+        every { orderPersistencePort.findById(1L) } returns orderAt(OrderStatus.INVOICED)
+        val saved = slot<Order>()
+        every { orderPersistencePort.save(capture(saved)) } answers { saved.captured }
+
+        sut.onPaymentFailed(PaymentFailedEvent(300L, 1L, "잔액 부족"))
+
+        assertThat(saved.captured.status).isEqualTo(OrderStatus.PAYMENT_FAILED)
+    }
+
+    @Test
+    fun `PaymentFailedEvent가 INVOICED가 아닌 주문에 도착하면 무시한다`() {
+        // 이미 PAID 된 주문에 늦게 도착한 실패 이벤트 — 멱등/순서 안전
+        every { orderPersistencePort.findById(1L) } returns orderAt(OrderStatus.PAID)
+
+        sut.onPaymentFailed(PaymentFailedEvent(300L, 1L, "잔액 부족"))
+
+        verify(exactly = 0) { orderPersistencePort.save(any()) }
+    }
+
+    @Test
+    fun `RefundCompletedEvent 수신 시 REFUND_PENDING에서 REFUNDED로 전이한다`() {
+        every { orderPersistencePort.findById(1L) } returns orderAt(OrderStatus.REFUND_PENDING)
+        val saved = slot<Order>()
+        every { orderPersistencePort.save(capture(saved)) } answers { saved.captured }
+
+        sut.onRefundCompleted(RefundCompletedEvent(300L, 1L, 19500L))
+
+        assertThat(saved.captured.status).isEqualTo(OrderStatus.REFUNDED)
     }
 
     @Test

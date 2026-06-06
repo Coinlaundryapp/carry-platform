@@ -160,5 +160,59 @@ class OrderTest {
             assertThatThrownBy { order.cancel("취소 시도", CancelledBy.CUSTOMER) }
                 .isInstanceOf(OrderNotCancellableException::class.java)
         }
+
+        @Test
+        fun `PAYMENT_FAILED 상태에서 취소할 수 있다`() {
+            val order = reconstitutedOrder(OrderStatus.PAYMENT_FAILED)
+            order.cancel("재결제 시한 초과", CancelledBy.SYSTEM)
+            assertThat(order.status).isEqualTo(OrderStatus.CANCELLED)
+            assertThat(order.cancelledBy).isEqualTo(CancelledBy.SYSTEM)
+        }
+    }
+
+    @Nested
+    inner class Compensation {
+
+        @Test
+        fun `INVOICED에서 결제 실패 시 PAYMENT_FAILED로 전이한다`() {
+            val order = reconstitutedOrder(OrderStatus.INVOICED)
+            order.markPaymentFailed()
+            assertThat(order.status).isEqualTo(OrderStatus.PAYMENT_FAILED)
+        }
+
+        @Test
+        fun `PAYMENT_FAILED가 아닌 상태에서 결제 실패 처리하면 예외가 발생한다`() {
+            val order = reconstitutedOrder(OrderStatus.PAID)
+            assertThatThrownBy { order.markPaymentFailed() }
+                .isInstanceOf(InvalidOrderStatusTransitionException::class.java)
+        }
+
+        @Test
+        fun `PAYMENT_FAILED에서 재결제 성공 시 PAID로 전이한다`() {
+            val order = reconstitutedOrder(OrderStatus.PAYMENT_FAILED)
+            order.markPaid()
+            assertThat(order.status).isEqualTo(OrderStatus.PAID)
+        }
+
+        @Test
+        fun `PAID에서 환불 보상 시작 시 REFUND_PENDING으로 전이한다`() {
+            val order = reconstitutedOrder(OrderStatus.PAID)
+            order.markRefundPending()
+            assertThat(order.status).isEqualTo(OrderStatus.REFUND_PENDING)
+        }
+
+        @Test
+        fun `REFUND_PENDING에서 환불 완료 시 REFUNDED로 전이한다`() {
+            val order = reconstitutedOrder(OrderStatus.REFUND_PENDING)
+            order.markRefunded()
+            assertThat(order.status).isEqualTo(OrderStatus.REFUNDED)
+        }
+
+        @Test
+        fun `PAID가 아닌 상태에서 환불 보상 시작하면 예외가 발생한다`() {
+            val order = reconstitutedOrder(OrderStatus.INVOICED)
+            assertThatThrownBy { order.markRefundPending() }
+                .isInstanceOf(InvalidOrderStatusTransitionException::class.java)
+        }
     }
 }

@@ -4,8 +4,10 @@ import com.carry.order.adapter.outbound.persistence.entity.OrderJpaEntity
 import com.carry.order.adapter.outbound.persistence.repository.OrderJpaRepository
 import com.carry.order.application.port.outbound.OrderPersistencePort
 import com.carry.order.domain.model.Order
+import com.carry.order.domain.vo.OrderStatus
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Component
+import java.time.Instant
 
 @Component
 class OrderPersistenceAdapter(
@@ -30,5 +32,9 @@ class OrderPersistenceAdapter(
     override fun findByCustomerId(customerId: Long, cursor: Long?, size: Int): List<Order> {
         return orderJpaRepository.findByCustomerIdWithCursor(customerId, cursor, PageRequest.of(0, size))
             .map { it.toDomain() }
+    }
+
+    override fun findByStatusAndUpdatedAtBefore(status: OrderStatus, cutoff: Instant): List<Order> {
+        return orderJpaRepository.findByStatusAndUpdatedAtBefore(status, cutoff).map { it.toDomain() }
     }
 }

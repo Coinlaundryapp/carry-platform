@@ -18,6 +18,7 @@ import com.carry.order.domain.exception.OrderNotFoundException
 import com.carry.order.domain.exception.OrderNotOwnedException
 import com.carry.order.domain.model.Order
 import com.carry.order.domain.vo.CancelledBy
+import com.carry.order.domain.vo.OrderStatus
 import com.carry.order.domain.vo.SelectedOption
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -84,7 +85,16 @@ class OrderCommandService(
     @Transactional
     override fun cancelOrder(orderId: Long, reason: String, cancelledBy: String) {
         val order = orderPersistencePort.findById(orderId) ?: throw OrderNotFoundException(orderId)
-        doCancel(order, reason, CancelledBy.valueOf(cancelledBy))
+        val by = CancelledBy.valueOf(cancelledBy)
+        if (order.status == OrderStatus.PAID) {
+            // 결제 완료 후 취소 = 즉시 종료가 아니라 환불 보상 트랜잭션 시작.
+            // 동일한 OrderCancelledEvent 로 dispatch/delivery 캐스케이드와 결제 환불을 함께 트리거한다.
+            order.markRefundPending()
+            orderPersistencePort.save(order)
+            publishOrderCancelled(order, reason, by)
+        } else {
+            doCancel(order, reason, by)
+        }
     }
 
     // 고객 본인 취소: 소유권 검증 후 CUSTOMER 로 취소.
@@ -100,7 +110,10 @@ class OrderCommandService(
     private fun doCancel(order: Order, reason: String, by: CancelledBy) {
         order.cancel(reason, by)
         orderPersistencePort.save(order)
+        publishOrderCancelled(order, reason, by)
+    }
 
+    private fun publishOrderCancelled(order: Order, reason: String, by: CancelledBy) {
         eventPublisher.publish(
             aggregateType = "Order",
             aggregateId = order.id.toString(),

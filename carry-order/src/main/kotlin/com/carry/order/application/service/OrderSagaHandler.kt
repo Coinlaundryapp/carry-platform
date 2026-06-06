@@ -16,6 +16,7 @@ import com.carry.order.application.port.outbound.OrderPersistencePort
 import com.carry.order.domain.exception.OrderNotFoundException
 import com.carry.order.domain.model.Order
 import com.carry.order.domain.vo.CancelledBy
+import com.carry.order.domain.vo.OrderStatus
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -94,8 +95,13 @@ class OrderSagaHandler(
     @Transactional
     override fun onPaymentFailed(event: PaymentFailedEvent) {
         SagaLogContext.withOrderId(event.orderId) {
-            // 결제 실패 시 상태 유지 — 고객에게 재결제 요청 알림 (Phase 4 carry-notification)
             log.warn("Order saga: onPaymentFailed paymentId={} reason={}", event.paymentId, event.reason)
+            val order = findOrder(event.orderId)
+            // INVOICED 에서만 결제 실패로 전이 — 이미 PAID/취소/환불된 주문에 늦게 도착한 실패 이벤트는 무시(멱등/순서 안전).
+            if (order.status == OrderStatus.INVOICED) {
+                order.markPaymentFailed()
+                orderPersistencePort.save(order)
+            }
         }
     }
 
@@ -123,7 +129,12 @@ class OrderSagaHandler(
     override fun onRefundCompleted(event: RefundCompletedEvent) {
         SagaLogContext.withOrderId(event.orderId) {
             log.info("Order saga: onRefundCompleted paymentId={} refundAmount={}", event.paymentId, event.refundAmount)
-            // TODO: 환불 완료 시 별도 상태(REFUNDED) 처리 필요 시 추가
+            val order = findOrder(event.orderId)
+            // REFUND_PENDING 에서만 환불 완료로 전이(멱등 — 중복 RefundCompletedEvent 무시).
+            if (order.status == OrderStatus.REFUND_PENDING) {
+                order.markRefunded()
+                orderPersistencePort.save(order)
+            }
         }
     }
 

@@ -126,6 +126,18 @@ class Order private constructor(
         transitTo(OrderStatus.PAID)
     }
 
+    fun markPaymentFailed() {
+        transitTo(OrderStatus.PAYMENT_FAILED)
+    }
+
+    fun markRefundPending() {
+        transitTo(OrderStatus.REFUND_PENDING)
+    }
+
+    fun markRefunded() {
+        transitTo(OrderStatus.REFUNDED)
+    }
+
     fun markInProgress() {
         transitTo(OrderStatus.IN_PROGRESS)
     }
