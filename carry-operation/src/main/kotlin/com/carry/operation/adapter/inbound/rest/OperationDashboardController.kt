@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse as SwaggerApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.ResponseEntity
+import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController
 @Tag(name = "Dashboard", description = "운영 대시보드 API")
 @RestController
 @RequestMapping("/api/v2/admin/dashboard")
+@PreAuthorize("hasRole('ADMIN')")
 class OperationDashboardController(
     private val operationQueryUseCase: OperationQueryUseCase,
 ) {
