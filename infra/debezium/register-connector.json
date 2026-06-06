@@ -22,6 +22,8 @@
     "transforms.outbox.table.field.event.type": "event_type",
     "transforms.outbox.table.field.event.timestamp": "created_at",
     "transforms.outbox.table.fields.additional.placement": "trace_id:header:traceId",
+    "topic.creation.default.partitions": "6",
+    "topic.creation.default.replication.factor": "1",
     "key.converter": "org.apache.kafka.connect.storage.StringConverter",
     "value.converter": "org.apache.kafka.connect.json.JsonConverter",
     "value.converter.schemas.enable": "false"
