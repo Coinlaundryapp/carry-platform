@@ -50,8 +50,16 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      # DLQ 발행 producer. 멱등(중복/재정렬 없는 at-least-once) 명시.
+      # Kafka 3.x 클라이언트 기본 on이나 의도를 드러내고 acks=all로 고정.
+      acks: all
+      properties:
+        enable.idempotence: true
     listener:
       ack-mode: RECORD
+      # 리스너당 컨슈머 스레드 수. 토픽 파티션(6, KafkaTopicConfig.PARTITIONS)이 상한.
+      # 같은 aggregate_id는 같은 파티션 → 같은 스레드라 순서 보존, 다른 애그리거트는 병렬.
+      concurrency: 3
 
 jwt:
   access-token-expiration: 3600000
