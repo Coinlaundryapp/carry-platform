@@ -20,4 +20,5 @@ data class SelectedOptionCommand(
 interface OrderCommandUseCase {
     fun createOrder(command: CreateOrderCommand): Order
     fun cancelOrder(orderId: Long, reason: String, cancelledBy: String)
+    fun cancelOrderByCustomer(orderId: Long, requestingUserId: Long, reason: String)
 }

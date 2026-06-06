@@ -4,5 +4,5 @@ import com.carry.payment.domain.model.Invoice
 
 interface InvoiceQueryUseCase {
     fun getInvoice(invoiceId: Long): Invoice
-    fun getInvoiceByOrder(orderId: Long): Invoice
+    fun getInvoiceByOrder(orderId: Long, requestingUserId: Long): Invoice
 }

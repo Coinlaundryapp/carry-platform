@@ -18,3 +18,8 @@ class OrderNotCancellableException(orderId: Long?, currentStatus: OrderStatus) :
     ErrorCode.ORDER_NOT_CANCELLABLE,
     "주문을 취소할 수 없는 상태입니다: orderId=$orderId, status=$currentStatus",
 )
+
+class OrderNotOwnedException(orderId: Long, requestingUserId: Long) : BusinessException(
+    ErrorCode.ORDER_NOT_OWNED,
+    "주문에 대한 권한이 없습니다: orderId=$orderId, userId=$requestingUserId",
+)

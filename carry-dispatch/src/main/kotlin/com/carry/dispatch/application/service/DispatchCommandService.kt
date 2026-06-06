@@ -11,6 +11,7 @@ import com.carry.dispatch.application.port.outbound.DispatchPersistencePort
 import com.carry.dispatch.application.port.outbound.PenaltyRecordPersistencePort
 import com.carry.dispatch.domain.exception.CarrierNotInAreaException
 import com.carry.dispatch.domain.exception.DispatchNotFoundException
+import com.carry.dispatch.domain.exception.DispatchNotOwnedException
 import com.carry.dispatch.domain.model.Dispatch
 import com.carry.common.metrics.MetricsPort
 import com.carry.event.dispatch.DispatchAcceptedEvent
@@ -67,6 +68,9 @@ class DispatchCommandService(
     @Transactional
     override fun acceptAssignment(command: AcceptAssignmentCommand): Dispatch {
         val dispatch = findDispatch(command.dispatchId)
+        if (dispatch.carrierId != command.carrierId) {
+            throw DispatchNotOwnedException(command.dispatchId, command.carrierId)
+        }
         dispatch.acceptAssignment()
         val saved = dispatchPersistencePort.save(dispatch)
 
@@ -90,6 +94,9 @@ class DispatchCommandService(
     @Transactional
     override fun rejectAssignment(command: RejectAssignmentCommand): Dispatch {
         val dispatch = findDispatch(command.dispatchId)
+        if (dispatch.carrierId != command.carrierId) {
+            throw DispatchNotOwnedException(command.dispatchId, command.carrierId)
+        }
         val penaltyRecord = dispatch.rejectAssignment()
         val saved = dispatchPersistencePort.save(dispatch)
         penaltyRecordPersistencePort.save(penaltyRecord)
