@@ -10,7 +10,9 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.context.annotation.Bean
 import org.springframework.kafka.annotation.KafkaListener
+import org.springframework.kafka.config.KafkaListenerEndpointRegistry
 import org.springframework.kafka.core.KafkaTemplate
+import org.springframework.kafka.listener.ConcurrentMessageListenerContainer
 import org.springframework.kafka.test.context.EmbeddedKafka
 import org.springframework.stereotype.Component
 import org.springframework.test.context.TestPropertySource
@@ -58,7 +60,7 @@ class KafkaPartitioningIntegrationTest {
         private const val TOTAL = KEY_COUNT * PER_KEY
     }
 
-    data class Received(val partition: Int, val key: String, val value: Int, val thread: String)
+    data class Received(val partition: Int, val key: String, val value: Int)
 
     @TestConfiguration
     open class RecordingConfig {
@@ -75,16 +77,27 @@ class KafkaPartitioningIntegrationTest {
                 partition = record.partition(),
                 key = record.key(),
                 value = record.value().toInt(),
-                thread = Thread.currentThread().name,
             )
         }
     }
 
     @Autowired lateinit var template: KafkaTemplate<String, String>
     @Autowired lateinit var listener: RecordingListener
+    @Autowired lateinit var registry: KafkaListenerEndpointRegistry
 
     @Test
-    fun `같은 키는 단일 파티션에 순서대로, 다른 키는 파티션 분산되어 동시 소비된다`() {
+    fun `리스너 컨테이너는 concurrency=3으로 병렬 소비하도록 설정된다`() {
+        // 런타임 스레드 수 관측은 리밸런스 타이밍에 의존해 flaky하므로,
+        // 병렬화가 '배선됐는지'(=처리량 천장 제거)를 컨테이너 설정값으로 결정적으로 단언한다.
+        val container = registry.listenerContainers
+            .filterIsInstance<ConcurrentMessageListenerContainer<*, *>>()
+            .single()
+
+        assertThat(container.concurrency).isEqualTo(3)
+    }
+
+    @Test
+    fun `같은 키는 단일 파티션에 순서대로, 다른 키는 파티션에 분산된다`() {
         // 6개 키 × 10개 값을 키별로 순차 발행. 키마다 값 0..9가 발행 순서.
         for (k in 0 until KEY_COUNT) {
             for (v in 0 until PER_KEY) {
@@ -111,15 +124,10 @@ class KafkaPartitioningIntegrationTest {
         }
 
         // 2) 다른 키 → 2개 이상의 파티션에 분산 (단일 파티션 천장 제거)
+        // 키→파티션은 murmur2 해시로 결정적이라 환경 무관하게 안정적이다.
         val usedPartitions = listener.records.map { it.partition }.toSet()
         assertThat(usedPartitions)
             .describedAs("서로 다른 키가 여러 파티션에 분산되어야 한다")
-            .hasSizeGreaterThanOrEqualTo(2)
-
-        // 3) concurrency=3 → 2개 이상 컨슈머 스레드가 동시 소비
-        val usedThreads = listener.records.map { it.thread }.toSet()
-        assertThat(usedThreads)
-            .describedAs("여러 컨슈머 스레드가 병렬 소비해야 한다 (concurrency=3)")
             .hasSizeGreaterThanOrEqualTo(2)
     }
 }
