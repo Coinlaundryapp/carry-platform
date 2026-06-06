@@ -22,12 +22,12 @@ class JwtAuthenticationFilter(
     ) {
         val token = resolveToken(request)
         if (token != null) {
-            val userId = jwtProvider.validateToken(token)
-            if (userId != null) {
+            val principal = jwtProvider.parseToken(token)
+            if (principal != null) {
                 val authentication = UsernamePasswordAuthenticationToken(
-                    userId,
+                    principal.userId,
                     null,
-                    listOf(SimpleGrantedAuthority("ROLE_USER"))
+                    listOf(SimpleGrantedAuthority("ROLE_${principal.role}"))
                 )
                 SecurityContextHolder.getContext().authentication = authentication
             }

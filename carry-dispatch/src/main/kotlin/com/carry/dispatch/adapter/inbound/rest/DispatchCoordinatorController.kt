@@ -22,11 +22,13 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
+import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.RestController
 
 @Tag(name = "Dispatch - Coordinator", description = "배차 코디네이터 API")
 @RestController
 @RequestMapping("/api/v2/coordinator/dispatches")
+@PreAuthorize("hasRole('COORDINATOR')")
 class DispatchCoordinatorController(
     private val dispatchCommandUseCase: DispatchCommandUseCase,
     private val dispatchQueryUseCase: DispatchQueryUseCase,

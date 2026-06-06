@@ -15,4 +15,8 @@ dependencies {
     implementation("com.auth0:java-jwt:4.4.0")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation(project(":carry-common"))
+
+    testImplementation("io.mockk:mockk:1.13.13")
+    testImplementation("org.assertj:assertj-core:3.27.0")
+    testImplementation("org.springframework:spring-test")
 }
