@@ -19,7 +19,8 @@
 - JWT role claim을 실제 authority로 반영(무상태).
 - `@EnableMethodSecurity` + 클래스 레벨 `@PreAuthorize`로 기존 코디·어드민 엔드포인트 가드.
 - 코디 전용 PAID 취소·환불 트리거 엔드포인트 신설.
-- `carry-operation`에 `spring-security-core` 의존 추가(@PreAuthorize 컴파일 전제).
+- `carry-common`에 `spring-security-core`를 `api`로 추가(@PreAuthorize·AccessDeniedException 전이 노출 — 모든 컨트롤러 모듈이 공유, carry-operation 갭도 함께 해소).
+- `GlobalExceptionHandler`에 `AccessDeniedException → 403` 핸들러 추가(아래 §6).
 
 ### 제외 (후속/YAGNI)
 - 실제 로그인 → 토큰 발급 wiring (현재 토큰은 테스트에서만 생성됨; 운영 OAuth/로그인 컨트롤러는 별도 작업).
@@ -66,7 +67,7 @@ URL 컨벤션이 깔끔하여 컨트롤러 단위로 역할이 동질적 → 클
 | `TermAdminController` | `/api/v2/admin/terms` | `hasRole('ADMIN')` |
 | `OrderCoordinatorController` (신규) | `/api/v2/coordinator/orders` | `hasRole('COORDINATOR')` |
 
-> `@PreAuthorize` 애너테이션은 `spring-security-core`에서 제공. carry-order·carry-dispatch에는 이미 의존하나 **`carry-operation`에는 spring-security 의존이 전무** → `OperationDashboardController`·`TermAdminController`에 `@PreAuthorize`를 달면 컴파일 실패. **`carry-operation/build.gradle.kts`에 `implementation("org.springframework.security:spring-security-core")` 추가**가 본 작업에 포함된다. `@EnableMethodSecurity`는 `spring-security-config`(carry-security)에 위치.
+> `@PreAuthorize` 애너테이션은 `spring-security-core`에서 제공. carry-order·carry-dispatch에는 이미 의존하나 **`carry-operation`에는 spring-security 의존이 전무**했다. 모듈별로 개별 추가하는 대신 **`carry-common`에 `api`로 `spring-security-core`를 추가**해 전이 노출한다(GlobalExceptionHandler의 `AccessDeniedException`도 같은 모듈에서 필요하므로 한 곳에 모음). `@EnableMethodSecurity`는 `spring-security-config`(carry-security)에 위치.
 
 ### 4.5 신규 엔드포인트 `OrderCoordinatorController` (carry-order)
 ```
@@ -99,7 +100,7 @@ POST /{orderId}/cancel
 | 주문 없음 | 404 (`OrderNotFoundException`) |
 | 취소 불가 상태 | 409 (`ORDER_NOT_CANCELLABLE`) |
 
-> **응답 바디 주의**: 현재 SecurityConfig에 커스텀 `AuthenticationEntryPoint`/`AccessDeniedHandler`가 없어 401·403은 `GlobalExceptionHandler`를 거치지 않고 Spring Security 기본 응답(빈 바디)을 반환한다. 즉 401·403은 다른 에러처럼 `ApiResponse` 에러 봉투를 따르지 **않는다**. 이번 범위에서는 수용하고(envelope 통일은 후속), **테스트는 상태 코드만 단언**한다. 400/404/409는 `GlobalExceptionHandler` 경유로 `ApiResponse` 봉투를 따른다.
+> **응답 바디**: 메서드 시큐리티(`@PreAuthorize`) 인가 실패는 컨트롤러 호출 중 `AccessDeniedException`으로 발생하므로 `@RestControllerAdvice`가 먼저 가로챈다. 명시 핸들러가 없으면 catch-all로 **500**이 되는 것이 확인되어, `GlobalExceptionHandler`에 `AccessDeniedException → 403` 핸들러를 추가했다. 따라서 **403은 `ApiResponse` 봉투(`code=FORBIDDEN`)를 따른다**. 반면 **401(미인증)**은 시큐리티 필터 단계(AuthenticationEntryPoint)에서 처리되어 `@RestControllerAdvice`를 거치지 않으므로 Spring 기본 응답(빈 바디)이며 봉투를 따르지 않는다(이번 범위 수용, 통일은 후속). 테스트는 상태 코드 위주로 단언한다. 400/404/409는 기존대로 `GlobalExceptionHandler` 경유 봉투.
 
 ## 7. 테스트 (TDD)
 현재 `carry-security` 테스트 0개, 코디·어드민 컨트롤러 테스트 0개.

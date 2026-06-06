@@ -6,6 +6,7 @@ import org.slf4j.MDC
 import org.springframework.dao.OptimisticLockingFailureException
 import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException
+import org.springframework.security.access.AccessDeniedException
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.MissingServletRequestParameterException
 import org.springframework.web.bind.annotation.ExceptionHandler
@@ -83,6 +84,26 @@ class GlobalExceptionHandler {
                     ErrorCode.CONCURRENT_MODIFICATION.status,
                     ErrorCode.CONCURRENT_MODIFICATION.name,
                     ErrorCode.CONCURRENT_MODIFICATION.message,
+                    MDC.get("traceId"),
+                ),
+            )
+    }
+
+    /**
+     * 메서드 시큐리티(@PreAuthorize) 인가 실패. @RestControllerAdvice 가 컨트롤러 호출 중 발생한
+     * 예외를 먼저 가로채므로, 명시 핸들러가 없으면 catch-all 로 500 이 되어버린다.
+     * 인증은 됐으나 권한이 없는 경우이므로 403 으로 매핑한다.
+     */
+    @ExceptionHandler(AccessDeniedException::class)
+    fun handleAccessDenied(e: AccessDeniedException): ResponseEntity<ApiResponse<Nothing>> {
+        log.info("Access denied: {}", e.message)
+        return ResponseEntity
+            .status(ErrorCode.FORBIDDEN.status)
+            .body(
+                ApiResponse.error(
+                    ErrorCode.FORBIDDEN.status,
+                    ErrorCode.FORBIDDEN.name,
+                    ErrorCode.FORBIDDEN.message,
                     MDC.get("traceId"),
                 ),
             )
