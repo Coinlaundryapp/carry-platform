@@ -115,6 +115,7 @@ class PaymentSagaIntegrationTest : IntegrationTestBase() {
             orderUnitType = "KG",
             orderRequestType = "STANDARD",
             selectedOptions = listOf(SelectedOptionSnapshot("WASH", "COLD")),
+            requestingCarrierId = TestFixtures.CARRIER_ID,
         )
 
         val pickupEvent = outbox.readOutboxPayload<PickupCompletedEvent>("Delivery", "PickupCompletedEvent", delivery.id.toString())

@@ -77,6 +77,7 @@ enum class ErrorCode(
     DELIVERY_INVALID_STATUS(400, "Delivery is not in expected status"),
     DELIVERY_WEIGHT_REQUIRED(400, "Pickup weight must be greater than 0"),
     DELIVERY_PHOTO_REQUIRED(400, "At least one photo is required"),
+    DELIVERY_NOT_OWNED(403, "Delivery is not assigned to the carrier"),
 
     // Media
     MEDIA_NOT_FOUND(404, "Media resource not found"),

@@ -14,10 +14,11 @@ interface DeliveryCommandUseCase {
         orderUnitType: String,
         orderRequestType: String,
         selectedOptions: List<SelectedOptionSnapshot>,
+        requestingCarrierId: Long,
     ): Delivery
 
-    fun startWashing(deliveryId: Long, photoIds: List<Long>): Delivery
-    fun completeDrying(deliveryId: Long, photoIds: List<Long>): Delivery
-    fun startDelivery(deliveryId: Long): Delivery
-    fun completeDelivery(deliveryId: Long, photoIds: List<Long>): Delivery
+    fun startWashing(deliveryId: Long, photoIds: List<Long>, requestingCarrierId: Long): Delivery
+    fun completeDrying(deliveryId: Long, photoIds: List<Long>, requestingCarrierId: Long): Delivery
+    fun startDelivery(deliveryId: Long, requestingCarrierId: Long): Delivery
+    fun completeDelivery(deliveryId: Long, photoIds: List<Long>, requestingCarrierId: Long): Delivery
 }

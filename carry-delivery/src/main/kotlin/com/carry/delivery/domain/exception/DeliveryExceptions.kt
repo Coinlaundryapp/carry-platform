@@ -28,3 +28,8 @@ class OrderNotPaidException(orderId: Long) : BusinessException(
     ErrorCode.ORDER_NOT_PAID,
     "주문이 결제되지 않았습니다: $orderId",
 )
+
+class DeliveryNotOwnedException(deliveryId: Long, requestingCarrierId: Long) : BusinessException(
+    ErrorCode.DELIVERY_NOT_OWNED,
+    "본인에게 배정된 배달이 아닙니다: deliveryId=$deliveryId, carrierId=$requestingCarrierId",
+)
