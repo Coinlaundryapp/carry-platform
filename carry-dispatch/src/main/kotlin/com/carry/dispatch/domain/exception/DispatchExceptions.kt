@@ -38,3 +38,8 @@ class CarrierAreaNotFoundException(carrierId: Long, areaCode: String) : Business
     ErrorCode.CARRIER_AREA_NOT_FOUND,
     "캐리어 구역을 찾을 수 없습니다: carrierId=$carrierId, areaCode=$areaCode",
 )
+
+class DispatchNotOwnedException(dispatchId: Long, carrierId: Long) : BusinessException(
+    ErrorCode.DISPATCH_NOT_OWNED,
+    "본인에게 배정된 배차가 아닙니다: dispatchId=$dispatchId, carrierId=$carrierId",
+)

@@ -8,6 +8,7 @@ import com.carry.dispatch.application.port.outbound.CarrierAreaPersistencePort
 import com.carry.dispatch.application.port.outbound.DispatchPersistencePort
 import com.carry.dispatch.application.port.outbound.PenaltyRecordPersistencePort
 import com.carry.dispatch.domain.exception.CarrierNotInAreaException
+import com.carry.dispatch.domain.exception.DispatchNotOwnedException
 import com.carry.dispatch.domain.model.CarrierArea
 import com.carry.dispatch.domain.model.Dispatch
 import com.carry.dispatch.domain.vo.AssignedBy
@@ -149,6 +150,14 @@ class DispatchCommandServiceTest {
             assertThat(result.status).isEqualTo(DispatchStatus.ACCEPTED)
             verify { eventPublisher.publish("Dispatch", "10", "DispatchAcceptedEvent", any(), any()) }
             verify { metrics.incrementCounter("carry.dispatch.accepted", "via" to "assignment") }
+        }
+
+        @Test
+        fun `배정받지 않은 캐리어가 수락하면 DispatchNotOwnedException 이 발생한다`() {
+            every { dispatchPersistencePort.findById(1L) } returns assignedDispatch() // carrierId=200L
+
+            assertThatThrownBy { sut.acceptAssignment(AcceptAssignmentCommand(1L, 999L)) }
+                .isInstanceOf(DispatchNotOwnedException::class.java)
         }
     }
 

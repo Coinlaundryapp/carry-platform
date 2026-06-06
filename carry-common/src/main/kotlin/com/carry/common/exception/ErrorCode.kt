@@ -70,6 +70,7 @@ enum class ErrorCode(
     DISPATCH_TIMEOUT_NOT_ALLOWED(400, "Dispatch timeout is only allowed in pending status"),
     CARRIER_NOT_IN_AREA(403, "Carrier is not registered in the dispatch area"),
     CARRIER_AREA_NOT_FOUND(404, "Carrier area registration not found"),
+    DISPATCH_NOT_OWNED(403, "Dispatch is not assigned to the carrier"),
 
     // Delivery
     DELIVERY_NOT_FOUND(404, "Delivery not found"),
