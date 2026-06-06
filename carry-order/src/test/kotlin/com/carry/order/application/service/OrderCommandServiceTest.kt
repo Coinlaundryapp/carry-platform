@@ -11,6 +11,7 @@ import com.carry.order.application.port.outbound.OrderPersistencePort
 import com.carry.order.application.port.outbound.ServiceAvailabilityQueryPort
 import com.carry.order.application.port.outbound.UserQueryPort
 import com.carry.order.domain.exception.OrderNotCancellableException
+import com.carry.order.domain.exception.OrderNotOwnedException
 import com.carry.order.domain.model.Order
 import com.carry.order.domain.vo.OrderShippingAddress
 import com.carry.order.domain.vo.OrderStatus
@@ -115,7 +116,7 @@ class OrderCommandServiceTest {
             )
             every { orderPersistencePort.findById(1L) } returns order
 
-            sut.cancelOrder(1L, "고객 변심", "CUSTOMER")
+            sut.cancelOrderByCustomer(1L, 1L, "고객 변심")
 
             verify { orderPersistencePort.save(any()) }
             verify { eventPublisher.publish("Order", "1", "OrderCancelledEvent", any(), any()) }
@@ -135,8 +136,25 @@ class OrderCommandServiceTest {
             )
             every { orderPersistencePort.findById(1L) } returns order
 
-            assertThatThrownBy { sut.cancelOrder(1L, "취소 시도", "CUSTOMER") }
+            assertThatThrownBy { sut.cancelOrderByCustomer(1L, 1L, "취소 시도") }
                 .isInstanceOf(OrderNotCancellableException::class.java)
+        }
+
+        @Test
+        fun `주문 소유자가 아니면 OrderNotOwnedException 이 발생한다`() {
+            val order = Order.reconstitute(
+                id = 1L, customerId = 1L, status = OrderStatus.CREATED,
+                laundromatId = 10L, laundryItemType = "REGULAR",
+                selectedOptions = listOf(SelectedOption("WASH", "STANDARD")),
+                shippingAddress = address, desiredPickupAt = now, desiredDeliveryAt = now.plus(4, ChronoUnit.HOURS),
+                carrierId = null, invoiceId = null, totalAmount = null, actualWeight = null,
+                cancelReason = null, cancelledBy = null, cancelledAt = null, completedAt = null,
+                createdAt = now, updatedAt = now,
+            )
+            every { orderPersistencePort.findById(1L) } returns order
+
+            assertThatThrownBy { sut.cancelOrderByCustomer(1L, 999L, "남의 주문 취소 시도") }
+                .isInstanceOf(OrderNotOwnedException::class.java)
         }
     }
 }

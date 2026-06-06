@@ -45,6 +45,7 @@ enum class ErrorCode(
     ORDER_NOT_FOUND(404, "Order not found"),
     INVALID_ORDER_STATUS_TRANSITION(400, "Invalid order status transition"),
     ORDER_NOT_CANCELLABLE(409, "Order cannot be cancelled in current status"),
+    ORDER_NOT_OWNED(403, "Order does not belong to the user"),
 
     // Payment
     PAYMENT_NOT_FOUND(404, "Payment not found"),

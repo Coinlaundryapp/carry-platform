@@ -67,8 +67,11 @@ class OrderController(
     @Operation(summary = "주문 상세 조회")
     @ApiResponses(value = [SwaggerApiResponse(responseCode = "200", description = "주문 조회 성공"), SwaggerApiResponse(responseCode = "404", description = "주문을 찾을 수 없음")])
     @GetMapping("/{orderId}")
-    fun getOrder(@PathVariable orderId: Long): ResponseEntity<ApiResponse<OrderResponse>> {
-        val order = orderQueryUseCase.getOrder(orderId)
+    fun getOrder(
+        @Parameter(hidden = true) @AuthenticationPrincipal userId: Long,
+        @PathVariable orderId: Long,
+    ): ResponseEntity<ApiResponse<OrderResponse>> {
+        val order = orderQueryUseCase.getOrder(orderId, userId)
         return ResponseEntity.ok(ApiResponse.success(OrderResponse.from(order)))
     }
 
@@ -76,10 +79,11 @@ class OrderController(
     @ApiResponses(value = [SwaggerApiResponse(responseCode = "204", description = "주문 취소 성공"), SwaggerApiResponse(responseCode = "400", description = "취소할 수 없는 상태"), SwaggerApiResponse(responseCode = "404", description = "주문을 찾을 수 없음")])
     @PostMapping("/{orderId}/cancel")
     fun cancelOrder(
+        @Parameter(hidden = true) @AuthenticationPrincipal userId: Long,
         @PathVariable orderId: Long,
         @Valid @RequestBody request: CancelOrderRequest,
     ): ResponseEntity<Void> {
-        orderCommandUseCase.cancelOrder(orderId, request.reason, "CUSTOMER")
+        orderCommandUseCase.cancelOrderByCustomer(orderId, userId, request.reason)
         return ResponseEntity.noContent().build()
     }
 }

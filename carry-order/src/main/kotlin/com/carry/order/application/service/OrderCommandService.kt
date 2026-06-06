@@ -15,6 +15,7 @@ import com.carry.order.application.port.outbound.OrderPersistencePort
 import com.carry.order.application.port.outbound.ServiceAvailabilityQueryPort
 import com.carry.order.application.port.outbound.UserQueryPort
 import com.carry.order.domain.exception.OrderNotFoundException
+import com.carry.order.domain.exception.OrderNotOwnedException
 import com.carry.order.domain.model.Order
 import com.carry.order.domain.vo.CancelledBy
 import com.carry.order.domain.vo.SelectedOption
@@ -79,18 +80,32 @@ class OrderCommandService(
         return saved
     }
 
+    // 내부/코디네이터/시스템 등 다중 액터용 (cancelledBy 명시).
     @Transactional
     override fun cancelOrder(orderId: Long, reason: String, cancelledBy: String) {
         val order = orderPersistencePort.findById(orderId) ?: throw OrderNotFoundException(orderId)
-        val by = CancelledBy.valueOf(cancelledBy)
+        doCancel(order, reason, CancelledBy.valueOf(cancelledBy))
+    }
+
+    // 고객 본인 취소: 소유권 검증 후 CUSTOMER 로 취소.
+    @Transactional
+    override fun cancelOrderByCustomer(orderId: Long, requestingUserId: Long, reason: String) {
+        val order = orderPersistencePort.findById(orderId) ?: throw OrderNotFoundException(orderId)
+        if (order.customerId != requestingUserId) {
+            throw OrderNotOwnedException(orderId, requestingUserId)
+        }
+        doCancel(order, reason, CancelledBy.CUSTOMER)
+    }
+
+    private fun doCancel(order: Order, reason: String, by: CancelledBy) {
         order.cancel(reason, by)
         orderPersistencePort.save(order)
 
         eventPublisher.publish(
             aggregateType = "Order",
-            aggregateId = orderId.toString(),
+            aggregateId = order.id.toString(),
             eventType = "OrderCancelledEvent",
-            payload = OrderCancelledEvent(orderId, reason, cancelledBy),
+            payload = OrderCancelledEvent(order.id!!, reason, by.name),
         )
 
         // `reason`은 자유 텍스트라 태그로 부적합(고카디널리티). 취소 주체(by)만 enum값으로 태깅.
