@@ -7,6 +7,7 @@ import com.carry.event.dispatch.DispatchAcceptedEvent
 import com.carry.event.order.OrderCreatedEvent
 import com.carry.event.payment.InvoiceIssuedEvent
 import com.carry.event.payment.PaymentCompletedEvent
+import com.carry.event.payment.PaymentFailedEvent
 import com.carry.notification.application.port.inbound.NotificationCommandUseCase
 import com.carry.notification.application.port.inbound.NotificationEventHandler
 import com.carry.notification.application.port.inbound.SendNotificationCommand
@@ -111,6 +112,25 @@ class NotificationSagaHandler(
                     channel = NotificationChannel.KAKAO_ALARMTALK,
                     title = "결제가 완료되었습니다",
                     content = "주문번호 ${event.orderId}번 결제가 완료되었습니다. 결제 금액: ${event.amount}원",
+                    referenceType = "ORDER",
+                    referenceId = event.orderId,
+                ),
+            )
+        }
+    }
+
+    @Transactional
+    override fun onPaymentFailed(event: PaymentFailedEvent) {
+        SagaLogContext.withOrderId(event.orderId) {
+            log.info("Notification saga: onPaymentFailed paymentId={} reason={}", event.paymentId, event.reason)
+            notificationCommandUseCase.send(
+                SendNotificationCommand(
+                    recipientId = event.orderId,
+                    recipientContact = "",
+                    type = NotificationType.PAYMENT_FAILED,
+                    channel = NotificationChannel.KAKAO_ALARMTALK,
+                    title = "결제에 실패했습니다",
+                    content = "주문번호 ${event.orderId}번 결제에 실패했습니다(사유: ${event.reason}). 재결제를 진행해 주세요.",
                     referenceType = "ORDER",
                     referenceId = event.orderId,
                 ),

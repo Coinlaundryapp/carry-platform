@@ -140,6 +140,42 @@ class OrderCommandServiceTest {
                 .isInstanceOf(OrderNotCancellableException::class.java)
         }
 
+        private fun paidOrder() = Order.reconstitute(
+            id = 1L, customerId = 1L, status = OrderStatus.PAID,
+            laundromatId = 10L, laundryItemType = "REGULAR",
+            selectedOptions = listOf(SelectedOption("WASH", "STANDARD")),
+            shippingAddress = address, desiredPickupAt = now, desiredDeliveryAt = now.plus(4, ChronoUnit.HOURS),
+            carrierId = 100L, invoiceId = 200L, totalAmount = 18000L, actualWeight = java.math.BigDecimal("5.0"),
+            cancelReason = null, cancelledBy = null, cancelledAt = null, completedAt = null,
+            createdAt = now, updatedAt = now,
+        )
+
+        @Test
+        fun `PAID 주문을 코디네이터가 취소하면 REFUND_PENDING으로 전이하고 OrderCancelledEvent를 발행한다`() {
+            val order = paidOrder()
+            every { orderPersistencePort.findById(1L) } returns order
+            val saved = slot<Order>()
+            every { orderPersistencePort.save(capture(saved)) } answers { saved.captured }
+
+            sut.cancelOrder(1L, "세탁소 사정으로 취소", "COORDINATOR")
+
+            // 결제 완료 후 취소 = 즉시 CANCELLED 가 아니라 환불 보상 대기 상태로 전이
+            assertThat(saved.captured.status).isEqualTo(OrderStatus.REFUND_PENDING)
+            // 캐스케이드(dispatch/delivery 취소 + 환불) 트리거용 이벤트는 그대로 발행
+            verify { eventPublisher.publish("Order", "1", "OrderCancelledEvent", any(), any()) }
+            verify { metrics.incrementCounter("carry.order.cancelled", "by" to "COORDINATOR") }
+        }
+
+        @Test
+        fun `고객이 PAID 주문을 직접 취소하면 차단된다`() {
+            // 픽업 후 고객 self-cancel 차단 정책 유지 — 환불 분기는 코디ㆍ시스템 전용
+            val order = paidOrder()
+            every { orderPersistencePort.findById(1L) } returns order
+
+            assertThatThrownBy { sut.cancelOrderByCustomer(1L, 1L, "고객 변심") }
+                .isInstanceOf(OrderNotCancellableException::class.java)
+        }
+
         @Test
         fun `주문 소유자가 아니면 OrderNotOwnedException 이 발생한다`() {
             val order = Order.reconstitute(
