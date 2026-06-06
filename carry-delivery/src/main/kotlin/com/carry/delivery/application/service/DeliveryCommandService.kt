@@ -5,6 +5,7 @@ import com.carry.delivery.application.port.inbound.DeliveryCommandUseCase
 import com.carry.delivery.application.port.outbound.DeliveryPersistencePort
 import com.carry.delivery.application.port.outbound.PaymentQueryPort
 import com.carry.delivery.domain.exception.DeliveryNotFoundException
+import com.carry.delivery.domain.exception.DeliveryNotOwnedException
 import com.carry.delivery.domain.exception.OrderNotPaidException
 import com.carry.delivery.domain.model.Delivery
 import com.carry.event.delivery.DeliveryCompletedEvent
@@ -36,8 +37,9 @@ class DeliveryCommandService(
         orderUnitType: String,
         orderRequestType: String,
         selectedOptions: List<SelectedOptionSnapshot>,
+        requestingCarrierId: Long,
     ): Delivery {
-        val delivery = findDelivery(deliveryId)
+        val delivery = findOwnedDelivery(deliveryId, requestingCarrierId)
         delivery.completePickup(weight, photoIds)
         val saved = deliveryPersistencePort.save(delivery)
 
@@ -62,8 +64,8 @@ class DeliveryCommandService(
     }
 
     @Transactional
-    override fun startWashing(deliveryId: Long, photoIds: List<Long>): Delivery {
-        val delivery = findDelivery(deliveryId)
+    override fun startWashing(deliveryId: Long, photoIds: List<Long>, requestingCarrierId: Long): Delivery {
+        val delivery = findOwnedDelivery(deliveryId, requestingCarrierId)
         delivery.startWashing(photoIds)
         val saved = deliveryPersistencePort.save(delivery)
 
@@ -81,22 +83,22 @@ class DeliveryCommandService(
     }
 
     @Transactional
-    override fun completeDrying(deliveryId: Long, photoIds: List<Long>): Delivery {
-        val delivery = findDelivery(deliveryId)
+    override fun completeDrying(deliveryId: Long, photoIds: List<Long>, requestingCarrierId: Long): Delivery {
+        val delivery = findOwnedDelivery(deliveryId, requestingCarrierId)
         delivery.completeDrying(photoIds)
         return deliveryPersistencePort.save(delivery)
     }
 
     @Transactional
-    override fun startDelivery(deliveryId: Long): Delivery {
-        val delivery = findDelivery(deliveryId)
+    override fun startDelivery(deliveryId: Long, requestingCarrierId: Long): Delivery {
+        val delivery = findOwnedDelivery(deliveryId, requestingCarrierId)
         delivery.startDelivery()
         return deliveryPersistencePort.save(delivery)
     }
 
     @Transactional
-    override fun completeDelivery(deliveryId: Long, photoIds: List<Long>): Delivery {
-        val delivery = findDelivery(deliveryId)
+    override fun completeDelivery(deliveryId: Long, photoIds: List<Long>, requestingCarrierId: Long): Delivery {
+        val delivery = findOwnedDelivery(deliveryId, requestingCarrierId)
 
         if (!paymentQueryPort.isOrderPaid(delivery.orderId)) {
             throw OrderNotPaidException(delivery.orderId)
@@ -126,5 +128,14 @@ class DeliveryCommandService(
 
     private fun findDelivery(deliveryId: Long): Delivery {
         return deliveryPersistencePort.findById(deliveryId) ?: throw DeliveryNotFoundException(deliveryId)
+    }
+
+    // 배달 상태 변경은 그 배달에 배정된 캐리어 본인만 수행할 수 있다.
+    private fun findOwnedDelivery(deliveryId: Long, requestingCarrierId: Long): Delivery {
+        val delivery = findDelivery(deliveryId)
+        if (delivery.carrierId != requestingCarrierId) {
+            throw DeliveryNotOwnedException(deliveryId, requestingCarrierId)
+        }
+        return delivery
     }
 }
