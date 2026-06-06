@@ -19,6 +19,7 @@
 - JWT role claim을 실제 authority로 반영(무상태).
 - `@EnableMethodSecurity` + 클래스 레벨 `@PreAuthorize`로 기존 코디·어드민 엔드포인트 가드.
 - 코디 전용 PAID 취소·환불 트리거 엔드포인트 신설.
+- `carry-operation`에 `spring-security-core` 의존 추가(@PreAuthorize 컴파일 전제).
 
 ### 제외 (후속/YAGNI)
 - 실제 로그인 → 토큰 발급 wiring (현재 토큰은 테스트에서만 생성됨; 운영 OAuth/로그인 컨트롤러는 별도 작업).
@@ -42,8 +43,10 @@
 ### 4.1 `JwtProvider` (carry-security)
 - `data class JwtPrincipal(val userId: Long, val role: String)` 도입.
 - `validateToken(token): Long?` → `parseToken(token): JwtPrincipal?`로 대체. 단일 검증으로 subject + `role` claim 추출. role claim 부재 시(예: refresh 토큰) 안전 기본값 `"CUSTOMER"`.
-- 유일 호출자가 `JwtAuthenticationFilter`뿐이므로 dead code 없이 교체(`validateToken` 제거).
-- `createAccessToken` / `createRefreshToken`은 변경 없음.
+- 유일 호출자가 `JwtAuthenticationFilter`뿐이므로 dead code 없이 교체(`validateToken` 제거). (repo 전체 grep으로 다른 호출자 없음 확인.)
+- `createAccessToken(userId: Long, role: String)` / `createRefreshToken`은 시그니처 변경 없음.
+
+**role-claim 문자열 계약 (중요)**: `hasRole('COORDINATOR')`는 authority `ROLE_COORDINATOR`를 요구하고, 필터는 `"ROLE_" + role`을 만든다. 따라서 `createAccessToken`에 넘기는 `role` 문자열은 **반드시 `UserRole`의 bare enum 이름**(`"COORDINATOR"` 등)이어야 한다. 현재 `createAccessToken`은 호출자가 없으므로(로그인 wiring은 범위 밖) 이 계약을 코드 타입으로 강제할 수 없다. `role: UserRole` 타입화는 carry-security → carry-user(UserRole 소재) **모듈 의존 역전**을 유발하므로 채택하지 않는다. 대신 **`JwtProviderTest` round-trip이 claim 값이 정확히 `"COORDINATOR"`임을 단언**하여 계약을 잠그고, 향후 로그인 wiring이 `UserRole.name`을 넘기도록 한다(후속 작업의 책임).
 
 ### 4.2 `JwtAuthenticationFilter` (carry-security)
 - `parseToken` 사용. authority를 `SimpleGrantedAuthority("ROLE_" + principal.role)`로 세팅.
@@ -63,7 +66,7 @@ URL 컨벤션이 깔끔하여 컨트롤러 단위로 역할이 동질적 → 클
 | `TermAdminController` | `/api/v2/admin/terms` | `hasRole('ADMIN')` |
 | `OrderCoordinatorController` (신규) | `/api/v2/coordinator/orders` | `hasRole('COORDINATOR')` |
 
-> `@PreAuthorize` 애너테이션은 `spring-security-core`에서 제공(carry-order에 이미 의존). `@EnableMethodSecurity`는 `spring-security-config`(carry-security)에 위치.
+> `@PreAuthorize` 애너테이션은 `spring-security-core`에서 제공. carry-order·carry-dispatch에는 이미 의존하나 **`carry-operation`에는 spring-security 의존이 전무** → `OperationDashboardController`·`TermAdminController`에 `@PreAuthorize`를 달면 컴파일 실패. **`carry-operation/build.gradle.kts`에 `implementation("org.springframework.security:spring-security-core")` 추가**가 본 작업에 포함된다. `@EnableMethodSecurity`는 `spring-security-config`(carry-security)에 위치.
 
 ### 4.5 신규 엔드포인트 `OrderCoordinatorController` (carry-order)
 ```
@@ -96,16 +99,22 @@ POST /{orderId}/cancel
 | 주문 없음 | 404 (`OrderNotFoundException`) |
 | 취소 불가 상태 | 409 (`ORDER_NOT_CANCELLABLE`) |
 
+> **응답 바디 주의**: 현재 SecurityConfig에 커스텀 `AuthenticationEntryPoint`/`AccessDeniedHandler`가 없어 401·403은 `GlobalExceptionHandler`를 거치지 않고 Spring Security 기본 응답(빈 바디)을 반환한다. 즉 401·403은 다른 에러처럼 `ApiResponse` 에러 봉투를 따르지 **않는다**. 이번 범위에서는 수용하고(envelope 통일은 후속), **테스트는 상태 코드만 단언**한다. 400/404/409는 `GlobalExceptionHandler` 경유로 `ApiResponse` 봉투를 따른다.
+
 ## 7. 테스트 (TDD)
 현재 `carry-security` 테스트 0개, 코디·어드민 컨트롤러 테스트 0개.
 
 - **carry-security**
-  - `JwtProviderTest`: 액세스 토큰 round-trip이 `(userId, role)` 반환 / role claim 없는 토큰 → `CUSTOMER` 기본값 / 위조·만료 토큰 → `null`.
+  - `JwtProviderTest`: 액세스 토큰 round-trip이 `(userId, role)` 반환 **+ claim 값이 정확히 `"COORDINATOR"`임을 단언**(role-claim 계약 잠금) / role claim 없는 토큰(refresh) → `CUSTOMER` 기본값 / 위조·만료 토큰 → `null`.
   - `JwtAuthenticationFilterTest`: role claim → `ROLE_<role>` authority, principal=userId.
 - **carry-app**
-  - `OrderCoordinatorControllerTest`: COORDINATOR → 204 + `cancelOrder(orderId, reason, "COORDINATOR")` 호출 검증 / ROLE_CUSTOMER → 403 / 미인증 → 401 / blank reason → 400.
+  - `OrderCoordinatorControllerTest`: COORDINATOR → 204 + `cancelOrder(orderId, reason, "COORDINATOR")` 호출 검증 / ROLE_CUSTOMER → 403 / 미인증 → 401 / blank reason → 400. (401/403은 **상태 코드만** 단언 — §6 봉투 주의 참조.)
   - 가드 회귀(대표 403): 기존 코디·어드민 컨트롤러에 잘못된 role 접근 시 403 검증(컨트롤러 테스트 신규).
-- 슬라이스(@WebMvcTest)가 `SecurityConfig`를 import → `@EnableMethodSecurity`가 슬라이스에서도 활성. 테스트는 `SecurityMockMvcRequestPostProcessors.authentication(...)`으로 authority 주입.
+
+**⚠️ 슬라이스 테스트 method-security 배선 (필수)**: 기존 컨트롤러 슬라이스 테스트는 `@WebMvcTest(... excludeFilters = SecurityConfig, JwtAuthenticationFilter)`로 **SecurityConfig를 제외**한다(401은 @WebMvcTest 기본 시큐리티 자동설정으로 통과). 따라서 그 패턴을 그대로 쓰면 `@EnableMethodSecurity`가 **활성화되지 않아 `@PreAuthorize`가 동작하지 않고 403 테스트가 거짓 통과**한다. 신규/가드 테스트는 method-security를 명시 배선해야 한다:
+- `@TestConfiguration @EnableMethodSecurity class MethodSecurityTestConfig`를 `@Import`(SecurityConfig 전체를 끌어와 JwtProvider→필터 빈 체인을 만들지 않도록, 메서드 시큐리티만 켜는 최소 config 권장), `SecurityConfig`/`JwtAuthenticationFilter` exclude는 유지(필터 의존 체인 회피, 인증은 `authentication(...)` 포스트프로세서로 주입).
+- 검증: 동일 테스트에서 COORDINATOR=204(통과), CUSTOMER=403(차단) **양방향** 단언으로 애너테이션이 실제로 발동함을 증명.
+- 테스트는 `SecurityMockMvcRequestPostProcessors.authentication(...)`으로 authority(`ROLE_COORDINATOR` 등) 주입.
 
 ## 8. 검증 흐름 (머지 게이트)
 1. 전체 `compileTestKotlin` (cross-module/saga 호출자 정합 검출).
