@@ -37,16 +37,27 @@ RF=3 + `min.insync.replicas=2` + `acks=all` → **브로커 1대 다운 허용(�
 - *3 broker + 3 controller 분리(6컨테이너)*: 실운영급이나 로컬 리소스 과부하·복잡도.
 - *3 broker + 1 controller*: controller가 단일 장애점 → HA 서사 훼손.
 
-리스너 3종 분리(advertised 오설정 = 멀티브로커 최대 footgun 차단):
+리스너 3종 분리(advertised 오설정 = 멀티브로커 최대 footgun 차단). 호스트 포트는
+기존 docker-compose가 점유한 9090(prometheus)/9093(alertmanager)/9095(webhook)와
+충돌하지 않게 **9092·9094·9096**으로 고정:
 
-| 리스너 | 포트 | advertised | 용도 |
-|---|---|---|---|
-| CONTROLLER | 9093 | — | KRaft 쿼럼 |
-| INTERNAL | 19092 | `kafka-N:19092` | 브로커 간 + kafka-connect 컨테이너 |
-| EXTERNAL | 909X | `localhost:909X` | 호스트 앱/테스트 |
+| 리스너 | 컨테이너 포트 | 호스트 매핑 | advertised | 용도 |
+|---|---|---|---|---|
+| CONTROLLER | 9093 | **없음(컨테이너 내부 전용)** | — | KRaft 쿼럼 |
+| INTERNAL | 19092 | 없음 | `kafka-N:19092` | 브로커 간 + kafka-connect 컨테이너 |
+| EXTERNAL | 9092 | kafka-1→9092, kafka-2→9094, kafka-3→9096 | `localhost:<호스트포트>` | 호스트 앱/테스트 |
 
-`KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093`,
-전 브로커 동일 `CLUSTER_ID`.
+- CONTROLLER(9093)는 **호스트로 매핑하지 않는다**(alertmanager 호스트 9093과 무관 — 컨테이너 내부 쿼럼 전용).
+- `KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093`,
+  전 브로커 동일 `CLUSTER_ID`.
+- **kafka-connect**: `BOOTSTRAP_SERVERS`를 `kafka:9092` → `kafka-1:19092,kafka-2:19092,kafka-3:19092`(INTERNAL)로 변경.
+- **connect 내부 토픽 RF**: `CONFIG_STORAGE_REPLICATION_FACTOR`·`OFFSET_STORAGE_REPLICATION_FACTOR`·
+  `STATUS_STORAGE_REPLICATION_FACTOR` 1 → 3 (CDC 파이프라인 자체의 설정/오프셋/상태 토픽도
+  브로커 1대 다운에 견디게 — Problem에서 지목한 connect storage SPOF 해소).
+- **브로커 내부 토픽**: `KAFKA_DEFAULT_REPLICATION_FACTOR: 3`, `KAFKA_MIN_INSYNC_REPLICAS: 2`,
+  `KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3`, `KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3`,
+  `KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2` (전 브로커 동일) → `__consumer_offsets`·`__transaction_state`도
+  무손실 범위에 포함.
 
 ### 결정 2 — RF / min.insync.replicas 프로퍼티 외부화
 
@@ -76,12 +87,20 @@ carry:
 - `PARTITIONS = 6`은 상수 유지(파티셔닝 설계와 정합).
 - 프로듀서 설정/코드 변경 없음(이미 `acks=all`+`idempotence`).
 
+> `acks=all`은 RF=1(base/test/dev/prod 기본)에서도 정상 동작한다 — ISR=1이라 단일 리더의
+> ack로 충족되어 부팅/발행이 블록되지 않는다. RF=3 + min-ISR=2일 때만 "1대 다운 허용"이
+> 추가로 성립한다.
+
 ### 결정 3 — Debezium 커넥터(로컬)
 
-`register-connector.json`(로컬 전용, `host.docker.internal` 사용):
+`register-connector.json`(로컬 전용, `host.docker.internal` 사용)는 **이벤트 토픽**
+(`carry.*.events`)의 생성 정책이다:
 - `topic.creation.default.replication.factor`: 1 → 3
 - `topic.creation.default.min.insync.replicas`: 2 (신규)
 - `topic.creation.default.partitions`: 6 (유지)
+
+> connect **내부 토픽**(config/offset/status)의 RF는 커넥터 설정이 아니라 worker env
+> (`*_STORAGE_REPLICATION_FACTOR`)로 결정되며, 결정 1에서 3으로 올린다.
 
 ## 검증
 
@@ -101,9 +120,18 @@ Testcontainers의 매핑 포트는 컨테이너 기동 후에야 결정된다.
 - 1차 접근: 컨테이너 기동 후 advertised.listeners를 매핑 포트로 갱신하는 래퍼(confluent
   `KafkaContainer`의 starter-script 패턴) 또는 고정 노출 포트.
 - 폴백: 순수 Testcontainers 와이어링이 과도하게 flaky하면, **docker-compose 3브로커 스택을
-  대상으로 한 태그드 테스트**(외부 기동 가정)로 무손실 단언을 수행. plan 단계에서 확정.
+  대상으로 한 태그드 테스트**(외부 기동 가정)로 무손실 단언을 수행. **폴백 발동 기준 = 동일 IT를
+  연속 10회 실행 시 2회 이상 인프라 사유(advertised/포트/타임아웃) 실패** → plan 단계에서 1차
+  와이어링 구현 후 이 기준으로 판정.
 
-기존 `KafkaTopicConfigTest`(RF=1 하드 단언)는 주입값 기반으로 갱신한다.
+**기존 테스트 회귀:**
+- `KafkaTopicConfigTest`: 현재 `KafkaTopicConfig.dlqTopics()`를 **companion 정적 호출**하고 RF=1을
+  하드 단언한다. 결정 2로 `dlqTopics()`가 인스턴스 메서드(@ConfigurationProperties 주입)로 바뀌므로
+  **단순 값 교체가 아니라 정적→인스턴스 API 변경**이다 — 프로퍼티 객체를 주입해 인스턴스화하도록 재작성
+  하고, 주입 RF·min-ISR이 DLQ 토픽에 반영됨을 단언한다.
+- `OutboxConnectorContractTest`: `register-connector.json` 계약을 잠근다. 현재 RF/min-ISR 키는
+  단언하지 않아 변경으로 깨지지 않으나, **RF=3·min-ISR=2 회귀 가드를 신규 단언으로 추가**한다
+  (이벤트 토픽 복제 정책이 1로 되돌아가는 회귀를 막는 것이 이 계약 테스트의 본분).
 
 ### 라이브 풀스택 스모크 (머지 전 필수)
 
