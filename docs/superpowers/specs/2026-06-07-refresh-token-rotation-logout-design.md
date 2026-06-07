@@ -42,6 +42,7 @@ Key: auth:refresh:{sid}   (hash)   TTL: refresh 수명(기본 7d), 회전 시 �
 - 디바이스별 다중 세션 = sid가 디바이스마다 다른 UUID → 키 분리(D1).
 - "제시된 jti가 cur도 prev(유예 내)도 아님" = 이미 회전된 옛 토큰의 재사용 = 탈취 신호 → 키 삭제로 세션 폐기(D2).
 - logout = 키 삭제(D3, refresh만 폐기). access는 자연 만료.
+- TTL은 회전마다 7d로 갱신(슬라이딩) → **활성 디바이스 세션은 계속 쓰면 무기한 유지**(의도된 동작, 리뷰 v2 #5). 미사용 7d 경과 시 키 만료 → 다음 refresh가 ABSENT.
 
 ### 3.1 원자성 (리뷰 #3·#4 해소)
 
@@ -51,7 +52,11 @@ Key: auth:refresh:{sid}   (hash)   TTL: refresh 수명(기본 7d), 회전 시 �
 
 ### 3.2 유예창 (리뷰 #3, RFC 6819 leeway)
 
-직전 jti(`prev`)는 **`prevAt`로부터 grace(기본 10s) 이내**라면 재사용으로 보지 않고 **정상 재시도로 간주해 다시 회전**한다. 단 이때 `prev`는 전진시키지 않아(`cur`만 교체) 유예창이 슬라이딩하지 않게 **경계를 고정**한다. 이는 Auth0 등 성숙 구현의 `reuse interval`과 동형이며, 정상 사용자 lockout과 탈취 탐지의 균형점이다. grace를 넘긴 옛 토큰은 진짜 재사용 → 세션 폭파.
+직전 jti(`prev`)는 **`prevAt`로부터 grace(기본 10s) 이내**라면 재사용으로 보지 않고 **정상 재시도로 간주해 다시 회전**한다.
+
+**경계 고정 = 시계만 고정, 값은 전진**(리뷰 v2 #1 BLOCKER 해소): 유예 재시도 시 `prev`를 **나가는 `cur` 값으로 전진**시키되 `prevAt`는 **갱신하지 않는다**. `prev`를 첫 토큰에 고정하면(값+시계 둘 다 고정) 회전 산출물이 고아가 된다 — 동시 2요청에서 Req1이 `cur:A→B` 회전 후 `B`를 반환했는데 Req2(같은 A 재시도)가 `cur←C`로 덮으면 `B`가 `cur`도 `prev`도 아니게 되고, 클라이언트가 `B`를 보관했다 제시하면 거짓 REUSE로 세션이 폭파된다. **값을 전진(`prev←B`)하면** 클라가 `B`를 들든 `C`를 들든 정상 회전되고, `prevAt`를 고정해 윈도우는 슬라이딩하지 않는다.
+
+이는 Auth0 등 성숙 구현의 `reuse interval`과 동형. **잔여 노출(리뷰 v2 #2)**: grace 창(≤10s) 동안 탈취자도 1회 회전을 얻을 수 있으나 `prevAt` 고정으로 무한 연장 불가 — 창 만료 후 첫 stale 제시에서 탐지 발화. **단일 슬롯 한계**: 직전 1개만 관용하므로 *동일 토큰 3회 동시제시* 같은 병리적 경우는 REUSE(세션 리셋)로 안전 degrade — 정상 더블탭(2회)은 커버.
 
 ## 4. 흐름
 
@@ -64,11 +69,32 @@ Key: auth:refresh:{sid}   (hash)   TTL: refresh 수명(기본 7d), 회전 시 �
 1. 서명·`purpose=REFRESH` 검증 → `userId, sid, presentedJti` 추출 (실패 → 401 `AuthTokenInvalidException`)
 2. user 조회 + active 확인 (실패 → 401)
 3. `newJti = UUID` 로 새 refresh 토큰 발급(아직 미확정)
-4. `result = store.rotate(sid, presentedJti, newJti)` — 원자 Lua:
+4. `result = store.rotate(sid, presentedJti, newJti)` — 원자 Lua (KEYS=[key], ARGV=[presented, newJti, ttlMs, graceMs]):
    - `cur` 없음 → **`ABSENT`** (로그아웃됨/만료)
-   - `cur == presentedJti` → 회전: `prev←cur, prevAt←now, cur←newJti`, `PEXPIRE 7d` → **`ROTATED`**
-   - `prev == presentedJti` 이고 `now - prevAt ≤ grace` → 유예 재시도: `cur←newJti`(prev 고정), `PEXPIRE 7d` → **`ROTATED`**
+   - `cur == presentedJti` → 회전: `prev←cur, prevAt←now, cur←newJti`, `PEXPIRE ttlMs` → **`ROTATED`**
+   - `prev == presentedJti` 이고 `now - prevAt ≤ grace` → 유예 재시도: `prev←cur(값 전진), cur←newJti, prevAt 미갱신(시계 고정)`, `PEXPIRE ttlMs` → **`ROTATED`** (§3.2)
    - 그 외 → 진짜 재사용: `DEL key` → **`REUSE`**
+
+   ```lua
+   local cur = redis.call('HGET', KEYS[1], 'cur')
+   if not cur then return 'ABSENT' end
+   local t = redis.call('TIME')                       -- {sec, usec}
+   local now = t[1] * 1000 + math.floor(t[2] / 1000)  -- ms (리뷰 v2 #3)
+   if cur == ARGV[1] then
+     redis.call('HSET', KEYS[1], 'prev', cur, 'prevAt', now, 'cur', ARGV[2])
+     redis.call('PEXPIRE', KEYS[1], ARGV[3]); return 'ROTATED'
+   end
+   local prev = redis.call('HGET', KEYS[1], 'prev')
+   if prev and prev == ARGV[1] then
+     local prevAt = tonumber(redis.call('HGET', KEYS[1], 'prevAt'))  -- StringRedisTemplate → 문자열, tonumber 필수
+     if prevAt and (now - prevAt) <= tonumber(ARGV[4]) then
+       redis.call('HSET', KEYS[1], 'prev', cur, 'cur', ARGV[2])      -- prev 값 전진, prevAt 고정
+       redis.call('PEXPIRE', KEYS[1], ARGV[3]); return 'ROTATED'
+     end
+   end
+   redis.call('DEL', KEYS[1]); return 'REUSE'
+   ```
+   `newJti`는 결과 확정 전 생성되나(step 3) ABSENT/REUSE 시 미반환·미저장 폐기 — 순수 생성(UUID+서명)이라 부작용 없음(리뷰 v2 #4).
 5. 매핑:
    - `ROTATED` → 새 access + (newJti 담긴) 새 refresh 둘 다 반환 (`TokenPair`)
    - `ABSENT` → 401 `AuthTokenInvalidException`
@@ -115,8 +141,9 @@ interface RefreshTokenStorePort {
 - 키 prefix `auth:refresh:`.
 
 ### 5.6 carry-user `InMemoryRefreshTokenStore` (adapter.outbound.auth, 신규 — fallback)
-- `ConcurrentHashMap<sid, Entry(cur, prev, prevAt)>` + `synchronized` rotate로 **Lua와 동일 의미** 구현. grace 판정용 `Clock` 주입(테스트 결정성).
+- `ConcurrentHashMap<sid, Entry(cur, prev, prevAt)>` + `synchronized` rotate로 **Lua와 동일 의미**(§4.2 분기·prev 값전진/prevAt 고정 포함) 구현. `now`는 주입된 `Clock.millis()`(테스트 결정성, Lua의 `TIME` 대응).
 - 용도: ① Redis 미존재 환경(test 프로파일은 `RedisAutoConfiguration` 제외) ② 알고리즘의 결정적 단위테스트.
+- ⚠️ **의미 동등성이 load-bearing**(리뷰 v2 #6): InMemory와 실 Lua가 grace 경계에서 동일 `RotateResult`를 내야 함 → §8에 동일 시나리오 매트릭스를 양쪽에 적용하는 parity 테스트.
 
 ### 5.7 carry-user `RefreshTokenStoreConfig` (adapter.outbound.auth, 신규 — 와이어링)
 - **geo `GeocodingResilienceConfig` 선례 차용**(리뷰 #1): `@Bean fun refreshTokenStorePort(@Autowired(required=false) stringRedisTemplate: StringRedisTemplate?, jwtProperties)` → Redis 있으면 `RedisRefreshTokenStore`, 없으면 `InMemoryRefreshTokenStore`(warn 로그).
@@ -167,9 +194,8 @@ interface RefreshTokenStorePort {
 | 레이어 | 케이스 |
 |--------|--------|
 | `JwtProvider` 단위 | sid/jti 라운드트립(create→parse 일치), 잘못된 purpose 거부, sid/jti 누락 토큰 거부 |
-| `InMemoryRefreshTokenStore` 단위(Clock 주입) | start→rotate(정상) / 재사용(옛 jti→REUSE+키삭제) / ABSENT(없는 sid) / 유예 재시도(prev within grace→ROTATED) / 유예 만료(prev beyond grace→REUSE) |
+| **parity 매트릭스**(InMemory 단위 + Redis 통합 동일 시나리오) | start→rotate(정상) / 재사용(옛 jti→REUSE+키삭제) / ABSENT(없는 sid) / 유예 재시도(prev within grace→ROTATED) / 유예 만료(prev beyond grace→REUSE) / **덮인 cur 제시**(동시 2요청 산출 B를 grace 내 제시→ROTATED, v2 #1 회귀) / 동일 토큰 3회(→REUSE 안전 degrade). InMemory는 Clock 주입으로, Redis는 실 Lua로 **동일 기대값** |
 | `RedisRefreshTokenStore` 단위(mockk) | execute(script, key, args) 호출·반환문자열→RotateResult 매핑 |
-| `RedisRefreshTokenStore` 통합(Testcontainers Redis `GenericContainer`, 실 Lua) | start/rotate정상/REUSE/유예/delete 실제 Redis 검증 |
 | `JwtAuthTokenAdapter` 단위 | 새 세션 vs 회전(sid 고정·jti 변화), parse 매핑 |
 | `AuthService` 단위(store mock) | 회전(ROTATED→TokenPair, start/rotate 호출) / REUSE(→RefreshTokenReuseException) / ABSENT(→AuthTokenInvalidException) / logout(검증 성공→delete 호출, 검증 실패→delete 미호출) |
 | `carry-app` `AuthControllerTest` | refresh 200+access+refresh / logout 204 (mock UseCase) |
