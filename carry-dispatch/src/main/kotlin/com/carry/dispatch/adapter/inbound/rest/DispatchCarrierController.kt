@@ -19,11 +19,13 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 
 @Tag(name = "Dispatch - Carrier", description = "배달원 배차 API")
 @RestController
 @RequestMapping("/api/v2/dispatches")
+@PreAuthorize("hasRole('CARRIER')")
 class DispatchCarrierController(
     private val dispatchCommandUseCase: DispatchCommandUseCase,
     private val dispatchQueryUseCase: DispatchQueryUseCase,
