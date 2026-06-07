@@ -27,9 +27,10 @@ actor·role·traceId·IP가 이미 ThreadLocal 기반 홀더에 존재 → **별
 | role | authentication.authorities 첫 `ROLE_*` 스트립 | null |
 | traceId | `MDC.get("traceId")` (관측성 작업 기존 자산) | null |
 | ip | `RequestContextHolder` → `X-Forwarded-For ?: remoteAddr` | null (saga 스레드) |
-| timestamp | `@CreatedDate` (BaseEntity JPA auditing) | (항상 존재) |
+| timestamp | 어댑터가 `Instant.now()`로 설정(엔티티 `createdAt`) | (항상 존재) |
 
-saga 자동 트리거는 요청 스레드/SecurityContext가 없어 자연히 actor=SYSTEM·ip=null로 기록된다(D3).
+- **principal 가드 캐스트**(리뷰 #3): `(principal as? Long)?.toString() ?: "SYSTEM"` — 미인증·익명("anonymousUser" String)·비-Long 모두 SYSTEM으로 degrade(하드 캐스트는 ClassCastException→§6대로 액션 롤백 유발하므로 금지).
+- saga 자동 트리거는 요청 스레드/SecurityContext가 없어 자연히 actor=SYSTEM·ip=null로 기록된다(D3). `RequestContextHolder`는 요청 스레드 바인딩이라 Kafka 컨슈머/`@Async` 스레드에 상속되지 않음 → saga ip=null 자동(현 4개 타깃 중 `@Async` 래핑 없음).
 
 ## 4. 모듈 — 신규 `carry-audit` (self-contained)
 
@@ -41,11 +42,12 @@ carry-audit/
   src/main/kotlin/com/carry/audit/
     port/AuditPort.kt          // record(action, targetType, targetId, before, after)
     port/AuditAction.kt        // enum
-    domain/AuditLog.kt         // 순수 도메인
+    domain/AuditLog.kt         // 순수 도메인 (Spring/JPA 비의존)
     adapter/outbound/persistence/
-      AuditLogJpaEntity.kt     // BaseEntity 상속(created_at=timestamp)
+      AuditLogJpaEntity.kt     // ⚠️ BaseEntity 미상속(append-only 불변 → updated_at 무의미). 자체 @Id + createdAt만
       AuditLogJpaRepository.kt
       AuditPersistenceAdapter.kt   // AuditPort 구현 + ambient 수집 + JSON 직렬화
+  src/test/kotlin/com/carry/audit/architecture/HexagonalArchitectureTest.kt  // 타 모듈과 동일 레이어 가드(리뷰 완성도)
   src/main/resources/db/migration/V19__create_audit_logs_table.sql
 ```
 
@@ -66,7 +68,7 @@ interface AuditPort {
 ```sql
 CREATE TABLE audit_logs (
     id          BIGSERIAL PRIMARY KEY,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),  -- @CreatedDate = 행위 시각
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),  -- 행위 시각(어댑터가 Instant.now() 설정)
     actor       VARCHAR(64) NOT NULL,                -- userId 문자열 또는 'SYSTEM'
     role        VARCHAR(32),
     action      VARCHAR(64) NOT NULL,
@@ -82,13 +84,19 @@ CREATE INDEX idx_audit_logs_target ON audit_logs(target_type, target_id);
 CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at);
 ```
 
-⚠️ test 프로파일 = `ddl-auto: validate` → 엔티티가 이 DDL과 **정확히 일치**해야 함(DDL-drift 교훈). local = `ddl-auto: update`(자동). before/after는 `JSONB` ↔ 엔티티에서 `@JdbcTypeCode(SqlTypes.JSON)` 또는 컬럼 정의 `columnDefinition = "jsonb"`로 매핑(outbox_events의 JSONB 매핑 방식 따름).
+⚠️ **BaseEntity 미상속**(리뷰 #1 BLOCKER): BaseEntity는 `created_at`+`updated_at`(NOT NULL) 둘 다 가지므로 상속하면 `updated_at` 컬럼 누락으로 `validate` 부팅 실패. 감사 행은 append-only 불변이라 `updated_at`이 무의미 → 자체 `@Id`(BIGSERIAL `IDENTITY`/`@GeneratedValue`) + `createdAt: Instant`만 둔다.
+⚠️ test 프로파일 = `ddl-auto: validate` → 엔티티가 이 DDL과 **정확히 일치**해야 함(DDL-drift 교훈). local = `ddl-auto: update`(자동).
+- before/after 매핑: **outbox_events 선례를 그대로 따름** — `String` 필드에 `@JdbcTypeCode(SqlTypes.JSON)` + `@Column(columnDefinition = "jsonb")`. 즉 **어댑터가 `Any?`→JSON `String`으로 직렬화**한 뒤 엔티티에 담는다(Map/Any 직접 매핑 아님).
 
-## 6. 쓰기 정책 (D2 정밀화)
+## 6. 쓰기 정책 (D2 정밀화 — 리뷰 #2 반영)
 
 - `audit.record(...)`는 호출 서비스의 `@Transactional` 내부에서 실행 → **액션 + 감사 INSERT가 같은 트랜잭션**. 액션이 이후 롤백되면 감사도 롤백(일관성: 성공한 액션만 감사됨).
-- **best-effort = context 수집 방어**: actor/role/ip 해석·JSON 직렬화 실패는 throw 하지 않고 degrade(actor=SYSTEM, role/ip=null, JSON 실패 시 `null` 또는 `{}`). 감사 구성이 비즈니스 액션을 깨지 않는다.
-- INSERT 자체는 tx에 참여 — 유일 실패 모드인 **DB-down은 액션의 자기 쓰기도 실패**시키므로 감사가 "성공할 액션"을 독립적으로 깨는 일은 없다. 별도 fail-closed 게이트는 추가하지 않는다.
+- **같은 tx의 함의(정직하게)**: 같은 트랜잭션이므로 감사 INSERT가 실패하면 설계상 **비즈니스 액션도 롤백된다**(일관성을 가용성보다 우선, D2). REQUIRES_NEW로 분리하면 "감사 실패가 액션을 안 깸"은 얻지만 롤백된 액션의 감사 행이 남아 **거짓 트레일**이 되므로 채택하지 않는다.
+- **best-effort = 어댑터 내부 방어로 INSERT 실패 확률 최소화**(액션을 깨지 않으려는 목적):
+  - context 해석 실패(미인증/비-Long principal/request 부재)는 throw 없이 degrade(actor=SYSTEM, role/ip=null).
+  - `before/after` JSON 직렬화 실패는 catch → 해당 값 `null`로 degrade.
+  - `actor/role/target_type/target_id`는 컬럼 한도(64/32/64/64)로 **방어적 truncate** 후 저장(과길이 값이 INSERT를 깨지 않게).
+- 위 방어로 남는 실패 모드는 사실상 **DB-unavailable**인데, 그 경우 액션의 자기 쓰기도 실패하므로 감사가 "성공할 액션"을 추가로 깨는 일은 드물다. 별도 fail-closed 게이트는 두지 않는다.
 
 ## 7. 감사 지점 (서비스 액션, before는 변이 전 캡처)
 
@@ -100,6 +108,7 @@ CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at);
 | `DispatchCommandService.rejectAssignment` | DISPATCH_REJECT_PENALTY | DISPATCH / dispatchId | `{carrierId, status: 변이전}` | `{status, penaltyReason}` |
 
 - before 스냅샷은 변이 메서드 호출 **전** 로컬 변수로 캡처(예: `val beforeStatus = order.status`).
+- ⚠️ `after`의 필드는 **구현 시 실제 도메인에서 확인**(리뷰 #4): `rejectAssignment()`가 반환하는 `penaltyRecord`의 실제 필드(`reason: PenaltyReason` 등)에서 `penaltyReason`을 캡처. 코드에 없는 필드는 넣지 않는다. ORDER_CANCEL의 `reason`/`cancelledBy`는 액션 입력이므로 `after`(결과 컨텍스트)에 둔다.
 - `cancelOrder`는 코디·saga 공유 경로 → audit.record 1개로 양쪽 처리(actor가 자연히 코디 userId 또는 SYSTEM). `cancelOrderByCustomer`(고객 본인 경로)는 본 스코프 외(필요 시 후속).
 - 각 서비스에 `AuditPort` 생성자 주입.
 
@@ -107,7 +116,8 @@ CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at);
 
 | 레이어 | 케이스 |
 |--------|--------|
-| `AuditPersistenceAdapter` 단위 | SecurityContext(userId)+MDC(traceId)+RequestContext(ip) 세팅 → AuditLog 필드 정확·before/after JSON 직렬화 / **context 부재 → actor=SYSTEM·role/ip=null degrade** / 직렬화 예외 → throw 안 함 |
+| `AuditPersistenceAdapter` 단위 | SecurityContext(userId)+MDC(traceId)+RequestContext(ip) 세팅 → AuditLog 필드 정확·before/after JSON 직렬화 / **context 부재 → actor=SYSTEM·role/ip=null degrade** / **비-Long principal("anonymousUser") → SYSTEM** / 직렬화 예외 → throw 안 함(해당 값 null) / **과길이 actor·target → 컬럼 한도로 truncate** |
+| `carry-audit` ArchUnit | 도메인 레이어 Spring/JPA 비의존 등(타 모듈 HexagonalArchitectureTest와 동일) |
 | 4개 서비스 단위(AuditPort mock) | 각 메서드가 올바른 action/target/before/after로 record 호출 |
 | `carry-app` 통합(Testcontainers) | 코디 REST cancel → `audit_logs` 행(actor=userId·role=COORDINATOR·ip·traceId·before/after) / saga 경로 cancel → actor=SYSTEM·ip=null / V19 적용 + validate |
 | 라이브 스모크 | docker 풀스택: 코디 cancel REST → DB audit_logs 행 확인 |
