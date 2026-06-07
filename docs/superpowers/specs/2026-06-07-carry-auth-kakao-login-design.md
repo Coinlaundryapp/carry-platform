@@ -101,7 +101,7 @@ JWT에 `purpose` claim 도입:
 | Kakao API 장애/타임아웃 | 503 (`OAUTH_PROVIDER_UNAVAILABLE`) |
 | signup/refresh 토큰 무효·만료·purpose 불일치 | 401 (`AUTH_TOKEN_INVALID`) |
 | signup 입력(name/phone/email) 형식 오류 | 400 (VO 검증 → 기존 `INVALID_INPUT`) |
-| **비활성 유저 로그인/가입**(`User._active=false`) | 403 (기존 `FORBIDDEN` 또는 신규 `USER_INACTIVE`) |
+| **비활성 유저 로그인/가입**(`User._active=false`) | 403 (기존 `FORBIDDEN` 재사용 — 신규 코드 추가 안 함) |
 | **refresh 대상 유저 부재/비활성**(stale subject) | 401 (`AUTH_TOKEN_INVALID`) |
 
 - 401/403/503 모두 §5 기준 인증 필터 밖 **자체검증→BusinessException**이라 `GlobalExceptionHandler`(BusinessException 핸들러, 4xx=info·5xx=error) 경유로 ApiResponse 봉투를 따른다.
@@ -128,7 +128,7 @@ OAuth e2e의 본질적 난점: **실 Kakao 로그인 UI 자동화는 brittle**(�
 핵심 사실: **Kakao SDK(JS/Android/iOS)는 API base-url을 노출하지 않는다**(`kapi/kauth.kakao.com` 하드코딩 + 실제 동의 UI 요구). 따라서 `kakao.api.base-url` 오버라이드는 **서버→Kakao(user/me) 홉만** 스텁할 뿐 프론트 SDK엔 무효다. 결정적 프론트 e2e의 **유일한 현실 경로**는 SDK 우회다:
 - e2e/스테이징 환경에서 `kakao.api.base-url`을 **스텁 서버**(WireMock 또는 경량 fake, docker-compose 1 서비스)로 지정. 스텁은 사전 정의 테스트 토큰 → 결정적 프로필(oauthId/email/nickname) 매핑 반환.
 - 프론트는 e2e 전용 플래그로 **알려진 테스트 kakaoAccessToken**을 `/auth/login`에 직접 전달(실 SDK 로그인 우회). 서버가 그 토큰으로 스텁 user/me를 호출 → 결정적 프로필 → 전 구간(프론트→백엔드→스텁) Playwright 검증.
-- **테스트 토큰 출처(픽스처 계약)**: 스텁 설정과 Playwright 스위트가 **단일 출처**의 토큰↔프로필 픽스처를 공유(예: 레포 공용 `e2e-fixtures/kakao-stub.json`). 프론트엔 e2e 모드에서만 토큰 주입 경로 노출(프로덕션 빌드 비포함).
+- **테스트 토큰 출처(픽스처 계약)**: 스텁 설정과 Playwright 스위트가 **단일 출처**의 토큰↔프로필 픽스처를 공유(예: 레포 공용 `e2e-fixtures/kakao-stub.json`). 프론트엔 e2e 모드에서만 토큰 주입 경로 노출(프로덕션 빌드 비포함). 스텁은 **미등록 토큰엔 401 반환**(무효 토큰 시나리오가 스텁 계약으로 결정적으로 구동되도록).
 - 시나리오: 신규(REGISTRATION_REQUIRED→가입폼→토큰) / 기존(즉시 토큰) / refresh / 무효 토큰(401).
 
 **⚠️ prod 누출 차단 (최고위험 footgun):** `kakao.api.base-url` 기본값 = 실 `https://kapi.kakao.com`. 스텁 지정은 **env 오버라이드로 dev/stg에서만**. **prod 프로파일에서 base-url이 kapi.kakao.com이 아니면 부팅 실패(시작 시 assertion)** — 잘못된 prod base-url = 위조 신원 수용이므로 코드로 봉인.
