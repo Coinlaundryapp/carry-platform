@@ -13,6 +13,8 @@ import com.carry.dispatch.domain.exception.CarrierNotInAreaException
 import com.carry.dispatch.domain.exception.DispatchNotFoundException
 import com.carry.dispatch.domain.exception.DispatchNotOwnedException
 import com.carry.dispatch.domain.model.Dispatch
+import com.carry.audit.domain.AuditAction
+import com.carry.audit.port.AuditPort
 import com.carry.common.metrics.MetricsPort
 import com.carry.event.dispatch.DispatchAcceptedEvent
 import com.carry.event.dispatch.DispatchCancelledEvent
@@ -27,6 +29,7 @@ class DispatchCommandService(
     private val penaltyRecordPersistencePort: PenaltyRecordPersistencePort,
     private val eventPublisher: EventPublisherPort,
     private val metrics: MetricsPort,
+    private val auditPort: AuditPort,
 ) : DispatchCommandUseCase {
 
     @Transactional
@@ -61,8 +64,18 @@ class DispatchCommandService(
     @Transactional
     override fun assignDispatch(command: AssignDispatchCommand): Dispatch {
         val dispatch = findDispatch(command.dispatchId)
+        val beforeCarrier = dispatch.carrierId
+        val beforeStatus = dispatch.status
         dispatch.assignByCoordinator(command.carrierId)
-        return dispatchPersistencePort.save(dispatch)
+        val saved = dispatchPersistencePort.save(dispatch)
+        auditPort.record(
+            action = AuditAction.DISPATCH_ASSIGN,
+            targetType = "DISPATCH",
+            targetId = command.dispatchId.toString(),
+            before = mapOf("carrierId" to beforeCarrier, "status" to beforeStatus.name),
+            after = mapOf("carrierId" to saved.carrierId, "status" to saved.status.name),
+        )
+        return saved
     }
 
     @Transactional
@@ -97,10 +110,18 @@ class DispatchCommandService(
         if (dispatch.carrierId != command.carrierId) {
             throw DispatchNotOwnedException(command.dispatchId, command.carrierId)
         }
+        val beforeStatus = dispatch.status
         val penaltyRecord = dispatch.rejectAssignment()
         val saved = dispatchPersistencePort.save(dispatch)
         penaltyRecordPersistencePort.save(penaltyRecord)
         metrics.incrementCounter("carry.dispatch.rejected")
+        auditPort.record(
+            action = AuditAction.DISPATCH_REJECT_PENALTY,
+            targetType = "DISPATCH",
+            targetId = command.dispatchId.toString(),
+            before = mapOf("carrierId" to command.carrierId, "status" to beforeStatus.name),
+            after = mapOf("status" to saved.status.name, "penaltyReason" to penaltyRecord.reason.name),
+        )
         return saved
     }
 

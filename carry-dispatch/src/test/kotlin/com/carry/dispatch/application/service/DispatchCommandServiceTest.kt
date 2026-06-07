@@ -33,9 +33,10 @@ class DispatchCommandServiceTest {
     private val penaltyRecordPersistencePort = mockk<PenaltyRecordPersistencePort>(relaxed = true)
     private val eventPublisher = mockk<EventPublisherPort>(relaxed = true)
     private val metrics = mockk<MetricsPort>(relaxed = true)
+    private val auditPort = mockk<com.carry.audit.port.AuditPort>(relaxed = true)
 
     private val sut = DispatchCommandService(
-        dispatchPersistencePort, carrierAreaPersistencePort, penaltyRecordPersistencePort, eventPublisher, metrics,
+        dispatchPersistencePort, carrierAreaPersistencePort, penaltyRecordPersistencePort, eventPublisher, metrics, auditPort,
     )
 
     private val now = Instant.now()

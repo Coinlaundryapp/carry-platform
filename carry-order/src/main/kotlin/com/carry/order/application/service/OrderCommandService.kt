@@ -1,5 +1,7 @@
 package com.carry.order.application.service
 
+import com.carry.audit.domain.AuditAction
+import com.carry.audit.port.AuditPort
 import com.carry.common.exception.BusinessException
 import com.carry.common.exception.ErrorCode
 import com.carry.common.metrics.MetricsPort
@@ -31,6 +33,7 @@ class OrderCommandService(
     private val serviceAvailabilityQueryPort: ServiceAvailabilityQueryPort,
     private val eventPublisher: EventPublisherPort,
     private val metrics: MetricsPort,
+    private val auditPort: AuditPort,
 ) : OrderCommandUseCase {
 
     @Transactional
@@ -86,6 +89,7 @@ class OrderCommandService(
     override fun cancelOrder(orderId: Long, reason: String, cancelledBy: String) {
         val order = orderPersistencePort.findById(orderId) ?: throw OrderNotFoundException(orderId)
         val by = CancelledBy.valueOf(cancelledBy)
+        val beforeStatus = order.status
         if (order.status == OrderStatus.PAID) {
             // 결제 완료 후 취소 = 즉시 종료가 아니라 환불 보상 트랜잭션 시작.
             // 동일한 OrderCancelledEvent 로 dispatch/delivery 캐스케이드와 결제 환불을 함께 트리거한다.
@@ -95,6 +99,14 @@ class OrderCommandService(
         } else {
             doCancel(order, reason, by)
         }
+        // 민감 작업 감사. actor는 어댑터가 ambient 수집(코디=userId, saga=SYSTEM).
+        auditPort.record(
+            action = AuditAction.ORDER_CANCEL,
+            targetType = "ORDER",
+            targetId = orderId.toString(),
+            before = mapOf("status" to beforeStatus.name),
+            after = mapOf("status" to order.status.name, "reason" to reason, "cancelledBy" to by.name),
+        )
     }
 
     // 고객 본인 취소: 소유권 검증 후 CUSTOMER 로 취소.

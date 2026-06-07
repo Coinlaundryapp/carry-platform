@@ -1,5 +1,7 @@
 package com.carry.payment.application.service
 
+import com.carry.audit.domain.AuditAction
+import com.carry.audit.port.AuditPort
 import com.carry.common.exception.BusinessException
 import com.carry.common.exception.ErrorCode
 import com.carry.common.metrics.MetricsPort
@@ -30,6 +32,7 @@ class PaymentCommandService(
     private val paymentGatewayResolver: PaymentGatewayResolver,
     private val eventPublisher: EventPublisherPort,
     private val metrics: MetricsPort,
+    private val auditPort: AuditPort,
 ) : PaymentCommandUseCase {
 
     @Transactional
@@ -135,6 +138,14 @@ class PaymentCommandService(
                 orderId = saved.orderId,
                 refundAmount = cancelResult.refundAmount ?: saved.amount,
             ),
+        )
+
+        auditPort.record(
+            action = AuditAction.PAYMENT_REFUND,
+            targetType = "PAYMENT",
+            targetId = orderId.toString(),
+            before = mapOf("status" to PaymentStatus.COMPLETED.name),
+            after = mapOf("status" to saved.status.name, "reason" to reason),
         )
     }
 }
