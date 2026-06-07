@@ -24,6 +24,10 @@ cloud:
       secret-key: ${AWS_SECRET_KEY}
 
 carry:
+  kafka:
+    # 클라우드 미준비 → 기본 1(단일 브로커). 멀티브로커 준비 후 env로 3/2.
+    replication-factor: ${CARRY_KAFKA_REPLICATION_FACTOR:1}
+    min-insync-replicas: ${CARRY_KAFKA_MIN_INSYNC_REPLICAS:1}
   geo:
     naver:
       client-id: ${NAVER_CLIENT_ID}
