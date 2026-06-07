@@ -1,5 +1,6 @@
 package com.carry.order.application.service
 
+import com.carry.common.logging.SagaLogContext
 import com.carry.event.delivery.DeliveryCompletedEvent
 import com.carry.event.delivery.LaundryStartedEvent
 import com.carry.event.delivery.PickupCompletedEvent
@@ -15,6 +16,8 @@ import com.carry.order.application.port.outbound.OrderPersistencePort
 import com.carry.order.domain.exception.OrderNotFoundException
 import com.carry.order.domain.model.Order
 import com.carry.order.domain.vo.CancelledBy
+import com.carry.order.domain.vo.OrderStatus
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -23,74 +26,116 @@ class OrderSagaHandler(
     private val orderPersistencePort: OrderPersistencePort,
 ) : OrderSagaEventHandler {
 
+    private val log = LoggerFactory.getLogger(javaClass)
+
     @Transactional
     override fun onDispatchAccepted(event: DispatchAcceptedEvent) {
-        val order = findOrder(event.orderId)
-        order.markDispatched(event.carrierId)
-        orderPersistencePort.save(order)
+        SagaLogContext.withOrderId(event.orderId) {
+            log.info("Order saga: onDispatchAccepted dispatchId={} carrierId={}", event.dispatchId, event.carrierId)
+            val order = findOrder(event.orderId)
+            order.markDispatched(event.carrierId)
+            orderPersistencePort.save(order)
+        }
     }
 
     @Transactional
     override fun onDispatchTimeout(event: DispatchTimeoutEvent) {
-        val order = findOrder(event.orderId)
-        if (order.isCancellable()) {
-            order.cancel("배차 시간 초과", CancelledBy.SYSTEM)
-            orderPersistencePort.save(order)
+        SagaLogContext.withOrderId(event.orderId) {
+            log.info("Order saga: onDispatchTimeout dispatchId={}", event.dispatchId)
+            val order = findOrder(event.orderId)
+            if (order.isCancellable()) {
+                order.cancel("배차 시간 초과", CancelledBy.SYSTEM)
+                orderPersistencePort.save(order)
+            }
         }
     }
 
     @Transactional
     override fun onDispatchCancelled(event: DispatchCancelledEvent) {
-        val order = findOrder(event.orderId)
-        if (order.isCancellable()) {
-            order.cancel(event.reason, CancelledBy.COORDINATOR)
-            orderPersistencePort.save(order)
+        SagaLogContext.withOrderId(event.orderId) {
+            log.info("Order saga: onDispatchCancelled dispatchId={} reason={}", event.dispatchId, event.reason)
+            val order = findOrder(event.orderId)
+            if (order.isCancellable()) {
+                order.cancel(event.reason, CancelledBy.COORDINATOR)
+                orderPersistencePort.save(order)
+            }
         }
     }
 
     @Transactional
     override fun onPickupCompleted(event: PickupCompletedEvent) {
-        val order = findOrder(event.orderId)
-        order.markPickedUp(event.actualWeight)
-        orderPersistencePort.save(order)
+        SagaLogContext.withOrderId(event.orderId) {
+            log.info("Order saga: onPickupCompleted deliveryId={} weight={}", event.deliveryId, event.actualWeight)
+            val order = findOrder(event.orderId)
+            order.markPickedUp(event.actualWeight)
+            orderPersistencePort.save(order)
+        }
     }
 
     @Transactional
     override fun onInvoiceIssued(event: InvoiceIssuedEvent) {
-        val order = findOrder(event.orderId)
-        order.markInvoiced(event.invoiceId, event.totalAmount)
-        orderPersistencePort.save(order)
+        SagaLogContext.withOrderId(event.orderId) {
+            log.info("Order saga: onInvoiceIssued invoiceId={} amount={}", event.invoiceId, event.totalAmount)
+            val order = findOrder(event.orderId)
+            order.markInvoiced(event.invoiceId, event.totalAmount)
+            orderPersistencePort.save(order)
+        }
     }
 
     @Transactional
     override fun onPaymentCompleted(event: PaymentCompletedEvent) {
-        val order = findOrder(event.orderId)
-        order.markPaid()
-        orderPersistencePort.save(order)
+        SagaLogContext.withOrderId(event.orderId) {
+            log.info("Order saga: onPaymentCompleted paymentId={}", event.paymentId)
+            val order = findOrder(event.orderId)
+            order.markPaid()
+            orderPersistencePort.save(order)
+        }
     }
 
     @Transactional
     override fun onPaymentFailed(event: PaymentFailedEvent) {
-        // 결제 실패 시 상태 유지 — 고객에게 재결제 요청 알림 (Phase 4 carry-notification)
+        SagaLogContext.withOrderId(event.orderId) {
+            log.warn("Order saga: onPaymentFailed paymentId={} reason={}", event.paymentId, event.reason)
+            val order = findOrder(event.orderId)
+            // INVOICED 에서만 결제 실패로 전이 — 이미 PAID/취소/환불된 주문에 늦게 도착한 실패 이벤트는 무시(멱등/순서 안전).
+            if (order.status == OrderStatus.INVOICED) {
+                order.markPaymentFailed()
+                orderPersistencePort.save(order)
+            }
+        }
     }
 
     @Transactional
     override fun onLaundryStarted(event: LaundryStartedEvent) {
-        val order = findOrder(event.orderId)
-        order.markInProgress()
-        orderPersistencePort.save(order)
+        SagaLogContext.withOrderId(event.orderId) {
+            log.info("Order saga: onLaundryStarted deliveryId={}", event.deliveryId)
+            val order = findOrder(event.orderId)
+            order.markInProgress()
+            orderPersistencePort.save(order)
+        }
     }
 
     @Transactional
     override fun onDeliveryCompleted(event: DeliveryCompletedEvent) {
-        val order = findOrder(event.orderId)
-        order.markCompleted()
-        orderPersistencePort.save(order)
+        SagaLogContext.withOrderId(event.orderId) {
+            log.info("Order saga: onDeliveryCompleted deliveryId={}", event.deliveryId)
+            val order = findOrder(event.orderId)
+            order.markCompleted()
+            orderPersistencePort.save(order)
+        }
     }
 
     @Transactional
     override fun onRefundCompleted(event: RefundCompletedEvent) {
-        // TODO: 환불 완료 시 별도 상태(REFUNDED) 처리 필요 시 추가
+        SagaLogContext.withOrderId(event.orderId) {
+            log.info("Order saga: onRefundCompleted paymentId={} refundAmount={}", event.paymentId, event.refundAmount)
+            val order = findOrder(event.orderId)
+            // REFUND_PENDING 에서만 환불 완료로 전이(멱등 — 중복 RefundCompletedEvent 무시).
+            if (order.status == OrderStatus.REFUND_PENDING) {
+                order.markRefunded()
+                orderPersistencePort.save(order)
+            }
+        }
     }
 
     private fun findOrder(orderId: Long): Order {

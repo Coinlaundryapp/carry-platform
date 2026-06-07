@@ -1,5 +1,7 @@
 package com.carry.price.domain.vo
 
+import com.carry.common.exception.requireInput
+
 data class OptionPrice(
     val optionType: OptionType,
     val subOptionType: SubOptionType,
@@ -7,6 +9,6 @@ data class OptionPrice(
     val selectable: Boolean = true,
 ) {
     init {
-        require(price >= 0) { "가격은 0 이상이어야 합니다: $price" }
+        requireInput(price >= 0) { "가격은 0 이상이어야 합니다: $price" }
     }
 }

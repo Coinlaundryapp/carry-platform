@@ -1,7 +1,9 @@
 package com.carry.delivery.application.service
 
+import com.carry.common.metrics.MetricsPort
 import com.carry.delivery.application.port.outbound.DeliveryPersistencePort
 import com.carry.delivery.application.port.outbound.PaymentQueryPort
+import com.carry.delivery.domain.exception.DeliveryNotOwnedException
 import com.carry.delivery.domain.exception.OrderNotPaidException
 import com.carry.delivery.domain.model.Delivery
 import com.carry.delivery.domain.model.DeliveryStep
@@ -9,7 +11,7 @@ import com.carry.delivery.domain.vo.DeliveryStatus
 import com.carry.delivery.domain.vo.DeliveryStepType
 import com.carry.delivery.domain.vo.StepStatus
 import com.carry.event.delivery.SelectedOptionSnapshot
-import com.carry.infra.kafka.outbox.OutboxEventPublisher
+import com.carry.event.port.EventPublisherPort
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -19,16 +21,18 @@ import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
+import java.time.Duration
 import java.time.Instant
 
 class DeliveryCommandServiceTest {
 
     private val deliveryPersistencePort = mockk<DeliveryPersistencePort>(relaxed = true)
     private val paymentQueryPort = mockk<PaymentQueryPort>()
-    private val outboxEventPublisher = mockk<OutboxEventPublisher>(relaxed = true)
+    private val eventPublisher = mockk<EventPublisherPort>(relaxed = true)
+    private val metrics = mockk<MetricsPort>(relaxed = true)
 
     private val sut = DeliveryCommandService(
-        deliveryPersistencePort, paymentQueryPort, outboxEventPublisher,
+        deliveryPersistencePort, paymentQueryPort, eventPublisher, metrics,
     )
 
     private val now = Instant.now()
@@ -78,11 +82,12 @@ class DeliveryCommandServiceTest {
                 orderUnitType = "SOLO",
                 orderRequestType = "NEW",
                 selectedOptions = listOf(SelectedOptionSnapshot("WASH", "STANDARD")),
+                requestingCarrierId = 50L,
             )
 
             assertThat(saved.captured.status).isEqualTo(DeliveryStatus.PICKED_UP)
             assertThat(saved.captured.actualWeight).isEqualByComparingTo(BigDecimal("5.0"))
-            verify { outboxEventPublisher.publish("Delivery", "1", "PickupCompletedEvent", any(), any()) }
+            verify { eventPublisher.publish("Delivery", "1", "PickupCompletedEvent", any(), any()) }
         }
     }
 
@@ -96,10 +101,10 @@ class DeliveryCommandServiceTest {
             val saved = slot<Delivery>()
             every { deliveryPersistencePort.save(capture(saved)) } answers { saved.captured }
 
-            sut.startWashing(1L, listOf(3L))
+            sut.startWashing(1L, listOf(3L), 50L)
 
             assertThat(saved.captured.status).isEqualTo(DeliveryStatus.IN_LAUNDRY)
-            verify { outboxEventPublisher.publish("Delivery", "1", "LaundryStartedEvent", any(), any()) }
+            verify { eventPublisher.publish("Delivery", "1", "LaundryStartedEvent", any(), any()) }
         }
     }
 
@@ -113,7 +118,7 @@ class DeliveryCommandServiceTest {
             val saved = slot<Delivery>()
             every { deliveryPersistencePort.save(capture(saved)) } answers { saved.captured }
 
-            sut.completeDrying(1L, listOf(4L))
+            sut.completeDrying(1L, listOf(4L), 50L)
 
             assertThat(saved.captured.status).isEqualTo(DeliveryStatus.LAUNDRY_COMPLETE)
         }
@@ -130,10 +135,12 @@ class DeliveryCommandServiceTest {
             val saved = slot<Delivery>()
             every { deliveryPersistencePort.save(capture(saved)) } answers { saved.captured }
 
-            sut.completeDelivery(1L, listOf(5L))
+            sut.completeDelivery(1L, listOf(5L), 50L)
 
             assertThat(saved.captured.status).isEqualTo(DeliveryStatus.DELIVERED)
-            verify { outboxEventPublisher.publish("Delivery", "1", "DeliveryCompletedEvent", any(), any()) }
+            verify { eventPublisher.publish("Delivery", "1", "DeliveryCompletedEvent", any(), any()) }
+            verify { metrics.incrementCounter("carry.delivery.completed") }
+            verify { metrics.recordTimer("carry.delivery.duration", any<Duration>()) }
         }
 
         @Test
@@ -142,8 +149,20 @@ class DeliveryCommandServiceTest {
             every { deliveryPersistencePort.findById(1L) } returns delivery
             every { paymentQueryPort.isOrderPaid(100L) } returns false
 
-            assertThatThrownBy { sut.completeDelivery(1L, listOf(5L)) }
+            assertThatThrownBy { sut.completeDelivery(1L, listOf(5L), 50L) }
                 .isInstanceOf(OrderNotPaidException::class.java)
+        }
+    }
+
+    @Nested
+    inner class Ownership {
+
+        @Test
+        fun `배정받지 않은 캐리어가 상태를 변경하면 DeliveryNotOwnedException 이 발생한다`() {
+            every { deliveryPersistencePort.findById(1L) } returns deliveryAt(DeliveryStatus.PICKED_UP) // carrierId=50L
+
+            assertThatThrownBy { sut.startWashing(1L, listOf(3L), 999L) }
+                .isInstanceOf(DeliveryNotOwnedException::class.java)
         }
     }
 }

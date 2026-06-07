@@ -5,10 +5,13 @@ import com.carry.geo.application.port.outbound.ReverseGeocodingPort
 import com.carry.geo.domain.exception.ReverseGeocodingFailedException
 import com.carry.geo.domain.model.ReverseGeocodingResult
 import com.carry.geo.domain.vo.Coordinate
-import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
 
-@Component
+/**
+ * Naver 역지오코딩 API 호출 — Circuit Breaker + Redis 캐싱 데코레이터로 감싸 노출되므로
+ * @Component가 아닌 [com.carry.geo.adapter.outbound.config.GeocodingResilienceConfig]에서
+ * 명시적으로 빈 등록된다.
+ */
 class NaverReverseGeocodingAdapter(
     properties: NaverApiProperties,
 ) : ReverseGeocodingPort {

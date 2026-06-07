@@ -11,11 +11,12 @@ import com.carry.dispatch.application.port.outbound.DispatchPersistencePort
 import com.carry.dispatch.application.port.outbound.PenaltyRecordPersistencePort
 import com.carry.dispatch.domain.exception.CarrierNotInAreaException
 import com.carry.dispatch.domain.exception.DispatchNotFoundException
+import com.carry.dispatch.domain.exception.DispatchNotOwnedException
 import com.carry.dispatch.domain.model.Dispatch
+import com.carry.common.metrics.MetricsPort
 import com.carry.event.dispatch.DispatchAcceptedEvent
 import com.carry.event.dispatch.DispatchCancelledEvent
-import com.carry.infra.kafka.outbox.OutboxEventPublisher
-import com.carry.infra.observability.metrics.BusinessMetrics
+import com.carry.event.port.EventPublisherPort
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -24,8 +25,8 @@ class DispatchCommandService(
     private val dispatchPersistencePort: DispatchPersistencePort,
     private val carrierAreaPersistencePort: CarrierAreaPersistencePort,
     private val penaltyRecordPersistencePort: PenaltyRecordPersistencePort,
-    private val outboxEventPublisher: OutboxEventPublisher,
-    private val businessMetrics: BusinessMetrics,
+    private val eventPublisher: EventPublisherPort,
+    private val metrics: MetricsPort,
 ) : DispatchCommandUseCase {
 
     @Transactional
@@ -40,7 +41,7 @@ class DispatchCommandService(
         dispatch.claimByCarrier(command.carrierId)
         val saved = dispatchPersistencePort.save(dispatch)
 
-        outboxEventPublisher.publish(
+        eventPublisher.publish(
             aggregateType = "Dispatch",
             aggregateId = saved.orderId.toString(),
             eventType = "DispatchAcceptedEvent",
@@ -52,7 +53,8 @@ class DispatchCommandService(
             ),
         )
 
-        businessMetrics.incrementDispatchAccepted()
+        // `via=claim`: 캐리어 본인이 PENDING 배차를 직접 잡은 경로.
+        metrics.incrementCounter("carry.dispatch.accepted", "via" to "claim")
         return saved
     }
 
@@ -66,10 +68,13 @@ class DispatchCommandService(
     @Transactional
     override fun acceptAssignment(command: AcceptAssignmentCommand): Dispatch {
         val dispatch = findDispatch(command.dispatchId)
+        if (dispatch.carrierId != command.carrierId) {
+            throw DispatchNotOwnedException(command.dispatchId, command.carrierId)
+        }
         dispatch.acceptAssignment()
         val saved = dispatchPersistencePort.save(dispatch)
 
-        outboxEventPublisher.publish(
+        eventPublisher.publish(
             aggregateType = "Dispatch",
             aggregateId = saved.orderId.toString(),
             eventType = "DispatchAcceptedEvent",
@@ -81,16 +86,21 @@ class DispatchCommandService(
             ),
         )
 
-        businessMetrics.incrementDispatchAccepted()
+        // `via=assignment`: 코디네이터가 ASSIGNED로 지정한 배차를 캐리어가 수락한 경로.
+        metrics.incrementCounter("carry.dispatch.accepted", "via" to "assignment")
         return saved
     }
 
     @Transactional
     override fun rejectAssignment(command: RejectAssignmentCommand): Dispatch {
         val dispatch = findDispatch(command.dispatchId)
+        if (dispatch.carrierId != command.carrierId) {
+            throw DispatchNotOwnedException(command.dispatchId, command.carrierId)
+        }
         val penaltyRecord = dispatch.rejectAssignment()
         val saved = dispatchPersistencePort.save(dispatch)
         penaltyRecordPersistencePort.save(penaltyRecord)
+        metrics.incrementCounter("carry.dispatch.rejected")
         return saved
     }
 
@@ -100,7 +110,7 @@ class DispatchCommandService(
         dispatch.cancel(command.reason)
         dispatchPersistencePort.save(dispatch)
 
-        outboxEventPublisher.publish(
+        eventPublisher.publish(
             aggregateType = "Dispatch",
             aggregateId = dispatch.orderId.toString(),
             eventType = "DispatchCancelledEvent",

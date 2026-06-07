@@ -54,6 +54,7 @@ class DeliveryController(
     @ApiResponses(value = [SwaggerApiResponse(responseCode = "200", description = "수거 완료 처리 성공"), SwaggerApiResponse(responseCode = "400", description = "잘못된 요청")])
     @PostMapping("/{deliveryId}/pickup")
     fun completePickup(
+        @Parameter(hidden = true) @AuthenticationPrincipal userId: Long,
         @PathVariable deliveryId: Long,
         @Valid @RequestBody request: CompletePickupRequest,
     ): ResponseEntity<ApiResponse<DeliveryResponse>> {
@@ -66,6 +67,7 @@ class DeliveryController(
             orderUnitType = request.orderUnitType,
             orderRequestType = request.orderRequestType,
             selectedOptions = request.selectedOptions,
+            requestingCarrierId = userId,
         )
         return ResponseEntity.ok(ApiResponse.success(DeliveryResponse.from(delivery)))
     }
@@ -74,10 +76,11 @@ class DeliveryController(
     @ApiResponses(value = [SwaggerApiResponse(responseCode = "200", description = "세탁 시작 처리 성공")])
     @PostMapping("/{deliveryId}/washing")
     fun startWashing(
+        @Parameter(hidden = true) @AuthenticationPrincipal userId: Long,
         @PathVariable deliveryId: Long,
         @Valid @RequestBody request: StepPhotoRequest,
     ): ResponseEntity<ApiResponse<DeliveryResponse>> {
-        val delivery = deliveryCommandUseCase.startWashing(deliveryId, request.photoIds)
+        val delivery = deliveryCommandUseCase.startWashing(deliveryId, request.photoIds, userId)
         return ResponseEntity.ok(ApiResponse.success(DeliveryResponse.from(delivery)))
     }
 
@@ -85,10 +88,11 @@ class DeliveryController(
     @ApiResponses(value = [SwaggerApiResponse(responseCode = "200", description = "건조 완료 처리 성공")])
     @PostMapping("/{deliveryId}/drying")
     fun completeDrying(
+        @Parameter(hidden = true) @AuthenticationPrincipal userId: Long,
         @PathVariable deliveryId: Long,
         @Valid @RequestBody request: StepPhotoRequest,
     ): ResponseEntity<ApiResponse<DeliveryResponse>> {
-        val delivery = deliveryCommandUseCase.completeDrying(deliveryId, request.photoIds)
+        val delivery = deliveryCommandUseCase.completeDrying(deliveryId, request.photoIds, userId)
         return ResponseEntity.ok(ApiResponse.success(DeliveryResponse.from(delivery)))
     }
 
@@ -96,10 +100,11 @@ class DeliveryController(
     @ApiResponses(value = [SwaggerApiResponse(responseCode = "200", description = "배달 완료 처리 성공")])
     @PostMapping("/{deliveryId}/delivery")
     fun completeDelivery(
+        @Parameter(hidden = true) @AuthenticationPrincipal userId: Long,
         @PathVariable deliveryId: Long,
         @Valid @RequestBody request: StepPhotoRequest,
     ): ResponseEntity<ApiResponse<DeliveryResponse>> {
-        val delivery = deliveryCommandUseCase.completeDelivery(deliveryId, request.photoIds)
+        val delivery = deliveryCommandUseCase.completeDelivery(deliveryId, request.photoIds, userId)
         return ResponseEntity.ok(ApiResponse.success(DeliveryResponse.from(delivery)))
     }
 }

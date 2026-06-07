@@ -14,6 +14,15 @@ dependencies {
     api("org.springframework.kafka:spring-kafka")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+    implementation(project(":carry-common"))
     implementation(project(":carry-event"))
     implementation(project(":carry-infra-observability"))
+
+    testImplementation("org.junit.jupiter:junit-jupiter:5.10.3")
+    testImplementation("io.mockk:mockk:1.13.13")
+    testImplementation("org.assertj:assertj-core:3.27.0")
+    testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("org.springframework.kafka:spring-kafka-test")
+    testImplementation("org.awaitility:awaitility:4.2.2")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }

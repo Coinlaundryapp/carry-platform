@@ -1,5 +1,6 @@
 package com.carry.price.domain.vo
 
+import com.carry.common.exception.BusinessException
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
@@ -22,7 +23,7 @@ class OptionPriceTest {
     @Test
     fun `음수 가격은 거부한다`() {
         assertThatThrownBy { OptionPrice(OptionType.WASH, SubOptionType.STANDARD, -1) }
-            .isInstanceOf(IllegalArgumentException::class.java)
+            .isInstanceOf(BusinessException::class.java)
             .hasMessageContaining("0 이상")
     }
 

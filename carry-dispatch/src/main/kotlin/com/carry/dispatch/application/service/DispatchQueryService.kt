@@ -3,6 +3,8 @@ package com.carry.dispatch.application.service
 import com.carry.dispatch.application.port.inbound.DispatchQueryUseCase
 import com.carry.dispatch.application.port.outbound.CarrierAreaPersistencePort
 import com.carry.dispatch.application.port.outbound.DispatchPersistencePort
+import com.carry.common.exception.BusinessException
+import com.carry.common.exception.ErrorCode
 import com.carry.dispatch.domain.exception.DispatchNotFoundException
 import com.carry.dispatch.domain.model.Dispatch
 import org.springframework.stereotype.Service
@@ -21,7 +23,7 @@ class DispatchQueryService(
 
     override fun getDispatchByOrder(orderId: Long): Dispatch {
         return dispatchPersistencePort.findByOrderId(orderId)
-            ?: throw RuntimeException("해당 주문의 배차를 찾을 수 없습니다: $orderId")
+            ?: throw BusinessException(ErrorCode.DISPATCH_NOT_FOUND, "해당 주문의 배차를 찾을 수 없습니다: orderId=$orderId")
     }
 
     override fun getAvailableDispatches(carrierId: Long, cursor: Long?, size: Int): List<Dispatch> {

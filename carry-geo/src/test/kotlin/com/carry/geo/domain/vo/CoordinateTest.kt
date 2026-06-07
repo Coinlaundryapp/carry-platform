@@ -1,5 +1,6 @@
 package com.carry.geo.domain.vo
 
+import com.carry.common.exception.BusinessException
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
@@ -28,14 +29,14 @@ class CoordinateTest {
     @Test
     fun `위도가 범위를 벗어나면 예외가 발생한다`() {
         assertThatThrownBy { Coordinate(91.0, 126.0) }
-            .isInstanceOf(IllegalArgumentException::class.java)
+            .isInstanceOf(BusinessException::class.java)
             .hasMessageContaining("위도")
     }
 
     @Test
     fun `경도가 범위를 벗어나면 예외가 발생한다`() {
         assertThatThrownBy { Coordinate(37.0, 181.0) }
-            .isInstanceOf(IllegalArgumentException::class.java)
+            .isInstanceOf(BusinessException::class.java)
             .hasMessageContaining("경도")
     }
 

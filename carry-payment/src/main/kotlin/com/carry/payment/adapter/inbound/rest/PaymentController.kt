@@ -56,16 +56,22 @@ class PaymentController(
     @Operation(summary = "청구서 조회", description = "주문의 청구서를 조회합니다")
     @ApiResponses(value = [SwaggerApiResponse(responseCode = "200", description = "청구서 조회 성공"), SwaggerApiResponse(responseCode = "404", description = "청구서를 찾을 수 없음")])
     @GetMapping("/{orderId}/invoice")
-    fun getInvoice(@PathVariable orderId: Long): ResponseEntity<ApiResponse<InvoiceResponse>> {
-        val invoice = invoiceQueryUseCase.getInvoiceByOrder(orderId)
+    fun getInvoice(
+        @Parameter(hidden = true) @AuthenticationPrincipal userId: Long,
+        @PathVariable orderId: Long,
+    ): ResponseEntity<ApiResponse<InvoiceResponse>> {
+        val invoice = invoiceQueryUseCase.getInvoiceByOrder(orderId, userId)
         return ResponseEntity.ok(ApiResponse.success(InvoiceResponse.from(invoice)))
     }
 
     @Operation(summary = "결제 정보 조회", description = "주문의 결제 정보를 조회합니다")
     @ApiResponses(value = [SwaggerApiResponse(responseCode = "200", description = "결제 조회 성공"), SwaggerApiResponse(responseCode = "404", description = "결제를 찾을 수 없음")])
     @GetMapping("/{orderId}/payment")
-    fun getPayment(@PathVariable orderId: Long): ResponseEntity<ApiResponse<PaymentResponse>> {
-        val payment = paymentQueryUseCase.getPaymentByOrder(orderId)
+    fun getPayment(
+        @Parameter(hidden = true) @AuthenticationPrincipal userId: Long,
+        @PathVariable orderId: Long,
+    ): ResponseEntity<ApiResponse<PaymentResponse>> {
+        val payment = paymentQueryUseCase.getPaymentByOrder(orderId, userId)
         return ResponseEntity.ok(ApiResponse.success(PaymentResponse.from(payment)))
     }
 }

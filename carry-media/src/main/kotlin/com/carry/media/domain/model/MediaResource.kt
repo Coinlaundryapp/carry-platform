@@ -1,5 +1,6 @@
 package com.carry.media.domain.model
 
+import com.carry.common.exception.requireInput
 import com.carry.media.domain.exception.InvalidMediaStatusTransitionException
 import com.carry.media.domain.vo.MediaStatus
 import java.time.Instant
@@ -27,11 +28,11 @@ class MediaResource private constructor(
             contentType: String,
             uploadedBy: Long,
         ): MediaResource {
-            require(folder.isNotBlank()) { "폴더명은 비어있을 수 없습니다" }
-            require(originalFilename.isNotBlank()) { "파일명은 비어있을 수 없습니다" }
+            requireInput(folder.isNotBlank()) { "폴더명은 비어있을 수 없습니다" }
+            requireInput(originalFilename.isNotBlank()) { "파일명은 비어있을 수 없습니다" }
 
             val extension = originalFilename.substringAfterLast('.', "")
-            require(extension.isNotBlank()) { "파일 확장자가 없습니다" }
+            requireInput(extension.isNotBlank()) { "파일 확장자가 없습니다" }
 
             return MediaResource(
                 id = null,
@@ -78,7 +79,7 @@ class MediaResource private constructor(
     fun getPublicUrl(baseUrl: String): String = "$baseUrl/$folder/${accessKey}.$extension"
 
     private fun transitTo(target: MediaStatus) {
-        check(_status.canTransitionTo(target)) {
+        if (!_status.canTransitionTo(target)) {
             throw InvalidMediaStatusTransitionException(_status, target)
         }
         _status = target

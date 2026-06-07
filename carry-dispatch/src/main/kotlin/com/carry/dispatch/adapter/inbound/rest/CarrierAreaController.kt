@@ -21,11 +21,13 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 
 @Tag(name = "Carrier Area", description = "배달원 권역 관리 API")
 @RestController
 @RequestMapping("/api/v2/carrier-areas")
+@PreAuthorize("hasRole('CARRIER')")
 class CarrierAreaController(
     private val carrierAreaUseCase: CarrierAreaUseCase,
 ) {

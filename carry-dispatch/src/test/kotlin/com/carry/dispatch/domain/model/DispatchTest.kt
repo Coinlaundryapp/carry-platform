@@ -1,7 +1,9 @@
 package com.carry.dispatch.domain.model
 
 import com.carry.dispatch.domain.exception.DispatchAlreadyAcceptedException
+import com.carry.dispatch.domain.exception.DispatchNotCancellableException
 import com.carry.dispatch.domain.exception.DispatchNotPendingException
+import com.carry.dispatch.domain.exception.DispatchTimeoutNotAllowedException
 import com.carry.dispatch.domain.vo.AssignedBy
 import com.carry.dispatch.domain.vo.DispatchStatus
 import com.carry.dispatch.domain.vo.PenaltyReason
@@ -157,7 +159,7 @@ class DispatchTest {
             )
 
             assertThatThrownBy { dispatch.cancel("재취소 시도") }
-                .isInstanceOf(IllegalStateException::class.java)
+                .isInstanceOf(DispatchNotCancellableException::class.java)
         }
     }
 
@@ -177,7 +179,7 @@ class DispatchTest {
             val dispatch = reconstitutedDispatch(DispatchStatus.ACCEPTED, 100L)
 
             assertThatThrownBy { dispatch.timeout() }
-                .isInstanceOf(IllegalStateException::class.java)
+                .isInstanceOf(DispatchTimeoutNotAllowedException::class.java)
         }
     }
 

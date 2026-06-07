@@ -1,5 +1,6 @@
 package com.carry.serviceavailability.domain.model
 
+import com.carry.common.exception.requireInput
 import com.carry.serviceavailability.domain.exception.AreaNotActiveException
 import com.carry.serviceavailability.domain.exception.HolidayException
 import com.carry.serviceavailability.domain.exception.OutsideOperatingHoursException
@@ -90,8 +91,8 @@ class ServiceArea private constructor(
         private val KOREA_ZONE = ZoneId.of("Asia/Seoul")
 
         fun create(areaCode: String, name: String): ServiceArea {
-            require(areaCode.isNotBlank()) { "지역 코드는 비어있을 수 없습니다" }
-            require(name.isNotBlank()) { "지역명은 비어있을 수 없습니다" }
+            requireInput(areaCode.isNotBlank()) { "지역 코드는 비어있을 수 없습니다" }
+            requireInput(name.isNotBlank()) { "지역명은 비어있을 수 없습니다" }
             return ServiceArea(
                 id = null,
                 areaCode = areaCode,

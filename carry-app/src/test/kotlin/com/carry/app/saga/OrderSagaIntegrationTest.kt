@@ -148,6 +148,7 @@ class OrderSagaIntegrationTest : IntegrationTestBase() {
             orderUnitType = "KG",
             orderRequestType = "STANDARD",
             selectedOptions = listOf(SelectedOptionSnapshot("WASH", "COLD")),
+            requestingCarrierId = TestFixtures.CARRIER_ID,
         )
 
         val pickedUpDelivery = deliveryPersistencePort.findById(delivery.id!!)!!
@@ -198,7 +199,7 @@ class OrderSagaIntegrationTest : IntegrationTestBase() {
         assertThat(paidOrder.status).isEqualTo(OrderStatus.PAID)
 
         // 12. 세탁 시작
-        deliveryCommandService.startWashing(delivery.id!!, listOf(2L))
+        deliveryCommandService.startWashing(delivery.id!!, listOf(2L), TestFixtures.CARRIER_ID)
         outbox.assertOutboxContains("Delivery", "LaundryStartedEvent", delivery.id.toString())
 
         // 13. OrderSagaHandler: LaundryStartedEvent → Order IN_PROGRESS
@@ -209,13 +210,13 @@ class OrderSagaIntegrationTest : IntegrationTestBase() {
         assertThat(inProgressOrder.status).isEqualTo(OrderStatus.IN_PROGRESS)
 
         // 14. 건조 완료
-        deliveryCommandService.completeDrying(delivery.id!!, listOf(3L))
+        deliveryCommandService.completeDrying(delivery.id!!, listOf(3L), TestFixtures.CARRIER_ID)
 
         // 15. 배달 출발
-        deliveryCommandService.startDelivery(delivery.id!!)
+        deliveryCommandService.startDelivery(delivery.id!!, TestFixtures.CARRIER_ID)
 
         // 16. 배달 완료
-        deliveryCommandService.completeDelivery(delivery.id!!, listOf(4L))
+        deliveryCommandService.completeDelivery(delivery.id!!, listOf(4L), TestFixtures.CARRIER_ID)
         outbox.assertOutboxContains("Delivery", "DeliveryCompletedEvent", delivery.id.toString())
 
         // 17. OrderSagaHandler: DeliveryCompletedEvent → Order COMPLETED

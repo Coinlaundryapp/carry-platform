@@ -6,7 +6,7 @@ import com.carry.dispatch.domain.vo.DispatchStatus
 import com.carry.event.order.OrderCancelledEvent
 import com.carry.event.order.OrderCreatedEvent
 import com.carry.event.order.ShippingAddressDto
-import com.carry.infra.kafka.outbox.OutboxEventPublisher
+import com.carry.event.port.EventPublisherPort
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -19,8 +19,8 @@ import java.time.temporal.ChronoUnit
 class DispatchSagaHandlerTest {
 
     private val dispatchPersistencePort = mockk<DispatchPersistencePort>(relaxed = true)
-    private val outboxEventPublisher = mockk<OutboxEventPublisher>(relaxed = true)
-    private val sut = DispatchSagaHandler(dispatchPersistencePort, outboxEventPublisher)
+    private val eventPublisher = mockk<EventPublisherPort>(relaxed = true)
+    private val sut = DispatchSagaHandler(dispatchPersistencePort, eventPublisher)
 
     private val now = Instant.now()
 
@@ -64,7 +64,7 @@ class DispatchSagaHandlerTest {
 
         assertThat(saved.captured.status).isEqualTo(DispatchStatus.CANCELLED)
         assertThat(saved.captured.cancelReason).isEqualTo("고객 변심")
-        verify { outboxEventPublisher.publish("Dispatch", "1", "DispatchCancelledEvent", any(), any()) }
+        verify { eventPublisher.publish("Dispatch", "1", "DispatchCancelledEvent", any(), any()) }
     }
 
     @Test

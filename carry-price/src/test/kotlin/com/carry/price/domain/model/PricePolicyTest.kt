@@ -1,5 +1,7 @@
 package com.carry.price.domain.model
 
+import com.carry.common.exception.BusinessException
+import com.carry.common.exception.ErrorCode
 import com.carry.price.domain.vo.LaundryItemType
 import com.carry.price.domain.vo.OptionPrice
 import com.carry.price.domain.vo.OptionType
@@ -68,7 +70,7 @@ class PricePolicyTest {
             )
 
             assertThatThrownBy { createPolicy(duplicated) }
-                .isInstanceOf(IllegalArgumentException::class.java)
+                .isInstanceOf(BusinessException::class.java)
                 .hasMessageContaining("중복")
         }
     }
@@ -146,8 +148,9 @@ class PricePolicyTest {
 
             assertThatThrownBy {
                 policy.calculateTotal(listOf(OptionType.WASH to SubOptionType.STANDARD))
-            }.isInstanceOf(IllegalArgumentException::class.java)
+            }.isInstanceOf(BusinessException::class.java)
                 .hasMessageContaining("존재하지 않는 옵션")
+                .extracting("errorCode").isEqualTo(ErrorCode.OPTION_NOT_FOUND)
         }
 
         @Test
@@ -159,8 +162,9 @@ class PricePolicyTest {
 
             assertThatThrownBy {
                 policy.calculateTotal(listOf(OptionType.WASH to SubOptionType.HOT_WATER))
-            }.isInstanceOf(IllegalStateException::class.java)
+            }.isInstanceOf(BusinessException::class.java)
                 .hasMessageContaining("선택 불가능")
+                .extracting("errorCode").isEqualTo(ErrorCode.OPTION_NOT_SELECTABLE)
         }
     }
 

@@ -2,6 +2,7 @@ package com.carry.payment.application.service
 
 import com.carry.payment.application.port.outbound.PaymentPersistencePort
 import com.carry.payment.domain.exception.PaymentNotFoundException
+import com.carry.payment.domain.exception.PaymentNotOwnedException
 import com.carry.payment.domain.model.Payment
 import com.carry.payment.domain.vo.PaymentStatus
 import com.carry.payment.domain.vo.PgProvider
@@ -69,6 +70,26 @@ class PaymentQueryServiceTest {
 
             assertThatThrownBy { sut.getPayment(999L) }
                 .isInstanceOf(PaymentNotFoundException::class.java)
+        }
+    }
+
+    @Nested
+    inner class GetPaymentByOrder {
+
+        @Test
+        fun `소유자가 주문 결제를 조회한다`() {
+            every { paymentPersistencePort.findByOrderId(10L) } returns aPayment()
+
+            val result = sut.getPaymentByOrder(10L, requestingUserId = 100L)
+            assertThat(result.orderId).isEqualTo(10L)
+        }
+
+        @Test
+        fun `다른 사용자가 조회하면 PaymentNotOwnedException 이 발생한다`() {
+            every { paymentPersistencePort.findByOrderId(10L) } returns aPayment()
+
+            assertThatThrownBy { sut.getPaymentByOrder(10L, requestingUserId = 999L) }
+                .isInstanceOf(PaymentNotOwnedException::class.java)
         }
     }
 }

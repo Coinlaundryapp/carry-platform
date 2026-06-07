@@ -1,21 +1,11 @@
 package com.carry.payment.application.port.outbound
 
 import com.carry.payment.domain.vo.PgProvider
-import org.springframework.stereotype.Component
 
+/**
+ * PG provider별 어댑터 식별자. 각 어댑터(adapter/outbound 패키지) 가 자신이 지원하는
+ * provider를 [supports]로 노출하여 [PaymentGatewayResolver] 구현이 라우팅에 사용한다.
+ */
 interface PgProviderAdapter : PaymentGatewayPort {
     fun supports(): PgProvider
-}
-
-@Component
-class PgProviderRegistry(
-    adapters: List<PgProviderAdapter>,
-) {
-    private val adapterMap: Map<PgProvider, PgProviderAdapter> =
-        adapters.associateBy { it.supports() }
-
-    fun resolve(provider: PgProvider): PaymentGatewayPort {
-        return adapterMap[provider]
-            ?: throw IllegalArgumentException("지원하지 않는 PG사입니다: $provider")
-    }
 }

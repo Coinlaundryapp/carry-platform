@@ -1,5 +1,6 @@
 package com.carry.user.domain.vo
 
+import com.carry.common.exception.BusinessException
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
@@ -16,7 +17,7 @@ class OAuthInfoTest {
     @Test
     fun `빈 OAuth ID는 거부한다`() {
         assertThatThrownBy { OAuthInfo(OAuthProvider.KAKAO, "") }
-            .isInstanceOf(IllegalArgumentException::class.java)
+            .isInstanceOf(BusinessException::class.java)
             .hasMessageContaining("OAuth ID")
     }
 

@@ -1,6 +1,6 @@
 package com.carry.review.application.service
 
-import com.carry.infra.kafka.outbox.OutboxEventPublisher
+import com.carry.event.port.EventPublisherPort
 import com.carry.review.application.port.inbound.CreateReviewCommand
 import com.carry.review.application.port.inbound.UpdateReviewCommand
 import com.carry.review.application.port.outbound.ReviewPersistencePort
@@ -21,9 +21,9 @@ import java.time.Instant
 class ReviewCommandServiceTest {
 
     private val reviewPersistencePort = mockk<ReviewPersistencePort>(relaxed = true)
-    private val outboxEventPublisher = mockk<OutboxEventPublisher>(relaxed = true)
+    private val eventPublisher = mockk<EventPublisherPort>(relaxed = true)
 
-    private val sut = ReviewCommandService(reviewPersistencePort, outboxEventPublisher)
+    private val sut = ReviewCommandService(reviewPersistencePort, eventPublisher)
 
     private val now = Instant.now()
 
@@ -74,7 +74,7 @@ class ReviewCommandServiceTest {
             assertThat(result.id).isEqualTo(42L)
             assertThat(result.rating).isEqualTo(ReviewRating.FIVE)
             assertThat(result.mediaUrls).hasSize(1)
-            verify { outboxEventPublisher.publish("Review", "42", "ReviewCreatedEvent", any(), any()) }
+            verify { eventPublisher.publish("Review", "42", "ReviewCreatedEvent", any(), any()) }
         }
     }
 

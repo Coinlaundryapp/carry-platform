@@ -1,7 +1,9 @@
 package com.carry.dispatch.domain.model
 
 import com.carry.dispatch.domain.exception.DispatchAlreadyAcceptedException
+import com.carry.dispatch.domain.exception.DispatchNotCancellableException
 import com.carry.dispatch.domain.exception.DispatchNotPendingException
+import com.carry.dispatch.domain.exception.DispatchTimeoutNotAllowedException
 import com.carry.dispatch.domain.vo.AssignedBy
 import com.carry.dispatch.domain.vo.DispatchStatus
 import com.carry.dispatch.domain.vo.PenaltyReason
@@ -54,7 +56,7 @@ class Dispatch private constructor(
     }
 
     fun claimByCarrier(carrierId: Long) {
-        check(_status == DispatchStatus.PENDING) { throw DispatchNotPendingException() }
+        if (_status != DispatchStatus.PENDING) throw DispatchNotPendingException()
         _status = DispatchStatus.ACCEPTED
         _carrierId = carrierId
         _assignedBy = AssignedBy.CARRIER
@@ -62,7 +64,7 @@ class Dispatch private constructor(
     }
 
     fun assignByCoordinator(carrierId: Long) {
-        check(_status == DispatchStatus.PENDING) { throw DispatchNotPendingException() }
+        if (_status != DispatchStatus.PENDING) throw DispatchNotPendingException()
         _status = DispatchStatus.ASSIGNED
         _carrierId = carrierId
         _assignedBy = AssignedBy.COORDINATOR
@@ -70,13 +72,13 @@ class Dispatch private constructor(
     }
 
     fun acceptAssignment() {
-        check(_status == DispatchStatus.ASSIGNED) { throw DispatchAlreadyAcceptedException() }
+        if (_status != DispatchStatus.ASSIGNED) throw DispatchAlreadyAcceptedException()
         _status = DispatchStatus.ACCEPTED
         _acceptedAt = Instant.now()
     }
 
     fun rejectAssignment(): PenaltyRecord {
-        check(_status == DispatchStatus.ASSIGNED) { throw DispatchAlreadyAcceptedException() }
+        if (_status != DispatchStatus.ASSIGNED) throw DispatchAlreadyAcceptedException()
         val penalizedCarrierId = _carrierId!!
         _status = DispatchStatus.PENDING
         _carrierId = null
@@ -86,15 +88,15 @@ class Dispatch private constructor(
     }
 
     fun cancel(reason: String) {
-        check(_status.canTransitionTo(DispatchStatus.CANCELLED)) {
-            "배차를 취소할 수 없는 상태입니다: $_status"
+        if (!_status.canTransitionTo(DispatchStatus.CANCELLED)) {
+            throw DispatchNotCancellableException(_status)
         }
         _status = DispatchStatus.CANCELLED
         _cancelReason = reason
     }
 
     fun timeout() {
-        check(_status == DispatchStatus.PENDING) { "타임아웃은 PENDING 상태에서만 가능합니다" }
+        if (_status != DispatchStatus.PENDING) throw DispatchTimeoutNotAllowedException(_status)
         _status = DispatchStatus.TIMEOUT
     }
 

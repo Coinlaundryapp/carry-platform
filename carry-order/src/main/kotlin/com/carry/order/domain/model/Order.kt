@@ -1,5 +1,6 @@
 package com.carry.order.domain.model
 
+import com.carry.common.exception.requireInput
 import com.carry.order.domain.exception.InvalidOrderStatusTransitionException
 import com.carry.order.domain.exception.OrderNotCancellableException
 import com.carry.order.domain.vo.CancelledBy
@@ -50,8 +51,8 @@ class Order private constructor(
             desiredPickupAt: Instant,
             desiredDeliveryAt: Instant,
         ): Order {
-            require(selectedOptions.isNotEmpty()) { "최소 하나의 옵션을 선택해야 합니다" }
-            require(desiredDeliveryAt.isAfter(desiredPickupAt)) { "배달 희망 시각은 수거 희망 시각 이후여야 합니다" }
+            requireInput(selectedOptions.isNotEmpty()) { "최소 하나의 옵션을 선택해야 합니다" }
+            requireInput(desiredDeliveryAt.isAfter(desiredPickupAt)) { "배달 희망 시각은 수거 희망 시각 이후여야 합니다" }
 
             val now = Instant.now()
             return Order(
@@ -125,6 +126,18 @@ class Order private constructor(
         transitTo(OrderStatus.PAID)
     }
 
+    fun markPaymentFailed() {
+        transitTo(OrderStatus.PAYMENT_FAILED)
+    }
+
+    fun markRefundPending() {
+        transitTo(OrderStatus.REFUND_PENDING)
+    }
+
+    fun markRefunded() {
+        transitTo(OrderStatus.REFUNDED)
+    }
+
     fun markInProgress() {
         transitTo(OrderStatus.IN_PROGRESS)
     }
@@ -135,7 +148,7 @@ class Order private constructor(
     }
 
     fun cancel(reason: String, by: CancelledBy) {
-        check(_status.isCancellable()) {
+        if (!_status.isCancellable()) {
             throw OrderNotCancellableException(id, _status)
         }
         _status = OrderStatus.CANCELLED
@@ -147,7 +160,7 @@ class Order private constructor(
     fun isCancellable(): Boolean = _status.isCancellable()
 
     private fun transitTo(target: OrderStatus) {
-        check(_status.canTransitionTo(target)) {
+        if (!_status.canTransitionTo(target)) {
             throw InvalidOrderStatusTransitionException(_status, target)
         }
         _status = target

@@ -1,5 +1,6 @@
 package com.carry.laundromat.domain.vo
 
+import com.carry.common.exception.BusinessException
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
@@ -22,6 +23,6 @@ class LaundromatAddressTest {
     @Test
     fun `빈 도로명 주소는 거부한다`() {
         assertThatThrownBy { LaundromatAddress("") }
-            .isInstanceOf(IllegalArgumentException::class.java)
+            .isInstanceOf(BusinessException::class.java)
     }
 }

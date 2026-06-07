@@ -1,13 +1,13 @@
 package com.carry.payment.application.service
 
-import com.carry.infra.kafka.outbox.OutboxEventPublisher
-import com.carry.infra.observability.metrics.BusinessMetrics
+import com.carry.common.metrics.MetricsPort
+import com.carry.event.port.EventPublisherPort
 import com.carry.payment.application.port.inbound.RequestPaymentCommand
 import com.carry.payment.application.port.outbound.InvoicePersistencePort
 import com.carry.payment.application.port.outbound.PaymentPersistencePort
-import com.carry.payment.application.port.outbound.PgPaymentResult
-import com.carry.payment.application.port.outbound.PgProviderRegistry
 import com.carry.payment.application.port.outbound.PaymentGatewayPort
+import com.carry.payment.application.port.outbound.PaymentGatewayResolver
+import com.carry.payment.application.port.outbound.PgPaymentResult
 import com.carry.payment.domain.exception.InvoiceAlreadyPaidException
 import com.carry.payment.domain.exception.InvoiceNotFoundException
 import com.carry.payment.domain.model.Invoice
@@ -32,13 +32,13 @@ class PaymentCommandServiceTest {
 
     private val paymentPersistencePort = mockk<PaymentPersistencePort>(relaxed = true)
     private val invoicePersistencePort = mockk<InvoicePersistencePort>(relaxed = true)
-    private val pgProviderRegistry = mockk<PgProviderRegistry>()
-    private val outboxEventPublisher = mockk<OutboxEventPublisher>(relaxed = true)
-    private val businessMetrics = mockk<BusinessMetrics>(relaxed = true)
+    private val paymentGatewayResolver = mockk<PaymentGatewayResolver>()
+    private val eventPublisher = mockk<EventPublisherPort>(relaxed = true)
+    private val metrics = mockk<MetricsPort>(relaxed = true)
     private val paymentGateway = mockk<PaymentGatewayPort>()
 
     private val sut = PaymentCommandService(
-        paymentPersistencePort, invoicePersistencePort, pgProviderRegistry, outboxEventPublisher, businessMetrics,
+        paymentPersistencePort, invoicePersistencePort, paymentGatewayResolver, eventPublisher, metrics,
     )
 
     private val now = Instant.now()
@@ -67,7 +67,7 @@ class PaymentCommandServiceTest {
         @Test
         fun `결제 요청 성공 시 COMPLETED 상태로 저장하고 이벤트를 발행한다`() {
             every { invoicePersistencePort.findByOrderId(10L) } returns anInvoice()
-            every { pgProviderRegistry.resolve(PgProvider.TOSS_PAYMENTS) } returns paymentGateway
+            every { paymentGatewayResolver.resolve(PgProvider.TOSS_PAYMENTS) } returns paymentGateway
             every { paymentGateway.requestPayment(any()) } returns PgPaymentResult(
                 success = true, pgTransactionId = "tx_success_123",
             )
@@ -87,13 +87,14 @@ class PaymentCommandServiceTest {
             assertThat(result.id).isEqualTo(42L)
             assertThat(result.status).isEqualTo(PaymentStatus.COMPLETED)
             assertThat(result.pgTransactionId).isEqualTo("tx_success_123")
-            verify { outboxEventPublisher.publish("Payment", "10", "PaymentCompletedEvent", any(), any()) }
+            verify { eventPublisher.publish("Payment", "10", "PaymentCompletedEvent", any(), any()) }
+            verify { metrics.incrementCounter("carry.payment.success", "pg" to "TOSS_PAYMENTS") }
         }
 
         @Test
         fun `PG사 결제 실패 시 FAILED 상태로 저장하고 PaymentFailedEvent를 발행한다`() {
             every { invoicePersistencePort.findByOrderId(10L) } returns anInvoice()
-            every { pgProviderRegistry.resolve(PgProvider.TOSS_PAYMENTS) } returns paymentGateway
+            every { paymentGatewayResolver.resolve(PgProvider.TOSS_PAYMENTS) } returns paymentGateway
             every { paymentGateway.requestPayment(any()) } returns PgPaymentResult(
                 success = false, failReason = "잔액 부족",
             )
@@ -112,7 +113,8 @@ class PaymentCommandServiceTest {
 
             assertThat(result.status).isEqualTo(PaymentStatus.FAILED)
             assertThat(result.failReason).isEqualTo("잔액 부족")
-            verify { outboxEventPublisher.publish("Payment", "10", "PaymentFailedEvent", any(), any()) }
+            verify { eventPublisher.publish("Payment", "10", "PaymentFailedEvent", any(), any()) }
+            verify { metrics.incrementCounter("carry.payment.failure", "pg" to "TOSS_PAYMENTS") }
         }
 
         @Test

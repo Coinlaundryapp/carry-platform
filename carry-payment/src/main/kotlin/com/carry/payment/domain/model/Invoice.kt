@@ -1,5 +1,7 @@
 package com.carry.payment.domain.model
 
+import com.carry.common.exception.checkState
+import com.carry.common.exception.requireInput
 import com.carry.payment.domain.exception.InvoiceAlreadyPaidException
 import com.carry.payment.domain.vo.InvoiceLineItem
 import com.carry.payment.domain.vo.InvoiceStatus
@@ -26,7 +28,7 @@ class Invoice private constructor(
             lineItems: List<InvoiceLineItem>,
             weight: BigDecimal,
         ): Invoice {
-            require(lineItems.isNotEmpty()) { "청구 항목이 비어 있을 수 없습니다" }
+            requireInput(lineItems.isNotEmpty()) { "청구 항목이 비어 있을 수 없습니다" }
 
             val totalAmount = lineItems.sumOf { it.amount }
             val now = Instant.now()
@@ -71,7 +73,7 @@ class Invoice private constructor(
     }
 
     private fun transitTo(target: InvoiceStatus) {
-        check(_status.canTransitionTo(target)) {
+        checkState(_status.canTransitionTo(target)) {
             "청구서 상태 전이가 유효하지 않습니다: $_status → $target"
         }
         _status = target

@@ -116,7 +116,7 @@ class DeliveryControllerTest {
 
         @Test
         fun `수거 완료 요청 시 200을 반환한다`() {
-            every { deliveryCommandUseCase.completePickup(any(), any(), any(), any(), any(), any(), any(), any()) } returns
+            every { deliveryCommandUseCase.completePickup(any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns
                 sampleDelivery(status = DeliveryStatus.PICKED_UP)
 
             mockMvc.post("/api/v2/deliveries/1/pickup") {
@@ -146,7 +146,7 @@ class DeliveryControllerTest {
 
         @Test
         fun `세탁 시작 요청 시 200을 반환한다`() {
-            every { deliveryCommandUseCase.startWashing(any(), any()) } returns
+            every { deliveryCommandUseCase.startWashing(any(), any(), any()) } returns
                 sampleDelivery(status = DeliveryStatus.IN_LAUNDRY)
 
             mockMvc.post("/api/v2/deliveries/1/washing") {
@@ -159,7 +159,7 @@ class DeliveryControllerTest {
                 jsonPath("$.data.status") { value("IN_LAUNDRY") }
             }
 
-            verify { deliveryCommandUseCase.startWashing(1L, listOf(3L)) }
+            verify { deliveryCommandUseCase.startWashing(1L, listOf(3L), any()) }
         }
     }
 
@@ -168,7 +168,7 @@ class DeliveryControllerTest {
 
         @Test
         fun `건조 완료 요청 시 200을 반환한다`() {
-            every { deliveryCommandUseCase.completeDrying(any(), any()) } returns
+            every { deliveryCommandUseCase.completeDrying(any(), any(), any()) } returns
                 sampleDelivery(status = DeliveryStatus.LAUNDRY_COMPLETE)
 
             mockMvc.post("/api/v2/deliveries/1/drying") {
@@ -188,7 +188,7 @@ class DeliveryControllerTest {
 
         @Test
         fun `배달 완료 요청 시 200을 반환한다`() {
-            every { deliveryCommandUseCase.completeDelivery(any(), any()) } returns
+            every { deliveryCommandUseCase.completeDelivery(any(), any(), any()) } returns
                 sampleDelivery(status = DeliveryStatus.DELIVERED)
 
             mockMvc.post("/api/v2/deliveries/1/delivery") {

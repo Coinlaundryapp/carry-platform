@@ -3,8 +3,10 @@ package com.carry.common.exception
 import com.carry.common.response.ApiResponse
 import org.slf4j.LoggerFactory
 import org.slf4j.MDC
+import org.springframework.dao.OptimisticLockingFailureException
 import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException
+import org.springframework.security.access.AccessDeniedException
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.MissingServletRequestParameterException
 import org.springframework.web.bind.annotation.ExceptionHandler
@@ -16,12 +18,23 @@ class GlobalExceptionHandler {
 
     private val log = LoggerFactory.getLogger(javaClass)
 
+    /**
+     * 비즈니스 예외 로그 레벨 정책 (ROADMAP Phase 3.3):
+     *  - **5xx**(예: `PG_GATEWAY_UNAVAILABLE 503`, `GEOCODING_UNAVAILABLE 503`): `error` — 실제 인프라 장애.
+     *  - **4xx**(예: `ORDER_NOT_FOUND 404`, `INVOICE_ALREADY_PAID 409`): `info` — 정상적인 비즈니스 조건이며
+     *    오류 알럿이 울려서는 안 된다. 트래픽 패턴 분석 용도로만 노출.
+     */
     @ExceptionHandler(BusinessException::class)
     fun handleBusinessException(e: BusinessException): ResponseEntity<ApiResponse<Nothing>> {
-        log.warn("Business exception: [{}] {}", e.errorCode.name, e.message)
+        val status = e.errorCode.status
+        if (status >= 500) {
+            log.error("Business exception (5xx): [{}] {}", e.errorCode.name, e.message)
+        } else {
+            log.info("Business exception ({}): [{}] {}", status, e.errorCode.name, e.message)
+        }
         return ResponseEntity
-            .status(e.errorCode.status)
-            .body(ApiResponse.error(e.errorCode.status, e.errorCode.name, e.message, MDC.get("traceId")))
+            .status(status)
+            .body(ApiResponse.error(status, e.errorCode.name, e.message, MDC.get("traceId")))
     }
 
     @ExceptionHandler(MethodArgumentNotValidException::class)
@@ -55,6 +68,45 @@ class GlobalExceptionHandler {
         return ResponseEntity
             .badRequest()
             .body(ApiResponse.error(400, ErrorCode.INVALID_INPUT.name, "Malformed request body", MDC.get("traceId")))
+    }
+
+    /**
+     * JPA `@Version` 기반 optimistic locking이 동시 수정 충돌을 감지하면 던지는 예외.
+     * 클라이언트는 같은 요청을 재시도하면 일반적으로 해소된다.
+     */
+    @ExceptionHandler(OptimisticLockingFailureException::class)
+    fun handleOptimisticLocking(e: OptimisticLockingFailureException): ResponseEntity<ApiResponse<Nothing>> {
+        log.warn("Optimistic locking conflict: {}", e.message)
+        return ResponseEntity
+            .status(ErrorCode.CONCURRENT_MODIFICATION.status)
+            .body(
+                ApiResponse.error(
+                    ErrorCode.CONCURRENT_MODIFICATION.status,
+                    ErrorCode.CONCURRENT_MODIFICATION.name,
+                    ErrorCode.CONCURRENT_MODIFICATION.message,
+                    MDC.get("traceId"),
+                ),
+            )
+    }
+
+    /**
+     * 메서드 시큐리티(@PreAuthorize) 인가 실패. @RestControllerAdvice 가 컨트롤러 호출 중 발생한
+     * 예외를 먼저 가로채므로, 명시 핸들러가 없으면 catch-all 로 500 이 되어버린다.
+     * 인증은 됐으나 권한이 없는 경우이므로 403 으로 매핑한다.
+     */
+    @ExceptionHandler(AccessDeniedException::class)
+    fun handleAccessDenied(e: AccessDeniedException): ResponseEntity<ApiResponse<Nothing>> {
+        log.info("Access denied: {}", e.message)
+        return ResponseEntity
+            .status(ErrorCode.FORBIDDEN.status)
+            .body(
+                ApiResponse.error(
+                    ErrorCode.FORBIDDEN.status,
+                    ErrorCode.FORBIDDEN.name,
+                    ErrorCode.FORBIDDEN.message,
+                    MDC.get("traceId"),
+                ),
+            )
     }
 
     @ExceptionHandler(Exception::class)

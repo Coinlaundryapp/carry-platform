@@ -1,5 +1,6 @@
 package com.carry.laundromat.domain.model
 
+import com.carry.common.exception.BusinessException
 import com.carry.laundromat.domain.vo.LaundromatAddress
 import com.carry.laundromat.domain.vo.LaundromatOption
 import com.carry.laundromat.domain.vo.Location
@@ -62,7 +63,7 @@ class LaundromatTest {
         @Test
         fun `빈 이름으로 생성하면 실패한다`() {
             assertThatThrownBy { createLaundromat(name = "") }
-                .isInstanceOf(IllegalArgumentException::class.java)
+                .isInstanceOf(BusinessException::class.java)
                 .hasMessageContaining("세탁소 이름")
         }
     }
@@ -88,7 +89,7 @@ class LaundromatTest {
             val laundromat = reconstitutedLaundromat()
 
             assertThatThrownBy { laundromat.updateInfo("", address, location) }
-                .isInstanceOf(IllegalArgumentException::class.java)
+                .isInstanceOf(BusinessException::class.java)
         }
     }
 

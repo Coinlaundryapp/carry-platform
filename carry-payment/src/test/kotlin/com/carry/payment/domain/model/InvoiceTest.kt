@@ -1,5 +1,6 @@
 package com.carry.payment.domain.model
 
+import com.carry.common.exception.BusinessException
 import com.carry.payment.domain.vo.ChargeType
 import com.carry.payment.domain.vo.InvoiceLineItem
 import com.carry.payment.domain.vo.InvoiceStatus
@@ -53,7 +54,7 @@ class InvoiceTest {
         fun `lineItems가 비어 있으면 예외가 발생한다`() {
             assertThatThrownBy {
                 Invoice.create(1L, 100L, emptyList(), BigDecimal("5.0"))
-            }.isInstanceOf(IllegalArgumentException::class.java)
+            }.isInstanceOf(BusinessException::class.java)
                 .hasMessageContaining("청구 항목")
         }
 
@@ -61,7 +62,7 @@ class InvoiceTest {
         fun `lineItem 금액이 음수이면 예외가 발생한다`() {
             assertThatThrownBy {
                 InvoiceLineItem(ChargeType.LAUNDRY_PRICE, "세탁 비용", -100L)
-            }.isInstanceOf(IllegalArgumentException::class.java)
+            }.isInstanceOf(BusinessException::class.java)
                 .hasMessageContaining("금액")
         }
     }
@@ -94,14 +95,14 @@ class InvoiceTest {
         fun `CANCELLED 상태에서 markPaid 호출 시 예외가 발생한다`() {
             val invoice = reconstitutedInvoice(InvoiceStatus.CANCELLED)
             assertThatThrownBy { invoice.markPaid() }
-                .isInstanceOf(IllegalStateException::class.java)
+                .isInstanceOf(BusinessException::class.java)
         }
 
         @Test
         fun `PAID 상태에서 cancel 호출 시 예외가 발생한다`() {
             val invoice = reconstitutedInvoice(InvoiceStatus.PAID)
             assertThatThrownBy { invoice.cancel() }
-                .isInstanceOf(IllegalStateException::class.java)
+                .isInstanceOf(BusinessException::class.java)
         }
     }
 }

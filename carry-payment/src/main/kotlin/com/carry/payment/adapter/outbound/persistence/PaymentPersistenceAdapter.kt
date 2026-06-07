@@ -27,6 +27,6 @@ class PaymentPersistenceAdapter(
     }
 
     override fun findByOrderId(orderId: Long): Payment? {
-        return paymentJpaRepository.findByOrderId(orderId)?.toDomain()
+        return paymentJpaRepository.findFirstByOrderIdOrderByIdDesc(orderId)?.toDomain()
     }
 }

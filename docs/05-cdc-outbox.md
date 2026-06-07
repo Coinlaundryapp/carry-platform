@@ -172,15 +172,34 @@ class OrderCreationService(
 
 ### Outbox Event Router 동작
 
-Debezium의 Outbox Event Router SMT는 outbox 테이블의 row를 다음과 같이 라우팅한다:
+Debezium의 Outbox Event Router SMT는 outbox 테이블의 row를 다음과 같이 라우팅한다
+(실제 설정은 `infra/debezium/register-connector.json`):
 
 | Outbox Column | Kafka 매핑 |
 |---------------|-----------|
 | `aggregate_id` | Message Key (파티션 키 → 순서 보장) |
-| `aggregate_type` | Topic name (`carry.Order.events`) |
-| `event_type` | Header (`OrderCreated`) |
-| `payload` | Message Value |
-| `id` | Header (중복 제거용) |
+| `aggregate_type` | Topic name (`carry.Order.events`) + value envelope `aggregateType` |
+| `payload` | value envelope `payload` (문자열 유지) |
+| `id` / `event_type` / `trace_id` / `created_at` | value envelope `id` / `eventType` / `traceId` / `createdAt` |
+
+**메시지 value 는 `OutboxEventEnvelope` 형태로 합성된다** — 컨슈머가
+`objectMapper.readValue(record.value(), OutboxEventEnvelope::class.java)` 로 역직렬화한 뒤
+`envelope.eventType` 으로 분기하고 `envelope.payload`(문자열)를 도메인 이벤트로 다시 파싱한다.
+이를 위해 커넥터에 `table.fields.additional.placement` 의 `…:envelope:…` 합성과
+`table.expand.json.payload=false`(payload 를 문자열로 유지) 설정이 **필수**다.
+
+> ⚠️ **검증된 함정 (2026-06-06 라이브 e2e에서 발견·수정)**
+> 초기 설정에는 두 가지 잠복 버그가 있었고, 단위/Testcontainers/EmbeddedKafka 테스트 어디서도
+> 실 Debezium→컨슈머 경로를 타지 않아(미런칭=실트래픽 0) 한 번도 노출되지 않았다:
+> 1. `table.field.event.timestamp=created_at` + `created_at TIMESTAMPTZ` → Debezium 이 STRING 으로
+>    직렬화하는데 EventRouter 는 INT64(epoch ms)를 요구 → **커넥터 task 사망, 이벤트가 토픽에 안 나감.**
+>    → 해당 매핑 제거(Kafka record timestamp 는 CDC 이벤트시각으로 폴백).
+> 2. `additional.placement` 가 payload 컬럼만 value 로 내보내 컨슈머의 `OutboxEventEnvelope` 와 불일치
+>    → **전 컨슈머 역직렬화 실패.** → 위의 envelope 합성으로 해소.
+>
+> 회귀 방지: `OutboxConnectorContractTest`(carry-infra-kafka)가 커넥터 설정과 envelope 와이어
+> 포맷을 고정한다. 풀스택 라이브 스모크(docker compose + Debezium + 실 outbox INSERT)로
+> end-to-end 동작을 실증했다.
 
 ---
 

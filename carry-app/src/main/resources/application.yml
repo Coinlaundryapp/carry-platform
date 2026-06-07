@@ -5,6 +5,26 @@ spring:
     virtual:
       enabled: true
 
+  # Graceful shutdown:
+  # - 종료 신호(SIGTERM) 수신 시 새 요청은 받지 않고, 진행 중인 요청·메시지를 마무리한 뒤 종료
+  # - phase별 최대 30초까지 대기, 시한 초과 시 강제 종료
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+  # HikariCP 커넥션 풀:
+  # - 기본값(maximum-pool-size=10, connection-timeout=30s)은 트래픽이 늘면 thread starvation
+  #   / 무한 대기로 이어지므로 명시적으로 묶어둔다.
+  # - leak-detection-threshold: 5초 이상 borrow된 채로 반납되지 않은 커넥션을 경고 (개발 단계 누수 감지).
+  datasource:
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 3000          # 3초. 기본 30초는 사용자 체감 지연이 큼.
+      idle-timeout: 600000              # 10분
+      max-lifetime: 1800000             # 30분 (DB 측 wait_timeout보다 짧게)
+      leak-detection-threshold: 5000    # 5초
+      pool-name: CarryHikariPool
+
   jpa:
     hibernate:
       ddl-auto: validate
@@ -24,13 +44,33 @@ spring:
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      # 종료 시 record 단위로 오프셋이 커밋되도록 하여, 진행 중이던 메시지 이후가
+      # 다음 기동에서 다시 처리되지 않게 한다 (BATCH 모드 대비 부분 처리 위험 ↓).
+      enable-auto-commit: false
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      # DLQ 발행 producer. 멱등(중복/재정렬 없는 at-least-once) 명시.
+      # Kafka 3.x 클라이언트 기본 on이나 의도를 드러내고 acks=all로 고정.
+      acks: all
+      properties:
+        enable.idempotence: true
+    listener:
+      ack-mode: RECORD
+      # 리스너당 컨슈머 스레드 수. 토픽 파티션(6, KafkaTopicConfig.PARTITIONS)이 상한.
+      # 같은 aggregate_id는 같은 파티션 → 같은 스레드라 순서 보존, 다른 애그리거트는 병렬.
+      concurrency: 3
 
 jwt:
   access-token-expiration: 3600000
   refresh-token-expiration: 604800000
+  signup-token-expiration: 600000
+
+kakao:
+  api:
+    # 운영 기본값. dev/stg e2e에서만 KAKAO_API_BASE_URL env로 스텁 서버를 가리킬 수 있다.
+    # prod에서 이 값이 실 Kakao가 아니면 KakaoBaseUrlGuard가 부팅을 막는다.
+    base-url: ${KAKAO_API_BASE_URL:https://kapi.kakao.com}
 
 cloud:
   aws:
@@ -46,6 +86,34 @@ management:
     key-values:
       application: carry-platform
 
+# Resilience4j Circuit Breaker — 외부 PG 장애 시 fast-fail로 스레드 블로킹·연쇄 장애 방지.
+# 슬라이딩 윈도우(최근 10건) 중 50% 실패 시 30초간 OPEN.
+# HALF_OPEN 상태에서 3건 시험 통과하면 다시 CLOSED.
+resilience4j:
+  circuitbreaker:
+    configs:
+      pg-gateway:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        register-health-indicator: true
+      # Naver 지오코딩 API용. 외부 호출 + 24h Redis 캐시 fallback과 함께 사용.
+      # 캐시 hit 시 CB를 거치지 않으므로 미스가 잦은 트래픽에만 영향. 미스율을 고려해
+      # 임계치는 pg-gateway보다 보수적으로(60%).
+      geocoding:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 60
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        register-health-indicator: true
+
 springdoc:
   api-docs:
     path: /api-docs
@@ -60,6 +128,8 @@ springdoc:
 
 server:
   port: 8080
+  # 종료 신호 수신 후 진행 중인 HTTP 요청을 마무리하고 종료 (spring.lifecycle.timeout-per-shutdown-phase 적용)
+  shutdown: graceful
 
 logging:
   pattern:

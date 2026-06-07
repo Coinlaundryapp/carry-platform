@@ -6,6 +6,7 @@ import com.carry.event.dispatch.DispatchAcceptedEvent
 import com.carry.event.order.OrderCreatedEvent
 import com.carry.event.payment.InvoiceIssuedEvent
 import com.carry.event.payment.PaymentCompletedEvent
+import com.carry.event.payment.PaymentFailedEvent
 import com.carry.infra.kafka.consumer.EventConsumerSupport
 import com.carry.infra.kafka.consumer.OutboxEventEnvelope
 import com.carry.notification.application.port.inbound.NotificationEventHandler
@@ -50,6 +51,10 @@ class NotificationEventConsumer(
                 "PaymentCompletedEvent" -> {
                     val event = objectMapper.readValue(envelope.payload, PaymentCompletedEvent::class.java)
                     eventHandler.onPaymentCompleted(event)
+                }
+                "PaymentFailedEvent" -> {
+                    val event = objectMapper.readValue(envelope.payload, PaymentFailedEvent::class.java)
+                    eventHandler.onPaymentFailed(event)
                 }
                 "DeliveryCompletedEvent" -> {
                     val event = objectMapper.readValue(envelope.payload, DeliveryCompletedEvent::class.java)

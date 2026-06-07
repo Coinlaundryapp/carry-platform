@@ -1,5 +1,6 @@
 package com.carry.media.domain.model
 
+import com.carry.common.exception.BusinessException
 import com.carry.media.domain.exception.InvalidMediaStatusTransitionException
 import com.carry.media.domain.vo.MediaStatus
 import org.assertj.core.api.Assertions.assertThat
@@ -48,7 +49,7 @@ class MediaResourceTest {
         fun `빈 폴더명으로 생성하면 예외가 발생한다`() {
             assertThatThrownBy {
                 MediaResource.create("", "photo.jpg", "image/jpeg", 1L)
-            }.isInstanceOf(IllegalArgumentException::class.java)
+            }.isInstanceOf(BusinessException::class.java)
                 .hasMessageContaining("폴더명")
         }
 
@@ -56,7 +57,7 @@ class MediaResourceTest {
         fun `빈 파일명으로 생성하면 예외가 발생한다`() {
             assertThatThrownBy {
                 MediaResource.create("review", "", "image/jpeg", 1L)
-            }.isInstanceOf(IllegalArgumentException::class.java)
+            }.isInstanceOf(BusinessException::class.java)
                 .hasMessageContaining("파일명")
         }
 
@@ -64,7 +65,7 @@ class MediaResourceTest {
         fun `확장자 없는 파일명으로 생성하면 예외가 발생한다`() {
             assertThatThrownBy {
                 MediaResource.create("review", "photo", "image/jpeg", 1L)
-            }.isInstanceOf(IllegalArgumentException::class.java)
+            }.isInstanceOf(BusinessException::class.java)
                 .hasMessageContaining("확장자")
         }
     }

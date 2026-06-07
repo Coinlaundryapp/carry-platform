@@ -1,5 +1,7 @@
 package com.carry.user.domain.model
 
+import com.carry.common.exception.requireInput
+import com.carry.common.exception.checkState
 import com.carry.user.domain.vo.Email
 import com.carry.user.domain.vo.OAuthInfo
 import com.carry.user.domain.vo.Phone
@@ -22,14 +24,14 @@ class User private constructor(
     val isActive: Boolean get() = _active
 
     fun updateProfile(name: String, phone: Phone) {
-        check(_active) { "비활성 계정의 프로필을 수정할 수 없습니다" }
-        require(name.isNotBlank()) { "이름은 비어있을 수 없습니다" }
+        checkState(_active) { "비활성 계정의 프로필을 수정할 수 없습니다" }
+        requireInput(name.isNotBlank()) { "이름은 비어있을 수 없습니다" }
         _name = name
         _phone = phone
     }
 
     fun deactivate() {
-        check(_active) { "이미 비활성 상태인 계정입니다" }
+        checkState(_active) { "이미 비활성 상태인 계정입니다" }
         _active = false
     }
 
@@ -41,7 +43,7 @@ class User private constructor(
             role: UserRole = UserRole.CUSTOMER,
             oauthInfo: OAuthInfo,
         ): User {
-            require(name.isNotBlank()) { "이름은 비어있을 수 없습니다" }
+            requireInput(name.isNotBlank()) { "이름은 비어있을 수 없습니다" }
             return User(
                 id = null,
                 email = email,

@@ -1,5 +1,6 @@
 package com.carry.user.application.service
 
+import com.carry.common.exception.BusinessException
 import com.carry.user.application.port.outbound.UserPersistencePort
 import com.carry.user.domain.exception.UserNotFoundException
 import com.carry.user.domain.model.User
@@ -65,7 +66,7 @@ class UserCommandServiceTest {
             every { userPersistencePort.findById(1L) } returns user
 
             assertThatThrownBy { sut.updateProfile(1L, "김철수", "01098765432") }
-                .isInstanceOf(IllegalStateException::class.java)
+                .isInstanceOf(BusinessException::class.java)
         }
     }
 
