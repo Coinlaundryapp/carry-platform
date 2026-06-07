@@ -1,6 +1,8 @@
 package com.carry.app.controller
 
 import com.carry.app.test.MethodSecurityTestConfig
+import com.carry.dispatch.adapter.inbound.rest.CarrierAreaController
+import com.carry.dispatch.adapter.inbound.rest.DispatchCarrierController
 import com.carry.dispatch.adapter.inbound.rest.DispatchCoordinatorController
 import com.carry.dispatch.application.port.inbound.CarrierAreaUseCase
 import com.carry.dispatch.application.port.inbound.DispatchCommandUseCase
@@ -40,6 +42,8 @@ import org.springframework.test.web.servlet.post
 @WebMvcTest(
     controllers = [
         DispatchCoordinatorController::class,
+        DispatchCarrierController::class,
+        CarrierAreaController::class,
         OperationDashboardController::class,
         TermAdminController::class,
     ],
@@ -146,6 +150,54 @@ class RoleGuardTest {
             mockMvc.delete("/api/v2/admin/terms/1") {
                 with(roleAuth("CUSTOMER"))
                 with(csrf())
+            }.andExpect {
+                status { isForbidden() }
+            }
+        }
+    }
+
+    @Nested
+    inner class DispatchCarrier {
+
+        @Test
+        fun `배달원은 내 배차 조회가 허용된다`() {
+            every { dispatchQueryUseCase.getDispatchesByCarrier(any(), any(), any()) } returns emptyList()
+
+            mockMvc.get("/api/v2/dispatches/my") {
+                with(roleAuth("CARRIER"))
+            }.andExpect {
+                status { isOk() }
+            }
+        }
+
+        @Test
+        fun `배달원이 아니면 403을 반환한다`() {
+            mockMvc.get("/api/v2/dispatches/my") {
+                with(roleAuth("CUSTOMER"))
+            }.andExpect {
+                status { isForbidden() }
+            }
+        }
+    }
+
+    @Nested
+    inner class CarrierArea {
+
+        @Test
+        fun `배달원은 내 권역 조회가 허용된다`() {
+            every { carrierAreaUseCase.getAreasByCarrier(any()) } returns emptyList()
+
+            mockMvc.get("/api/v2/carrier-areas") {
+                with(roleAuth("CARRIER"))
+            }.andExpect {
+                status { isOk() }
+            }
+        }
+
+        @Test
+        fun `배달원이 아니면 403을 반환한다`() {
+            mockMvc.get("/api/v2/carrier-areas") {
+                with(roleAuth("CUSTOMER"))
             }.andExpect {
                 status { isForbidden() }
             }
