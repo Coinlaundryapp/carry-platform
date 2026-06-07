@@ -50,11 +50,11 @@ class Order private constructor(
             shippingAddress: OrderShippingAddress,
             desiredPickupAt: Instant,
             desiredDeliveryAt: Instant,
+            now: Instant,
         ): Order {
             requireInput(selectedOptions.isNotEmpty()) { "최소 하나의 옵션을 선택해야 합니다" }
             requireInput(desiredDeliveryAt.isAfter(desiredPickupAt)) { "배달 희망 시각은 수거 희망 시각 이후여야 합니다" }
 
-            val now = Instant.now()
             return Order(
                 id = null,
                 customerId = customerId,
@@ -142,19 +142,19 @@ class Order private constructor(
         transitTo(OrderStatus.IN_PROGRESS)
     }
 
-    fun markCompleted() {
+    fun markCompleted(now: Instant) {
         transitTo(OrderStatus.COMPLETED)
-        _completedAt = Instant.now()
+        _completedAt = now
     }
 
-    fun cancel(reason: String, by: CancelledBy) {
+    fun cancel(reason: String, by: CancelledBy, now: Instant) {
         if (!_status.isCancellable()) {
             throw OrderNotCancellableException(id, _status)
         }
         _status = OrderStatus.CANCELLED
         _cancelReason = reason
         _cancelledBy = by
-        _cancelledAt = Instant.now()
+        _cancelledAt = now
     }
 
     fun isCancellable(): Boolean = _status.isCancellable()

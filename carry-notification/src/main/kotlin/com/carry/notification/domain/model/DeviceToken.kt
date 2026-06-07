@@ -19,8 +19,8 @@ class DeviceToken private constructor(
             userId: Long,
             token: String,
             platform: DevicePlatform,
+            now: Instant,
         ): DeviceToken {
-            val now = Instant.now()
             return DeviceToken(
                 id = null,
                 _userId = userId,
@@ -49,8 +49,8 @@ class DeviceToken private constructor(
     }
 
     /** 동일 토큰 재등록 시: 소유자(다른 사용자로 이동 가능) 갱신 + 최근 접속 시각 갱신. */
-    fun refresh(userId: Long) {
+    fun refresh(userId: Long, now: Instant) {
         _userId = userId
-        _lastSeenAt = Instant.now()
+        _lastSeenAt = now
     }
 }

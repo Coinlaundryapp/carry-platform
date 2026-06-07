@@ -16,16 +16,19 @@ import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import java.time.Clock
 import java.time.Instant
+import java.time.ZoneOffset
 
 class ReviewCommandServiceTest {
 
     private val reviewPersistencePort = mockk<ReviewPersistencePort>(relaxed = true)
     private val eventPublisher = mockk<EventPublisherPort>(relaxed = true)
 
-    private val sut = ReviewCommandService(reviewPersistencePort, eventPublisher)
+    private val now = Instant.parse("2026-06-07T00:00:00Z")
+    private val clock = Clock.fixed(now, ZoneOffset.UTC)
 
-    private val now = Instant.now()
+    private val sut = ReviewCommandService(reviewPersistencePort, eventPublisher, clock)
 
     private fun aCreateCommand() = CreateReviewCommand(
         laundromatId = 10L,

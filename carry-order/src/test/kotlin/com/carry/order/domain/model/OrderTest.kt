@@ -34,7 +34,7 @@ class OrderTest {
         SelectedOption("DRY", "LOW_HEAT"),
     )
 
-    private val now = Instant.now()
+    private val now = Instant.parse("2026-06-07T00:00:00Z")
     private val pickupAt = now.plus(2, ChronoUnit.HOURS)
     private val deliveryAt = now.plus(6, ChronoUnit.HOURS)
 
@@ -46,6 +46,7 @@ class OrderTest {
         shippingAddress = address,
         desiredPickupAt = pickupAt,
         desiredDeliveryAt = deliveryAt,
+        now = now,
     )
 
     private fun reconstitutedOrder(status: OrderStatus = OrderStatus.CREATED) = Order.reconstitute(
@@ -69,9 +70,16 @@ class OrderTest {
         }
 
         @Test
+        fun `생성 시 createdAt과 updatedAt은 주입된 now와 동일하다`() {
+            val order = createOrder()
+            assertThat(order.createdAt).isEqualTo(now)
+            assertThat(order.updatedAt).isEqualTo(now)
+        }
+
+        @Test
         fun `옵션 없이 생성하면 예외가 발생한다`() {
             assertThatThrownBy {
-                Order.create(1L, 10L, "REGULAR", emptyList(), address, pickupAt, deliveryAt)
+                Order.create(1L, 10L, "REGULAR", emptyList(), address, pickupAt, deliveryAt, now)
             }.isInstanceOf(BusinessException::class.java)
                 .hasMessageContaining("옵션")
         }
@@ -79,7 +87,7 @@ class OrderTest {
         @Test
         fun `배달 시각이 수거 시각 이전이면 예외가 발생한다`() {
             assertThatThrownBy {
-                Order.create(1L, 10L, "REGULAR", options, address, deliveryAt, pickupAt)
+                Order.create(1L, 10L, "REGULAR", options, address, deliveryAt, pickupAt, now)
             }.isInstanceOf(BusinessException::class.java)
                 .hasMessageContaining("배달 희망 시각")
         }
@@ -121,9 +129,9 @@ class OrderTest {
             order.markInvoiced(200L, 12000L)
             order.markPaid()
             order.markInProgress()
-            order.markCompleted()
+            order.markCompleted(now)
             assertThat(order.status).isEqualTo(OrderStatus.COMPLETED)
-            assertThat(order.completedAt).isNotNull()
+            assertThat(order.completedAt).isEqualTo(now)
         }
 
         @Test
@@ -140,31 +148,31 @@ class OrderTest {
         @Test
         fun `CREATED 상태에서 취소할 수 있다`() {
             val order = reconstitutedOrder(OrderStatus.CREATED)
-            order.cancel("고객 요청", CancelledBy.CUSTOMER)
+            order.cancel("고객 요청", CancelledBy.CUSTOMER, now)
             assertThat(order.status).isEqualTo(OrderStatus.CANCELLED)
             assertThat(order.cancelReason).isEqualTo("고객 요청")
             assertThat(order.cancelledBy).isEqualTo(CancelledBy.CUSTOMER)
-            assertThat(order.cancelledAt).isNotNull()
+            assertThat(order.cancelledAt).isEqualTo(now)
         }
 
         @Test
         fun `DISPATCHED 상태에서 취소할 수 있다`() {
             val order = reconstitutedOrder(OrderStatus.DISPATCHED)
-            order.cancel("코디네이터 취소", CancelledBy.COORDINATOR)
+            order.cancel("코디네이터 취소", CancelledBy.COORDINATOR, now)
             assertThat(order.status).isEqualTo(OrderStatus.CANCELLED)
         }
 
         @Test
         fun `PICKED_UP 이후에는 취소할 수 없다`() {
             val order = reconstitutedOrder(OrderStatus.PICKED_UP)
-            assertThatThrownBy { order.cancel("취소 시도", CancelledBy.CUSTOMER) }
+            assertThatThrownBy { order.cancel("취소 시도", CancelledBy.CUSTOMER, now) }
                 .isInstanceOf(OrderNotCancellableException::class.java)
         }
 
         @Test
         fun `PAYMENT_FAILED 상태에서 취소할 수 있다`() {
             val order = reconstitutedOrder(OrderStatus.PAYMENT_FAILED)
-            order.cancel("재결제 시한 초과", CancelledBy.SYSTEM)
+            order.cancel("재결제 시한 초과", CancelledBy.SYSTEM, now)
             assertThat(order.status).isEqualTo(OrderStatus.CANCELLED)
             assertThat(order.cancelledBy).isEqualTo(CancelledBy.SYSTEM)
         }

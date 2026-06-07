@@ -26,7 +26,9 @@ import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
+import java.time.Clock
 import java.time.Instant
+import java.time.ZoneOffset
 
 class PaymentCommandServiceTest {
 
@@ -38,11 +40,13 @@ class PaymentCommandServiceTest {
     private val paymentGateway = mockk<PaymentGatewayPort>()
     private val auditPort = mockk<com.carry.audit.port.AuditPort>(relaxed = true)
 
+    private val now = Instant.parse("2026-06-07T00:00:00Z")
+    private val clock = Clock.fixed(now, ZoneOffset.UTC)
+
     private val sut = PaymentCommandService(
         paymentPersistencePort, invoicePersistencePort, paymentGatewayResolver, eventPublisher, metrics, auditPort,
+        clock,
     )
-
-    private val now = Instant.now()
 
     private val lineItems = listOf(
         InvoiceLineItem(ChargeType.LAUNDRY_PRICE, "세탁 비용", 15000L),

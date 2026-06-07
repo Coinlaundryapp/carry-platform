@@ -14,15 +14,17 @@ import io.mockk.slot
 import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import java.time.Clock
 import java.time.Instant
+import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
 
 class OperationSagaHandlerTest {
 
     private val operationEventPersistencePort = mockk<OperationEventPersistencePort>(relaxed = true)
-    private val sut = OperationSagaHandler(operationEventPersistencePort)
-
-    private val now = Instant.now()
+    private val now = Instant.parse("2026-06-07T00:00:00Z")
+    private val clock = Clock.fixed(now, ZoneOffset.UTC)
+    private val sut = OperationSagaHandler(operationEventPersistencePort, clock)
 
     @Test
     fun `OrderCreatedEvent 수신 시 OperationEvent를 저장한다`() {

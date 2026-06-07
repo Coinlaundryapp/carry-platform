@@ -11,14 +11,14 @@ class OperationEvent private constructor(
     val createdAt: Instant,
 ) {
     companion object {
-        fun create(eventType: String, aggregateType: String, aggregateId: Long, summary: String): OperationEvent {
+        fun create(eventType: String, aggregateType: String, aggregateId: Long, summary: String, now: Instant): OperationEvent {
             return OperationEvent(
                 id = null,
                 eventType = eventType,
                 aggregateType = aggregateType,
                 aggregateId = aggregateId,
                 summary = summary,
-                createdAt = Instant.now(),
+                createdAt = now,
             )
         }
 

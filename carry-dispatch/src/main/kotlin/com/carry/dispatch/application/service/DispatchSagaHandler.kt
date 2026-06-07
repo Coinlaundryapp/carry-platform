@@ -11,11 +11,13 @@ import com.carry.event.port.EventPublisherPort
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Clock
 
 @Service
 class DispatchSagaHandler(
     private val dispatchPersistencePort: DispatchPersistencePort,
     private val eventPublisher: EventPublisherPort,
+    private val clock: Clock,
 ) : DispatchSagaEventHandler {
 
     private val log = LoggerFactory.getLogger(javaClass)
@@ -29,6 +31,7 @@ class DispatchSagaHandler(
                 laundromatId = event.laundromatId,
                 areaCode = event.areaCode,
                 desiredPickupAt = event.desiredPickupAt,
+                now = clock.instant(),
             )
             dispatchPersistencePort.save(dispatch)
         }

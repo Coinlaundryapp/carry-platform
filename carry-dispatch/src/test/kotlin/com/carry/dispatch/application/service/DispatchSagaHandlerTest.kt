@@ -13,16 +13,19 @@ import io.mockk.slot
 import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import java.time.Clock
 import java.time.Instant
+import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
 
 class DispatchSagaHandlerTest {
 
     private val dispatchPersistencePort = mockk<DispatchPersistencePort>(relaxed = true)
     private val eventPublisher = mockk<EventPublisherPort>(relaxed = true)
-    private val sut = DispatchSagaHandler(dispatchPersistencePort, eventPublisher)
 
-    private val now = Instant.now()
+    private val now = Instant.parse("2026-06-07T00:00:00Z")
+    private val clock = Clock.fixed(now, ZoneOffset.UTC)
+    private val sut = DispatchSagaHandler(dispatchPersistencePort, eventPublisher, clock)
 
     @Test
     fun `OrderCreatedEvent 수신 시 PENDING 상태의 배차를 생성한다`() {

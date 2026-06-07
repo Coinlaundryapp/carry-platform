@@ -6,10 +6,12 @@ import com.carry.notification.application.port.outbound.DeviceTokenPersistencePo
 import com.carry.notification.domain.model.DeviceToken
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Clock
 
 @Service
 class DeviceTokenCommandService(
     private val deviceTokenPersistencePort: DeviceTokenPersistencePort,
+    private val clock: Clock,
 ) : RegisterDeviceTokenUseCase {
 
     @Transactional
@@ -20,9 +22,10 @@ class DeviceTokenCommandService(
                 userId = command.userId,
                 token = command.token,
                 platform = command.platform,
+                now = clock.instant(),
             )
         } else {
-            existing.refresh(command.userId)
+            existing.refresh(command.userId, clock.instant())
             existing
         }
         return deviceTokenPersistencePort.save(deviceToken)

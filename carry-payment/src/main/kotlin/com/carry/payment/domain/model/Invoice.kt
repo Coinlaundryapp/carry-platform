@@ -27,11 +27,11 @@ class Invoice private constructor(
             customerId: Long,
             lineItems: List<InvoiceLineItem>,
             weight: BigDecimal,
+            now: Instant,
         ): Invoice {
             requireInput(lineItems.isNotEmpty()) { "청구 항목이 비어 있을 수 없습니다" }
 
             val totalAmount = lineItems.sumOf { it.amount }
-            val now = Instant.now()
             return Invoice(
                 id = null,
                 orderId = orderId,

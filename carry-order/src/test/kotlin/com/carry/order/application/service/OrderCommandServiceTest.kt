@@ -26,7 +26,9 @@ import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import java.time.Clock
 import java.time.Instant
+import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
 
 class OrderCommandServiceTest {
@@ -39,17 +41,18 @@ class OrderCommandServiceTest {
     private val metrics = mockk<MetricsPort>(relaxed = true)
     private val auditPort = mockk<AuditPort>(relaxed = true)
 
+    private val now = Instant.parse("2026-06-07T00:00:00Z")
+    private val clock = Clock.fixed(now, ZoneOffset.UTC)
+
     private val sut = OrderCommandService(
         orderPersistencePort, userQueryPort, laundromatQueryPort, serviceAvailabilityQueryPort,
-        eventPublisher, metrics, auditPort,
+        eventPublisher, metrics, auditPort, clock,
     )
 
     private val address = OrderShippingAddress(
         "서울특별시 강남구 역삼로 1", "101호", "06230",
         37.5, 127.0, "홍길동", "01012345678", null, "GANGNAM",
     )
-
-    private val now = Instant.now()
 
     private fun aCommand() = CreateOrderCommand(
         customerId = 1L,

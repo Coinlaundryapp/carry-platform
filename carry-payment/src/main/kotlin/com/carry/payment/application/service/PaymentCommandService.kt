@@ -24,6 +24,7 @@ import com.carry.payment.domain.vo.InvoiceStatus
 import com.carry.payment.domain.vo.PaymentStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Clock
 
 @Service
 class PaymentCommandService(
@@ -33,6 +34,7 @@ class PaymentCommandService(
     private val eventPublisher: EventPublisherPort,
     private val metrics: MetricsPort,
     private val auditPort: AuditPort,
+    private val clock: Clock,
 ) : PaymentCommandUseCase {
 
     @Transactional
@@ -50,6 +52,7 @@ class PaymentCommandService(
             customerId = command.customerId,
             pgProvider = command.pgProvider,
             amount = invoice.totalAmount,
+            now = clock.instant(),
         )
 
         val gateway = paymentGatewayResolver.resolve(command.pgProvider)
@@ -64,7 +67,7 @@ class PaymentCommandService(
         )
 
         if (pgResult.success && pgResult.pgTransactionId != null) {
-            payment.markCompleted(pgResult.pgTransactionId!!)
+            payment.markCompleted(pgResult.pgTransactionId!!, clock.instant())
             invoice.markPaid()
             invoicePersistencePort.save(invoice)
 

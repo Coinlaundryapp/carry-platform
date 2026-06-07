@@ -9,7 +9,7 @@ import java.time.Instant
 
 class ReviewTest {
 
-    private val now = Instant.now()
+    private val now = Instant.parse("2026-06-07T00:00:00Z")
 
     private fun createReview(
         rating: ReviewRating = ReviewRating.FIVE,
@@ -20,6 +20,7 @@ class ReviewTest {
         comment = "아주 깨끗해요",
         rating = rating,
         mediaUrls = mediaUrls,
+        now = now,
     )
 
     private fun reconstitutedReview(
@@ -48,8 +49,8 @@ class ReviewTest {
             assertThat(review.comment).isEqualTo("아주 깨끗해요")
             assertThat(review.rating).isEqualTo(ReviewRating.FIVE)
             assertThat(review.mediaUrls).isEmpty()
-            assertThat(review.createdAt).isNotNull()
-            assertThat(review.updatedAt).isNotNull()
+            assertThat(review.createdAt).isEqualTo(now)
+            assertThat(review.updatedAt).isEqualTo(now)
         }
 
         @Test
@@ -67,19 +68,19 @@ class ReviewTest {
         @Test
         fun `리뷰를 수정하면 comment와 rating이 변경된다`() {
             val review = reconstitutedReview()
-            val beforeUpdate = review.updatedAt
+            val updatedAt = now.plusSeconds(60)
 
-            review.update("보통이에요", ReviewRating.THREE)
+            review.update("보통이에요", ReviewRating.THREE, updatedAt)
 
             assertThat(review.comment).isEqualTo("보통이에요")
             assertThat(review.rating).isEqualTo(ReviewRating.THREE)
-            assertThat(review.updatedAt).isAfterOrEqualTo(beforeUpdate)
+            assertThat(review.updatedAt).isEqualTo(updatedAt)
         }
 
         @Test
         fun `comment를 null로 수정할 수 있다`() {
             val review = reconstitutedReview()
-            review.update(null, ReviewRating.FOUR)
+            review.update(null, ReviewRating.FOUR, now)
             assertThat(review.comment).isNull()
             assertThat(review.rating).isEqualTo(ReviewRating.FOUR)
         }
@@ -93,7 +94,7 @@ class ReviewTest {
             val review = reconstitutedReview()
             assertThat(review.mediaUrls).isEmpty()
 
-            review.addMedia("https://example.com/photo.jpg")
+            review.addMedia("https://example.com/photo.jpg", now)
 
             assertThat(review.mediaUrls).hasSize(1)
             assertThat(review.mediaUrls[0]).isEqualTo("https://example.com/photo.jpg")
@@ -102,8 +103,8 @@ class ReviewTest {
         @Test
         fun `여러 미디어를 순차적으로 추가할 수 있다`() {
             val review = reconstitutedReview()
-            review.addMedia("https://example.com/photo1.jpg")
-            review.addMedia("https://example.com/photo2.jpg")
+            review.addMedia("https://example.com/photo1.jpg", now)
+            review.addMedia("https://example.com/photo2.jpg", now)
             assertThat(review.mediaUrls).hasSize(2)
         }
     }

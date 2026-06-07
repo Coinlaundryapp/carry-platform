@@ -12,10 +12,12 @@ import com.carry.operation.domain.model.OperationEvent
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Clock
 
 @Service
 class OperationSagaHandler(
     private val operationEventPersistencePort: OperationEventPersistencePort,
+    private val clock: Clock,
 ) : OperationEventHandler {
 
     private val log = LoggerFactory.getLogger(javaClass)
@@ -29,6 +31,7 @@ class OperationSagaHandler(
                 aggregateType = "Order",
                 aggregateId = event.orderId,
                 summary = "주문 생성: orderId=${event.orderId}, laundromatId=${event.laundromatId}",
+                now = clock.instant(),
             )
             operationEventPersistencePort.save(operationEvent)
         }
@@ -43,6 +46,7 @@ class OperationSagaHandler(
                 aggregateType = "Order",
                 aggregateId = event.orderId,
                 summary = "주문 취소: orderId=${event.orderId}, reason=${event.reason}",
+                now = clock.instant(),
             )
             operationEventPersistencePort.save(operationEvent)
         }
@@ -57,6 +61,7 @@ class OperationSagaHandler(
                 aggregateType = "Dispatch",
                 aggregateId = event.dispatchId,
                 summary = "배차 수락: dispatchId=${event.dispatchId}, carrierId=${event.carrierId}",
+                now = clock.instant(),
             )
             operationEventPersistencePort.save(operationEvent)
         }
@@ -71,6 +76,7 @@ class OperationSagaHandler(
                 aggregateType = "Delivery",
                 aggregateId = event.deliveryId,
                 summary = "배달 완료: deliveryId=${event.deliveryId}, orderId=${event.orderId}",
+                now = clock.instant(),
             )
             operationEventPersistencePort.save(operationEvent)
         }
@@ -85,6 +91,7 @@ class OperationSagaHandler(
                 aggregateType = "Payment",
                 aggregateId = event.paymentId,
                 summary = "결제 완료: paymentId=${event.paymentId}, amount=${event.amount}",
+                now = clock.instant(),
             )
             operationEventPersistencePort.save(operationEvent)
         }

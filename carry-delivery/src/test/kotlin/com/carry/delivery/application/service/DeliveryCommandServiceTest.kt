@@ -21,8 +21,10 @@ import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
+import java.time.Clock
 import java.time.Duration
 import java.time.Instant
+import java.time.ZoneOffset
 
 class DeliveryCommandServiceTest {
 
@@ -31,11 +33,12 @@ class DeliveryCommandServiceTest {
     private val eventPublisher = mockk<EventPublisherPort>(relaxed = true)
     private val metrics = mockk<MetricsPort>(relaxed = true)
 
-    private val sut = DeliveryCommandService(
-        deliveryPersistencePort, paymentQueryPort, eventPublisher, metrics,
-    )
+    private val now = Instant.parse("2026-06-07T00:00:00Z")
+    private val clock = Clock.fixed(now, ZoneOffset.UTC)
 
-    private val now = Instant.now()
+    private val sut = DeliveryCommandService(
+        deliveryPersistencePort, paymentQueryPort, eventPublisher, metrics, clock,
+    )
 
     private fun deliveryAt(status: DeliveryStatus, id: Long = 1L): Delivery {
         val steps = DeliveryStepType.entries.map { stepType ->

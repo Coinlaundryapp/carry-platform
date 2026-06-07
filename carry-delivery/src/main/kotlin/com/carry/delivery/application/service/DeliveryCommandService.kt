@@ -16,8 +16,8 @@ import com.carry.event.port.EventPublisherPort
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
+import java.time.Clock
 import java.time.Duration
-import java.time.Instant
 
 @Service
 class DeliveryCommandService(
@@ -25,6 +25,7 @@ class DeliveryCommandService(
     private val paymentQueryPort: PaymentQueryPort,
     private val eventPublisher: EventPublisherPort,
     private val metrics: MetricsPort,
+    private val clock: Clock,
 ) : DeliveryCommandUseCase {
 
     @Transactional
@@ -40,7 +41,7 @@ class DeliveryCommandService(
         requestingCarrierId: Long,
     ): Delivery {
         val delivery = findOwnedDelivery(deliveryId, requestingCarrierId)
-        delivery.completePickup(weight, photoIds)
+        delivery.completePickup(weight, photoIds, clock.instant())
         val saved = deliveryPersistencePort.save(delivery)
 
         eventPublisher.publish(
@@ -66,7 +67,7 @@ class DeliveryCommandService(
     @Transactional
     override fun startWashing(deliveryId: Long, photoIds: List<Long>, requestingCarrierId: Long): Delivery {
         val delivery = findOwnedDelivery(deliveryId, requestingCarrierId)
-        delivery.startWashing(photoIds)
+        delivery.startWashing(photoIds, clock.instant())
         val saved = deliveryPersistencePort.save(delivery)
 
         eventPublisher.publish(
@@ -85,7 +86,7 @@ class DeliveryCommandService(
     @Transactional
     override fun completeDrying(deliveryId: Long, photoIds: List<Long>, requestingCarrierId: Long): Delivery {
         val delivery = findOwnedDelivery(deliveryId, requestingCarrierId)
-        delivery.completeDrying(photoIds)
+        delivery.completeDrying(photoIds, clock.instant())
         return deliveryPersistencePort.save(delivery)
     }
 
@@ -104,7 +105,7 @@ class DeliveryCommandService(
             throw OrderNotPaidException(delivery.orderId)
         }
 
-        delivery.completeDelivery(photoIds)
+        delivery.completeDelivery(photoIds, clock.instant())
         val saved = deliveryPersistencePort.save(delivery)
 
         eventPublisher.publish(
@@ -119,9 +120,9 @@ class DeliveryCommandService(
         )
 
         // 배달 라이프사이클 길이 — Delivery aggregate 생성(=DispatchAccepted 사가 처리 시점)부터
-        // 배달 완료까지. Clock 주입은 ROADMAP Phase 5에서 처리하므로 여기선 Instant.now() 직접 호출.
+        // 배달 완료까지. 시각은 주입된 Clock 에서 가져온다.
         metrics.incrementCounter("carry.delivery.completed")
-        metrics.recordTimer("carry.delivery.duration", Duration.between(saved.createdAt, Instant.now()))
+        metrics.recordTimer("carry.delivery.duration", Duration.between(saved.createdAt, clock.instant()))
 
         return saved
     }

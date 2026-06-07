@@ -23,15 +23,17 @@ import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
+import java.time.Clock
 import java.time.Instant
+import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
 
 class OrderSagaHandlerTest {
 
     private val orderPersistencePort = mockk<OrderPersistencePort>(relaxed = true)
-    private val sut = OrderSagaHandler(orderPersistencePort)
-
-    private val now = Instant.now()
+    private val now = Instant.parse("2026-06-07T00:00:00Z")
+    private val clock = Clock.fixed(now, ZoneOffset.UTC)
+    private val sut = OrderSagaHandler(orderPersistencePort, clock)
     private val address = OrderShippingAddress(
         "서울특별시 강남구 역삼로 1", "101호", null, 37.5, 127.0, "홍길동", "01012345678", null, "GANGNAM",
     )

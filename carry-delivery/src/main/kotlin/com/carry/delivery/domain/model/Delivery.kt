@@ -30,8 +30,8 @@ class Delivery private constructor(
             dispatchId: Long,
             carrierId: Long,
             laundromatId: Long,
+            now: Instant,
         ): Delivery {
-            val now = Instant.now()
             val steps = mutableListOf(
                 DeliveryStep.createPending(DeliveryStepType.PICKUP),
                 DeliveryStep.createPending(DeliveryStepType.WEIGHING),
@@ -78,35 +78,35 @@ class Delivery private constructor(
         )
     }
 
-    fun completePickup(weight: BigDecimal, photoIds: List<Long>) {
+    fun completePickup(weight: BigDecimal, photoIds: List<Long>, now: Instant) {
         if (weight <= BigDecimal.ZERO) throw DeliveryWeightRequiredException()
         if (photoIds.isEmpty()) throw DeliveryPhotoRequiredException()
         transitTo(DeliveryStatus.PICKED_UP)
         _actualWeight = weight
-        getStep(DeliveryStepType.PICKUP)?.complete(photoIds)
-        getStep(DeliveryStepType.WEIGHING)?.complete(emptyList())
+        getStep(DeliveryStepType.PICKUP)?.complete(photoIds, now)
+        getStep(DeliveryStepType.WEIGHING)?.complete(emptyList(), now)
     }
 
-    fun startWashing(photoIds: List<Long>) {
+    fun startWashing(photoIds: List<Long>, now: Instant) {
         if (photoIds.isEmpty()) throw DeliveryPhotoRequiredException()
         transitTo(DeliveryStatus.IN_LAUNDRY)
-        getStep(DeliveryStepType.WASHING)?.complete(photoIds)
+        getStep(DeliveryStepType.WASHING)?.complete(photoIds, now)
     }
 
-    fun completeDrying(photoIds: List<Long>) {
+    fun completeDrying(photoIds: List<Long>, now: Instant) {
         if (photoIds.isEmpty()) throw DeliveryPhotoRequiredException()
         transitTo(DeliveryStatus.LAUNDRY_COMPLETE)
-        getStep(DeliveryStepType.DRYING)?.complete(photoIds)
+        getStep(DeliveryStepType.DRYING)?.complete(photoIds, now)
     }
 
     fun startDelivery() {
         transitTo(DeliveryStatus.DELIVERY_PENDING)
     }
 
-    fun completeDelivery(photoIds: List<Long>) {
+    fun completeDelivery(photoIds: List<Long>, now: Instant) {
         if (photoIds.isEmpty()) throw DeliveryPhotoRequiredException()
         transitTo(DeliveryStatus.DELIVERED)
-        getStep(DeliveryStepType.DELIVERY)?.complete(photoIds)
+        getStep(DeliveryStepType.DELIVERY)?.complete(photoIds, now)
     }
 
     fun cancel() {

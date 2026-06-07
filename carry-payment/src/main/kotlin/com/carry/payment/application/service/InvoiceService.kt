@@ -14,11 +14,13 @@ import com.carry.payment.domain.vo.InvoiceLineItem
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
+import java.time.Clock
 
 @Service
 class InvoiceService(
     private val invoicePersistencePort: InvoicePersistencePort,
     private val eventPublisher: EventPublisherPort,
+    private val clock: Clock,
 ) : InvoiceQueryUseCase {
 
     companion object {
@@ -43,6 +45,7 @@ class InvoiceService(
             customerId = event.customerId,
             lineItems = lineItems,
             weight = event.actualWeight,
+            now = clock.instant(),
         )
 
         val saved = invoicePersistencePort.save(invoice)

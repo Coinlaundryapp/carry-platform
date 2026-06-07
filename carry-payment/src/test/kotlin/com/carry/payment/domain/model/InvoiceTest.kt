@@ -19,13 +19,14 @@ class InvoiceTest {
         InvoiceLineItem(ChargeType.SERVICE_FEE, "서비스 수수료", 1500L),
     )
 
-    private val now = Instant.now()
+    private val now = Instant.parse("2026-06-07T00:00:00Z")
 
     private fun createInvoice() = Invoice.create(
         orderId = 1L,
         customerId = 100L,
         lineItems = lineItems,
         weight = BigDecimal("5.0"),
+        now = now,
     )
 
     private fun reconstitutedInvoice(status: InvoiceStatus = InvoiceStatus.ISSUED) = Invoice.reconstitute(
@@ -42,6 +43,8 @@ class InvoiceTest {
             val invoice = createInvoice()
             assertThat(invoice.status).isEqualTo(InvoiceStatus.ISSUED)
             assertThat(invoice.id).isNull()
+            assertThat(invoice.createdAt).isEqualTo(now)
+            assertThat(invoice.updatedAt).isEqualTo(now)
         }
 
         @Test
@@ -53,7 +56,7 @@ class InvoiceTest {
         @Test
         fun `lineItems가 비어 있으면 예외가 발생한다`() {
             assertThatThrownBy {
-                Invoice.create(1L, 100L, emptyList(), BigDecimal("5.0"))
+                Invoice.create(1L, 100L, emptyList(), BigDecimal("5.0"), now)
             }.isInstanceOf(BusinessException::class.java)
                 .hasMessageContaining("청구 항목")
         }

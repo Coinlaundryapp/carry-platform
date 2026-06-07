@@ -48,10 +48,10 @@ class DeliveryStep private constructor(
         )
     }
 
-    fun complete(mediaIds: List<Long>, note: String? = null) {
+    fun complete(mediaIds: List<Long>, now: Instant, note: String? = null) {
         _status = StepStatus.COMPLETED
         _mediaIds.addAll(mediaIds)
         _note = note
-        _completedAt = Instant.now()
+        _completedAt = now
     }
 }
