@@ -64,6 +64,13 @@ spring:
 jwt:
   access-token-expiration: 3600000
   refresh-token-expiration: 604800000
+  signup-token-expiration: 600000
+
+kakao:
+  api:
+    # 운영 기본값. dev/stg e2e에서만 KAKAO_API_BASE_URL env로 스텁 서버를 가리킬 수 있다.
+    # prod에서 이 값이 실 Kakao가 아니면 KakaoBaseUrlGuard가 부팅을 막는다.
+    base-url: ${KAKAO_API_BASE_URL:https://kapi.kakao.com}
 
 cloud:
   aws:
