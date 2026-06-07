@@ -68,8 +68,3 @@ data class TokenResponse(
         fun from(tokens: TokenPair) = TokenResponse(tokens.accessToken, tokens.refreshToken)
     }
 }
-
-@Schema(description = "access 토큰 응답")
-data class AccessTokenResponse(
-    val accessToken: String,
-)

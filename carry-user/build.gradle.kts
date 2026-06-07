@@ -21,6 +21,8 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-security")
+    // refresh 토큰 회전/폐기 allowlist(StringRedisTemplate). geo 모듈과 동일하게 어댑터에서만 사용.
+    implementation("org.springframework.boot:spring-boot-starter-data-redis")
 
     // Kotlin
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")

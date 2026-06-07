@@ -25,10 +25,17 @@ class JwtProvider(
             .sign(algorithm)
     }
 
-    fun createRefreshToken(userId: Long): String {
+    /**
+     * REFRESH 토큰. 회전/폐기를 위해 [sessionId](세션 정체성, 회전 불변)와
+     * [jti](토큰 정체성, 회전마다 갱신)를 담는다. 두 식별자 생성은 호출자(어댑터) 책임 —
+     * 발급된 토큰과 Redis allowlist에 같은 jti가 쓰여야 하므로 여기서 생성하지 않는다.
+     */
+    fun createRefreshToken(userId: Long, sessionId: String, jti: String): String {
         return JWT.create()
             .withSubject(userId.toString())
             .withClaim(CLAIM_PURPOSE, PURPOSE_REFRESH)
+            .withClaim(CLAIM_SESSION_ID, sessionId)
+            .withJWTId(jti)
             .withIssuedAt(Date())
             .withExpiresAt(Date(System.currentTimeMillis() + jwtProperties.refreshTokenExpiration))
             .sign(algorithm)
@@ -61,10 +68,16 @@ class JwtProvider(
         return JwtPrincipal(userId, role)
     }
 
-    /** purpose=REFRESH 토큰만 수용. userId 반환. */
-    fun parseRefreshToken(token: String): Long? {
+    /**
+     * purpose=REFRESH 토큰만 수용. userId + sessionId + jti 복원.
+     * sid/jti 누락(구 무상태 refresh 토큰)이면 회전 불가이므로 null로 거부한다.
+     */
+    fun parseRefreshToken(token: String): RefreshClaims? {
         val decoded = verify(token, PURPOSE_REFRESH) ?: return null
-        return decoded.subject?.toLongOrNull()
+        val userId = decoded.subject?.toLongOrNull() ?: return null
+        val sessionId = decoded.getClaim(CLAIM_SESSION_ID).asString() ?: return null
+        val jti = decoded.id ?: return null
+        return RefreshClaims(userId, sessionId, jti)
     }
 
     /** purpose=SIGNUP 토큰만 수용. OAuth 신원 복원. */
@@ -93,6 +106,7 @@ class JwtProvider(
         private const val DEFAULT_ROLE = "CUSTOMER"
         private const val CLAIM_PURPOSE = "purpose"
         private const val CLAIM_ROLE = "role"
+        private const val CLAIM_SESSION_ID = "sid"
         private const val CLAIM_PROVIDER = "provider"
         private const val CLAIM_EMAIL = "email"
         private const val CLAIM_NICKNAME = "nickname"

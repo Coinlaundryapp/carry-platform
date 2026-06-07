@@ -1,7 +1,6 @@
 package com.carry.user.adapter.inbound.rest
 
 import com.carry.common.response.ApiResponse
-import com.carry.user.adapter.inbound.rest.dto.AccessTokenResponse
 import com.carry.user.adapter.inbound.rest.dto.LoginRequest
 import com.carry.user.adapter.inbound.rest.dto.LoginResponse
 import com.carry.user.adapter.inbound.rest.dto.RefreshRequest
@@ -43,12 +42,27 @@ class AuthController(
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(TokenResponse.from(tokens)))
     }
 
-    @Operation(summary = "토큰 재발급", description = "refresh 토큰으로 새 access 토큰을 발급한다.")
+    @Operation(
+        summary = "토큰 재발급(회전)",
+        description = "refresh 토큰을 회전한다. 새 access + 새 refresh를 발급하고 이전 refresh는 무효화된다.",
+    )
     @PostMapping("/refresh")
     fun refresh(
         @Valid @RequestBody request: RefreshRequest,
-    ): ResponseEntity<ApiResponse<AccessTokenResponse>> {
-        val accessToken = authUseCase.refresh(request.refreshToken)
-        return ResponseEntity.ok(ApiResponse.success(AccessTokenResponse(accessToken)))
+    ): ResponseEntity<ApiResponse<TokenResponse>> {
+        val tokens = authUseCase.refresh(request.refreshToken)
+        return ResponseEntity.ok(ApiResponse.success(TokenResponse.from(tokens)))
+    }
+
+    @Operation(
+        summary = "로그아웃",
+        description = "refresh 토큰의 세션을 폐기한다. 멱등. 기존 access는 자연 만료까지 유효하므로 클라이언트가 폐기해야 한다.",
+    )
+    @PostMapping("/logout")
+    fun logout(
+        @Valid @RequestBody request: RefreshRequest,
+    ): ResponseEntity<Void> {
+        authUseCase.logout(request.refreshToken)
+        return ResponseEntity.noContent().build()
     }
 }
