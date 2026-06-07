@@ -71,7 +71,8 @@ services:
       KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-3:19092,EXTERNAL://localhost:9096
 
   kafka-connect:
-    image: debezium/connect:2.7
+    # 부동 태그 `2.7`은 레지스트리에서 제거되어 manifest unknown → 정확 패치 버전으로 고정(재현성).
+    image: debezium/connect:2.7.3.Final
     container_name: carry-kafka-connect
     ports:
       - "8083:8083"
@@ -81,9 +82,11 @@ services:
       OFFSET_STORAGE_TOPIC: connect-offsets
       STATUS_STORAGE_TOPIC: connect-status
       BOOTSTRAP_SERVERS: kafka-1:19092,kafka-2:19092,kafka-3:19092
-      CONFIG_STORAGE_REPLICATION_FACTOR: 3
-      OFFSET_STORAGE_REPLICATION_FACTOR: 3
-      STATUS_STORAGE_REPLICATION_FACTOR: 3
+      # ⚠️ debezium/connect 이미지는 CONNECT_ 접두사 env만 worker 프로퍼티로 변환한다.
+      # 접두사 없는 *_STORAGE_REPLICATION_FACTOR는 무시되어 RF=1(기본값)로 남는다(라이브 스모크로 발견).
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 3
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 3
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 3
     depends_on:
       - kafka-1
       - kafka-2
