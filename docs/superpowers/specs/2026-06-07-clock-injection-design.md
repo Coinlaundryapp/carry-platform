@@ -43,9 +43,9 @@ Domain factory / transition method                ← 순수, java.time.Clock �
    - `Dispatch.rejectAssignment(now)` → `PenaltyRecord.create(..., now)`
    - `Delivery.completePickup/startWashing/completeDrying/completeDelivery(..., now)` → `DeliveryStep.complete(..., now)`
    자식은 따로 `Instant.now()` 호출 안 함.
-3. **앱서비스가 유일한 `clock.instant()` 호출점** — 명령 메서드 진입 시 `val now = clock.instant()` 1회 계산 → 같은 트랜잭션 내 모든 도메인 시각 동일(`createdAt == updatedAt` 보장). **미세 동작 변화이며 의도된 개선**.
-4. **`Clock` 빈** — `carry-app/config/ClockConfig.kt`에 `@Bean fun clock(): Clock = Clock.systemUTC()`. 기존 `InMemoryRefreshTokenStore`의 `Clock.systemUTC()` 선례와 일치(`Instant`는 TZ 무관). 컴포넌트 스캔이 전 모듈 `@Service`에 주입.
-5. **시간 쿼리 메서드도 파라미터화** — `Dispatch.isExpired()` → `isExpired(now: Instant)`. 호출 서비스가 `clock.instant()` 전달. 만료 판정의 결정적 테스트 가능.
+3. **앱서비스가 유일한 `clock.instant()` 호출점** — 명령 메서드 진입 시 `val now = clock.instant()` 1회 계산 → 같은 트랜잭션 내 모든 **도메인 모델 자체** 시각 동일(`createdAt == updatedAt` 보장; BaseEntity JPA auditing 시각은 무관, §8 참조). **미세 동작 변화이며 의도된 개선**.
+4. **`Clock` 빈** — `carry-app/config/ClockConfig.kt`에 `@Bean fun clock(): Clock = Clock.systemUTC()`. 기존 `InMemoryRefreshTokenStore`의 `Clock.systemUTC()` 선례와 일치(`Instant`는 TZ 무관). 컴포넌트 스캔이 전 모듈 `@Service`에 주입. **단, 모듈별 슬라이스 테스트는 `carry-app`의 빈을 못 봄** → 서비스 테스트는 `Clock.fixed(...)`를 생성자로 직접 주입(스프링 컨텍스트 비의존), 실 빈 주입은 풀 컨텍스트(`:carry-app`)에서만.
+5. **시간 쿼리 메서드도 파라미터화** — `Dispatch.isExpired()` → `isExpired(now: Instant)`. **현재 프로덕션 호출부 0건**(grep 확인) — 도메인 `Instant.now()` 제거 + 결정적 단위 테스트가 목적이며, 향후 만료 sweep/스케줄러 도입 시 `clock.instant()` 전달 전제. 호출부가 없으므로 신규 테스트가 이 파라미터를 반드시 행사한다.
 6. **앱서비스 2건 직접 호출 치환** — `DeliveryCommandService:124`(메트릭 duration, 명시적 TODO 해소) → `clock.instant()`; `PaymentRetryDeadlineSweeper:33`(scheduled sweep cutoff) → `clock.instant().minus(...)`.
 
 ## 5. 시그니처 변경 표 (도메인)
@@ -72,7 +72,8 @@ Domain factory / transition method                ← 순수, java.time.Clock �
 ## 6. 테스트 전략 (TDD)
 
 - **신규 결정적 단언**: 영향 받는 각 도메인에 `Clock.fixed(FIXED_INSTANT, UTC)`(서비스 레벨) 또는 고정 `now` 인자(도메인 레벨)로 `createdAt`/`cancelledAt`/`paidAt`/만료 판정 등을 **정확한 값**으로 단언하는 테스트 1개 이상 추가.
-- **기존 도메인 테스트 갱신**: `*Test.kt`의 factory/전이 호출부(Order/Dispatch/Delivery/Payment/Invoice/Review/Term/Notification/DeviceToken/MediaResource 등)에 고정 `Instant` 인자 추가. require→500 롤아웃 때와 동형(대량 호출부 정합).
+- **기존 도메인 테스트 갱신**: `*Test.kt`의 factory/전이 호출부에 고정 `Instant` 인자 추가. **블라스트 반경 = 도메인 단위테스트뿐 아니라 공통 픽스처(`carry-app/.../TestFixtures.kt`)·컨트롤러 테스트(`*ControllerTest.kt`)·사가 핸들러 테스트(`*SagaHandlerTest.kt`) 전부**(grep 30+ 파일). 컴파일러가 전수 검출(§7-1)하므로 누락 위험은 없으나 작업량 사전 인지. require→500 롤아웃 때와 동형.
+- **결정 #3 안전성 사전 확인**: 기존 `*Test.kt`에 `createdAt`/`updatedAt` 간 부등호(`isBefore`/`<`) 단언이 있는지 grep → 결정 #3(단일 now)로 깨지는 단언 0건임을 검증 후 진행.
 - **서비스 테스트**: Clock 빈을 `Clock.fixed(...)` mock/stub으로 주입. `PaymentRetryDeadlineSweeper`는 고정 now로 cutoff 경계(deadline 직전/직후 주문) 결정적 단언.
 - **Testcontainers saga IT**: 시그니처 변경에 따른 호출부 정합만 필요(로직 불변). `:carry-app:test` GREEN 유지.
 
