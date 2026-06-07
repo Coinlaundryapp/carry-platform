@@ -97,4 +97,9 @@ enum class ErrorCode(
     // Operation
     TERM_NOT_FOUND(404, "Term not found"),
     TERM_ALREADY_DEACTIVATED(409, "Term is already deactivated"),
+
+    // Auth
+    OAUTH_TOKEN_INVALID(401, "OAuth token is invalid or expired"),
+    OAUTH_PROVIDER_UNAVAILABLE(503, "OAuth provider is unavailable"),
+    AUTH_TOKEN_INVALID(401, "Auth token is invalid or expired"),
 }

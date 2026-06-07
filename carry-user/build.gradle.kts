@@ -14,6 +14,8 @@ dependencies {
     // Foundation modules
     implementation(project(":carry-common"))
     implementation(project(":carry-infra-persistence"))
+    // 토큰 발급/검증(JwtProvider). AuthTokenPort 어댑터에서만 사용 — 사이클 없음.
+    implementation(project(":carry-security"))
 
     // Spring
     implementation("org.springframework.boot:spring-boot-starter-web")
@@ -30,4 +32,5 @@ dependencies {
     testImplementation("io.mockk:mockk:1.13.13")
     testImplementation("org.assertj:assertj-core:3.27.0")
     testImplementation("com.tngtech.archunit:archunit-junit5:1.3.0")
+    testImplementation("org.springframework:spring-test") // MockRestServiceServer (KakaoOAuthClient)
 }
