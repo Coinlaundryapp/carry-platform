@@ -2,12 +2,17 @@ package com.carry.user.application.service
 
 import com.carry.user.application.port.inbound.LoginResult
 import com.carry.user.application.port.outbound.AuthTokenPort
+import com.carry.user.application.port.outbound.IssuedRefreshToken
 import com.carry.user.application.port.outbound.OAuthProfile
 import com.carry.user.application.port.outbound.OAuthProfileClient
+import com.carry.user.application.port.outbound.RefreshTokenClaims
+import com.carry.user.application.port.outbound.RefreshTokenStorePort
+import com.carry.user.application.port.outbound.RotateResult
 import com.carry.user.application.port.outbound.SignupIdentity
 import com.carry.user.application.port.outbound.UserPersistencePort
 import com.carry.user.domain.exception.AuthTokenInvalidException
 import com.carry.user.domain.exception.InactiveUserException
+import com.carry.user.domain.exception.RefreshTokenReuseException
 import com.carry.user.domain.model.User
 import com.carry.user.domain.vo.Email
 import com.carry.user.domain.vo.OAuthInfo
@@ -29,7 +34,8 @@ class AuthServiceTest {
     private val userPersistencePort = mockk<UserPersistencePort>()
     private val oAuthProfileClient = mockk<OAuthProfileClient>()
     private val authTokenPort = mockk<AuthTokenPort>()
-    private val sut = AuthService(userPersistencePort, oAuthProfileClient, authTokenPort)
+    private val refreshTokenStorePort = mockk<RefreshTokenStorePort>(relaxUnitFun = true)
+    private val sut = AuthService(userPersistencePort, oAuthProfileClient, authTokenPort, refreshTokenStorePort)
 
     private fun user(
         id: Long = 1L,
@@ -95,7 +101,7 @@ class AuthServiceTest {
             every { userPersistencePort.findByOAuthInfo(OAuthInfo(OAuthProvider.KAKAO, "kakao-123")) } returns
                 user(id = 1L, role = UserRole.COORDINATOR)
             every { authTokenPort.issueAccessToken(1L, UserRole.COORDINATOR) } returns "acc"
-            every { authTokenPort.issueRefreshToken(1L) } returns "ref"
+            every { authTokenPort.issueRefreshToken(1L) } returns IssuedRefreshToken("ref", "sess-1", "jti-1")
 
             val result = sut.loginWithKakao("kakao-at")
 
@@ -103,6 +109,7 @@ class AuthServiceTest {
             val tokens = (result as LoginResult.Registered).tokens
             assertThat(tokens.accessToken).isEqualTo("acc")
             assertThat(tokens.refreshToken).isEqualTo("ref")
+            verify { refreshTokenStorePort.start("sess-1", "jti-1") }
         }
 
         @Test
@@ -145,13 +152,14 @@ class AuthServiceTest {
             every { userPersistencePort.findByOAuthInfo(OAuthInfo(OAuthProvider.KAKAO, "kakao-new")) } returns null
             every { userPersistencePort.save(any()) } returns user(id = 5L, oauthId = "kakao-new")
             every { authTokenPort.issueAccessToken(5L, UserRole.CUSTOMER) } returns "acc"
-            every { authTokenPort.issueRefreshToken(5L) } returns "ref"
+            every { authTokenPort.issueRefreshToken(5L) } returns IssuedRefreshToken("ref", "sess-5", "jti-5")
 
             val tokens = sut.completeSignup("signup-token", "이름", "01012345678", "new@example.com")
 
             assertThat(tokens.accessToken).isEqualTo("acc")
             assertThat(tokens.refreshToken).isEqualTo("ref")
             verify(exactly = 1) { userPersistencePort.save(any()) }
+            verify { refreshTokenStorePort.start("sess-5", "jti-5") }
         }
 
         @Test
@@ -167,14 +175,39 @@ class AuthServiceTest {
     inner class Refresh {
 
         @Test
-        fun `유효한 refresh 토큰으로 새 access 토큰을 발급한다`() {
-            every { authTokenPort.parseRefreshToken("ref") } returns 1L
+        fun `유효한 refresh 토큰을 회전해 새 access·refresh를 발급한다`() {
+            every { authTokenPort.parseRefreshToken("ref") } returns RefreshTokenClaims(1L, "sess-1", "old-jti")
             every { userPersistencePort.findById(1L) } returns user(id = 1L, role = UserRole.ADMIN)
+            every { authTokenPort.issueRefreshToken(1L, "sess-1") } returns IssuedRefreshToken("new-ref", "sess-1", "new-jti")
+            every { refreshTokenStorePort.rotate("sess-1", "old-jti", "new-jti") } returns RotateResult.ROTATED
             every { authTokenPort.issueAccessToken(1L, UserRole.ADMIN) } returns "new-acc"
 
-            val accessToken = sut.refresh("ref")
+            val tokens = sut.refresh("ref")
 
-            assertThat(accessToken).isEqualTo("new-acc")
+            assertThat(tokens.accessToken).isEqualTo("new-acc")
+            assertThat(tokens.refreshToken).isEqualTo("new-ref")
+            verify { refreshTokenStorePort.rotate("sess-1", "old-jti", "new-jti") }
+        }
+
+        @Test
+        fun `재사용이 감지되면 세션 폐기 예외를 던진다`() {
+            every { authTokenPort.parseRefreshToken("ref") } returns RefreshTokenClaims(1L, "sess-1", "old-jti")
+            every { userPersistencePort.findById(1L) } returns user(id = 1L)
+            every { authTokenPort.issueRefreshToken(1L, "sess-1") } returns IssuedRefreshToken("new-ref", "sess-1", "new-jti")
+            every { refreshTokenStorePort.rotate("sess-1", "old-jti", "new-jti") } returns RotateResult.REUSE
+
+            assertThatThrownBy { sut.refresh("ref") }.isInstanceOf(RefreshTokenReuseException::class.java)
+            verify(exactly = 0) { authTokenPort.issueAccessToken(any(), any()) }
+        }
+
+        @Test
+        fun `세션이 없으면(로그아웃·만료) 거부한다`() {
+            every { authTokenPort.parseRefreshToken("ref") } returns RefreshTokenClaims(1L, "sess-1", "old-jti")
+            every { userPersistencePort.findById(1L) } returns user(id = 1L)
+            every { authTokenPort.issueRefreshToken(1L, "sess-1") } returns IssuedRefreshToken("new-ref", "sess-1", "new-jti")
+            every { refreshTokenStorePort.rotate("sess-1", "old-jti", "new-jti") } returns RotateResult.ABSENT
+
+            assertThatThrownBy { sut.refresh("ref") }.isInstanceOf(AuthTokenInvalidException::class.java)
         }
 
         @Test
@@ -186,7 +219,7 @@ class AuthServiceTest {
 
         @Test
         fun `refresh 대상 유저가 없으면 거부한다`() {
-            every { authTokenPort.parseRefreshToken("ref") } returns 99L
+            every { authTokenPort.parseRefreshToken("ref") } returns RefreshTokenClaims(99L, "sess-9", "jti")
             every { userPersistencePort.findById(99L) } returns null
 
             assertThatThrownBy { sut.refresh("ref") }.isInstanceOf(AuthTokenInvalidException::class.java)
@@ -194,10 +227,32 @@ class AuthServiceTest {
 
         @Test
         fun `refresh 대상 유저가 비활성이면 거부한다`() {
-            every { authTokenPort.parseRefreshToken("ref") } returns 1L
+            every { authTokenPort.parseRefreshToken("ref") } returns RefreshTokenClaims(1L, "sess-1", "jti")
             every { userPersistencePort.findById(1L) } returns user(id = 1L, active = false)
 
             assertThatThrownBy { sut.refresh("ref") }.isInstanceOf(AuthTokenInvalidException::class.java)
+        }
+    }
+
+    @Nested
+    inner class Logout {
+
+        @Test
+        fun `검증된 토큰의 세션을 폐기한다`() {
+            every { authTokenPort.parseRefreshToken("ref") } returns RefreshTokenClaims(1L, "sess-1", "jti")
+
+            sut.logout("ref")
+
+            verify { refreshTokenStorePort.delete("sess-1") }
+        }
+
+        @Test
+        fun `무효한 토큰은 세션을 건드리지 않고 조용히 종료한다`() {
+            every { authTokenPort.parseRefreshToken("bad") } returns null
+
+            sut.logout("bad")
+
+            verify(exactly = 0) { refreshTokenStorePort.delete(any()) }
         }
     }
 }

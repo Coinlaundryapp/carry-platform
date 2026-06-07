@@ -107,8 +107,8 @@ class AuthControllerTest {
     }
 
     @Test
-    fun `refresh는 200과 새 access 토큰을 반환한다`() {
-        every { authUseCase.refresh("ref") } returns "new-acc"
+    fun `refresh는 200과 회전된 새 access·refresh 토큰을 반환한다`() {
+        every { authUseCase.refresh("ref") } returns TokenPair("new-acc", "new-ref")
 
         mockMvc.post("/api/v2/auth/refresh") {
             contentType = MediaType.APPLICATION_JSON
@@ -116,6 +116,7 @@ class AuthControllerTest {
         }.andExpect {
             status { isOk() }
             jsonPath("$.data.accessToken") { value("new-acc") }
+            jsonPath("$.data.refreshToken") { value("new-ref") }
         }
     }
 
@@ -129,6 +130,29 @@ class AuthControllerTest {
         }.andExpect {
             status { isUnauthorized() }
             jsonPath("$.code") { value("AUTH_TOKEN_INVALID") }
+        }
+    }
+
+    @Test
+    fun `logout은 204를 반환하고 세션 폐기를 위임한다`() {
+        every { authUseCase.logout("ref") } returns Unit
+
+        mockMvc.post("/api/v2/auth/logout") {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"refreshToken": "ref"}"""
+        }.andExpect {
+            status { isNoContent() }
+        }
+        verify { authUseCase.logout("ref") }
+    }
+
+    @Test
+    fun `logout 토큰이 비면 400을 반환한다`() {
+        mockMvc.post("/api/v2/auth/logout") {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"refreshToken": ""}"""
+        }.andExpect {
+            status { isBadRequest() }
         }
     }
 }
