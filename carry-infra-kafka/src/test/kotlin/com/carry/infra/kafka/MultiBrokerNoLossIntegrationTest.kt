@@ -126,8 +126,16 @@ class MultiBrokerNoLossIntegrationTest {
         consumer.subscribe(listOf(topic))
         val out = mutableListOf<Pair<String, String>>()
         val deadline = System.currentTimeMillis() + 30000
-        while (out.size < expected && System.currentTimeMillis() < deadline) {
-            consumer.poll(Duration.ofMillis(500)).forEach { out.add(it.key() to it.value()) }
+        var emptyPolls = 0
+        // expected 도달 후에도 추가로 드레인해 트레일링 중복(at-least-once 재전달)까지 잡는다.
+        while (System.currentTimeMillis() < deadline) {
+            val records = consumer.poll(Duration.ofMillis(500))
+            if (records.isEmpty) {
+                if (out.size >= expected && ++emptyPolls >= 3) break
+            } else {
+                emptyPolls = 0
+                records.forEach { out.add(it.key() to it.value()) }
+            }
         }
         consumer.close()
         return out
