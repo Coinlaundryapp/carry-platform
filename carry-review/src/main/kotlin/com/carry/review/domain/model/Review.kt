@@ -26,10 +26,10 @@ class Review private constructor(
             comment: String?,
             rating: ReviewRating,
             mediaUrls: List<String> = emptyList(),
+            now: Instant,
         ): Review {
             requireInput(rating.value in 1..5) { "평점은 1~5 사이여야 합니다" }
 
-            val now = Instant.now()
             return Review(
                 id = null,
                 laundromatId = laundromatId,
@@ -63,14 +63,14 @@ class Review private constructor(
         )
     }
 
-    fun update(comment: String?, rating: ReviewRating) {
+    fun update(comment: String?, rating: ReviewRating, now: Instant) {
         _comment = comment
         _rating = rating
-        _updatedAt = Instant.now()
+        _updatedAt = now
     }
 
-    fun addMedia(url: String) {
+    fun addMedia(url: String, now: Instant) {
         _mediaUrls.add(url)
-        _updatedAt = Instant.now()
+        _updatedAt = now
     }
 }

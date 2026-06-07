@@ -15,9 +15,8 @@ class CarrierArea private constructor(
     val active get() = _active
 
     companion object {
-        fun create(carrierId: Long, areaCode: String, areaName: String): CarrierArea {
+        fun create(carrierId: Long, areaCode: String, areaName: String, now: Instant): CarrierArea {
             requireInput(areaCode.isNotBlank()) { "구역 코드는 필수입니다" }
-            val now = Instant.now()
             return CarrierArea(null, carrierId, areaCode, areaName, true, now, now)
         }
 

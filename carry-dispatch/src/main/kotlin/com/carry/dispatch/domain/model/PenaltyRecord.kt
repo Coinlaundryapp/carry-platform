@@ -11,8 +11,8 @@ class PenaltyRecord private constructor(
     val createdAt: Instant,
 ) {
     companion object {
-        fun create(carrierId: Long, dispatchId: Long, reason: PenaltyReason): PenaltyRecord {
-            return PenaltyRecord(null, carrierId, dispatchId, reason, Instant.now())
+        fun create(carrierId: Long, dispatchId: Long, reason: PenaltyReason, now: Instant): PenaltyRecord {
+            return PenaltyRecord(null, carrierId, dispatchId, reason, now)
         }
 
         fun reconstitute(

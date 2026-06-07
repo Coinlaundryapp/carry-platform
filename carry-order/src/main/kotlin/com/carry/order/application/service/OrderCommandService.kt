@@ -24,6 +24,7 @@ import com.carry.order.domain.vo.OrderStatus
 import com.carry.order.domain.vo.SelectedOption
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Clock
 
 @Service
 class OrderCommandService(
@@ -34,6 +35,7 @@ class OrderCommandService(
     private val eventPublisher: EventPublisherPort,
     private val metrics: MetricsPort,
     private val auditPort: AuditPort,
+    private val clock: Clock,
 ) : OrderCommandUseCase {
 
     @Transactional
@@ -52,6 +54,7 @@ class OrderCommandService(
             shippingAddress = address,
             desiredPickupAt = command.desiredPickupAt,
             desiredDeliveryAt = command.desiredDeliveryAt,
+            now = clock.instant(),
         )
 
         val saved = orderPersistencePort.save(order)
@@ -120,7 +123,7 @@ class OrderCommandService(
     }
 
     private fun doCancel(order: Order, reason: String, by: CancelledBy) {
-        order.cancel(reason, by)
+        order.cancel(reason, by, clock.instant())
         orderPersistencePort.save(order)
         publishOrderCancelled(order, reason, by)
     }

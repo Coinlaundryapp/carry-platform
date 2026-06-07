@@ -34,6 +34,7 @@ class Notification private constructor(
             content: String,
             referenceType: String? = null,
             referenceId: Long? = null,
+            now: Instant,
         ): Notification = Notification(
             id = null,
             recipientId = recipientId,
@@ -47,7 +48,7 @@ class Notification private constructor(
             referenceId = referenceId,
             _sentAt = null,
             _failReason = null,
-            createdAt = Instant.now(),
+            createdAt = now,
         )
 
         fun reconstitute(
@@ -70,9 +71,9 @@ class Notification private constructor(
         )
     }
 
-    fun markSent() {
+    fun markSent(now: Instant) {
         _status = NotificationStatus.SENT
-        _sentAt = Instant.now()
+        _sentAt = now
     }
 
     fun markFailed(reason: String) {

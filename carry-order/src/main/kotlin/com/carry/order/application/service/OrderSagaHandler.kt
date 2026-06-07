@@ -20,10 +20,12 @@ import com.carry.order.domain.vo.OrderStatus
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Clock
 
 @Service
 class OrderSagaHandler(
     private val orderPersistencePort: OrderPersistencePort,
+    private val clock: Clock,
 ) : OrderSagaEventHandler {
 
     private val log = LoggerFactory.getLogger(javaClass)
@@ -44,7 +46,7 @@ class OrderSagaHandler(
             log.info("Order saga: onDispatchTimeout dispatchId={}", event.dispatchId)
             val order = findOrder(event.orderId)
             if (order.isCancellable()) {
-                order.cancel("배차 시간 초과", CancelledBy.SYSTEM)
+                order.cancel("배차 시간 초과", CancelledBy.SYSTEM, clock.instant())
                 orderPersistencePort.save(order)
             }
         }
@@ -56,7 +58,7 @@ class OrderSagaHandler(
             log.info("Order saga: onDispatchCancelled dispatchId={} reason={}", event.dispatchId, event.reason)
             val order = findOrder(event.orderId)
             if (order.isCancellable()) {
-                order.cancel(event.reason, CancelledBy.COORDINATOR)
+                order.cancel(event.reason, CancelledBy.COORDINATOR, clock.instant())
                 orderPersistencePort.save(order)
             }
         }
@@ -120,7 +122,7 @@ class OrderSagaHandler(
         SagaLogContext.withOrderId(event.orderId) {
             log.info("Order saga: onDeliveryCompleted deliveryId={}", event.deliveryId)
             val order = findOrder(event.orderId)
-            order.markCompleted()
+            order.markCompleted(clock.instant())
             orderPersistencePort.save(order)
         }
     }

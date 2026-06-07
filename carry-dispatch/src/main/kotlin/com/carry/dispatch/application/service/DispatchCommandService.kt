@@ -21,6 +21,7 @@ import com.carry.event.dispatch.DispatchCancelledEvent
 import com.carry.event.port.EventPublisherPort
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Clock
 
 @Service
 class DispatchCommandService(
@@ -30,6 +31,7 @@ class DispatchCommandService(
     private val eventPublisher: EventPublisherPort,
     private val metrics: MetricsPort,
     private val auditPort: AuditPort,
+    private val clock: Clock,
 ) : DispatchCommandUseCase {
 
     @Transactional
@@ -41,7 +43,7 @@ class DispatchCommandService(
             throw CarrierNotInAreaException(command.carrierId, dispatch.areaCode)
         }
 
-        dispatch.claimByCarrier(command.carrierId)
+        dispatch.claimByCarrier(command.carrierId, clock.instant())
         val saved = dispatchPersistencePort.save(dispatch)
 
         eventPublisher.publish(
@@ -66,7 +68,7 @@ class DispatchCommandService(
         val dispatch = findDispatch(command.dispatchId)
         val beforeCarrier = dispatch.carrierId
         val beforeStatus = dispatch.status
-        dispatch.assignByCoordinator(command.carrierId)
+        dispatch.assignByCoordinator(command.carrierId, clock.instant())
         val saved = dispatchPersistencePort.save(dispatch)
         auditPort.record(
             action = AuditAction.DISPATCH_ASSIGN,
@@ -84,7 +86,7 @@ class DispatchCommandService(
         if (dispatch.carrierId != command.carrierId) {
             throw DispatchNotOwnedException(command.dispatchId, command.carrierId)
         }
-        dispatch.acceptAssignment()
+        dispatch.acceptAssignment(clock.instant())
         val saved = dispatchPersistencePort.save(dispatch)
 
         eventPublisher.publish(
@@ -111,7 +113,7 @@ class DispatchCommandService(
             throw DispatchNotOwnedException(command.dispatchId, command.carrierId)
         }
         val beforeStatus = dispatch.status
-        val penaltyRecord = dispatch.rejectAssignment()
+        val penaltyRecord = dispatch.rejectAssignment(clock.instant())
         val saved = dispatchPersistencePort.save(dispatch)
         penaltyRecordPersistencePort.save(penaltyRecord)
         metrics.incrementCounter("carry.dispatch.rejected")

@@ -12,7 +12,9 @@ import io.mockk.slot
 import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import java.time.Clock
 import java.time.Instant
+import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
 
 class PaymentRetryDeadlineSweeperTest {
@@ -20,9 +22,10 @@ class PaymentRetryDeadlineSweeperTest {
     private val orderPersistencePort = mockk<OrderPersistencePort>(relaxed = true)
     private val orderCommandUseCase = mockk<OrderCommandUseCase>(relaxed = true)
 
-    private val sut = PaymentRetryDeadlineSweeper(orderPersistencePort, orderCommandUseCase, deadlineHours = 24)
+    private val now = Instant.parse("2026-06-07T00:00:00Z")
+    private val clock = Clock.fixed(now, ZoneOffset.UTC)
 
-    private val now = Instant.now()
+    private val sut = PaymentRetryDeadlineSweeper(orderPersistencePort, orderCommandUseCase, clock, deadlineHours = 24)
     private val address = OrderShippingAddress(
         "서울특별시 강남구 역삼로 1", "101호", "06230",
         37.5, 127.0, "홍길동", "01012345678", null, "GANGNAM",
@@ -49,8 +52,8 @@ class PaymentRetryDeadlineSweeperTest {
         sut.sweepExpiredPaymentFailedOrders()
 
         assertThat(statusSlot.captured).isEqualTo(OrderStatus.PAYMENT_FAILED)
-        // 컷오프는 현재 시각보다 약 24시간 이전
-        assertThat(cutoffSlot.captured).isBefore(Instant.now())
+        // 고정 clock 기준 컷오프는 정확히 24시간 이전
+        assertThat(cutoffSlot.captured).isEqualTo(now.minus(24, ChronoUnit.HOURS))
         verify { orderCommandUseCase.cancelOrder(1L, "재결제 시한 초과", "SYSTEM") }
         verify { orderCommandUseCase.cancelOrder(2L, "재결제 시한 초과", "SYSTEM") }
     }

@@ -8,7 +8,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
-import java.time.Instant
+import java.time.Clock
 import java.time.temporal.ChronoUnit
 
 /**
@@ -24,13 +24,14 @@ import java.time.temporal.ChronoUnit
 class PaymentRetryDeadlineSweeper(
     private val orderPersistencePort: OrderPersistencePort,
     private val orderCommandUseCase: OrderCommandUseCase,
+    private val clock: Clock,
     @Value("\${carry.order.payment-retry-deadline-hours:24}") private val deadlineHours: Long,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
     @Scheduled(fixedRateString = "\${carry.order.payment-retry-sweep-interval-ms:3600000}")
     fun sweepExpiredPaymentFailedOrders() {
-        val cutoff = Instant.now().minus(deadlineHours, ChronoUnit.HOURS)
+        val cutoff = clock.instant().minus(deadlineHours, ChronoUnit.HOURS)
         val expired = orderPersistencePort.findByStatusAndUpdatedAtBefore(OrderStatus.PAYMENT_FAILED, cutoff)
         if (expired.isEmpty()) return
 

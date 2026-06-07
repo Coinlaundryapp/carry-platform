@@ -10,7 +10,7 @@ import java.time.Instant
 
 class NotificationTest {
 
-    private val now = Instant.now()
+    private val now = Instant.parse("2026-06-07T00:00:00Z")
 
     private fun createNotification() = Notification.create(
         recipientId = 1L,
@@ -21,6 +21,7 @@ class NotificationTest {
         content = "주문이 접수되었습니다.",
         referenceType = "ORDER",
         referenceId = 100L,
+        now = now,
     )
 
     private fun reconstitutedNotification(
@@ -70,10 +71,10 @@ class NotificationTest {
         @Test
         fun `알림을 발송 완료로 표시하면 SENT 상태가 된다`() {
             val notification = createNotification()
-            notification.markSent()
+            notification.markSent(now)
 
             assertThat(notification.status).isEqualTo(NotificationStatus.SENT)
-            assertThat(notification.sentAt).isNotNull()
+            assertThat(notification.sentAt).isEqualTo(now)
         }
     }
 

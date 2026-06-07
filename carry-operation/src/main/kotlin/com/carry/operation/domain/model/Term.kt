@@ -22,8 +22,7 @@ class Term private constructor(
     val updatedAt get() = _updatedAt
 
     companion object {
-        fun create(title: String, content: String, type: TermType, required: Boolean): Term {
-            val now = Instant.now()
+        fun create(title: String, content: String, type: TermType, required: Boolean, now: Instant): Term {
             return Term(
                 id = null,
                 _title = title,
@@ -52,21 +51,21 @@ class Term private constructor(
         )
     }
 
-    fun update(title: String, content: String, required: Boolean) {
+    fun update(title: String, content: String, required: Boolean, now: Instant) {
         _title = title
         _content = content
         _required = required
         _version += 1
-        _updatedAt = Instant.now()
+        _updatedAt = now
     }
 
-    fun deactivate() {
+    fun deactivate(now: Instant) {
         _active = false
-        _updatedAt = Instant.now()
+        _updatedAt = now
     }
 
-    fun activate() {
+    fun activate(now: Instant) {
         _active = true
-        _updatedAt = Instant.now()
+        _updatedAt = now
     }
 }

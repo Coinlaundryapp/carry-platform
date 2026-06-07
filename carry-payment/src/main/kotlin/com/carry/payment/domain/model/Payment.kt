@@ -33,10 +33,10 @@ class Payment private constructor(
             customerId: Long,
             pgProvider: PgProvider,
             amount: Long,
+            now: Instant,
         ): Payment {
             requireInput(amount > 0) { "결제 금액은 0보다 커야 합니다: $amount" }
 
-            val now = Instant.now()
             return Payment(
                 id = null,
                 invoiceId = invoiceId,
@@ -72,10 +72,10 @@ class Payment private constructor(
         )
     }
 
-    fun markCompleted(pgTransactionId: String) {
+    fun markCompleted(pgTransactionId: String, now: Instant) {
         transitTo(PaymentStatus.COMPLETED)
         _pgTransactionId = pgTransactionId
-        _paidAt = Instant.now()
+        _paidAt = now
     }
 
     fun markFailed(reason: String) {

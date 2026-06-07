@@ -13,15 +13,19 @@ import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
+import java.time.Clock
 import java.time.Instant
+import java.time.ZoneOffset
 
 class InvoiceServiceTest {
 
     private val invoicePersistencePort = mockk<InvoicePersistencePort>()
     private val eventPublisher = mockk<EventPublisherPort>(relaxed = true)
-    private val sut = InvoiceService(invoicePersistencePort, eventPublisher)
 
-    private val now = Instant.now()
+    private val now = Instant.parse("2026-06-07T00:00:00Z")
+    private val clock = Clock.fixed(now, ZoneOffset.UTC)
+
+    private val sut = InvoiceService(invoicePersistencePort, eventPublisher, clock)
 
     private fun anInvoice(customerId: Long) = Invoice.reconstitute(
         id = 1L, orderId = 10L, customerId = customerId, status = InvoiceStatus.ISSUED,

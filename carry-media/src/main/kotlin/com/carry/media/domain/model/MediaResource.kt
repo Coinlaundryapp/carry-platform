@@ -27,6 +27,7 @@ class MediaResource private constructor(
             originalFilename: String,
             contentType: String,
             uploadedBy: Long,
+            now: Instant,
         ): MediaResource {
             requireInput(folder.isNotBlank()) { "폴더명은 비어있을 수 없습니다" }
             requireInput(originalFilename.isNotBlank()) { "파일명은 비어있을 수 없습니다" }
@@ -44,7 +45,7 @@ class MediaResource private constructor(
                 _status = MediaStatus.UPLOADING,
                 _fileSize = null,
                 uploadedBy = uploadedBy,
-                createdAt = Instant.now(),
+                createdAt = now,
             )
         }
 

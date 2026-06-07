@@ -12,11 +12,13 @@ import com.carry.review.domain.model.Review
 import com.carry.review.domain.vo.ReviewRating
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Clock
 
 @Service
 class ReviewCommandService(
     private val reviewPersistencePort: ReviewPersistencePort,
     private val eventPublisher: EventPublisherPort,
+    private val clock: Clock,
 ) : ReviewCommandUseCase {
 
     @Transactional
@@ -27,6 +29,7 @@ class ReviewCommandService(
             comment = command.comment,
             rating = ReviewRating.fromValue(command.rating),
             mediaUrls = command.mediaUrls,
+            now = clock.instant(),
         )
 
         val saved = reviewPersistencePort.save(review)
@@ -59,6 +62,7 @@ class ReviewCommandService(
         review.update(
             comment = command.comment,
             rating = ReviewRating.fromValue(command.rating),
+            now = clock.instant(),
         )
 
         return reviewPersistencePort.save(review)

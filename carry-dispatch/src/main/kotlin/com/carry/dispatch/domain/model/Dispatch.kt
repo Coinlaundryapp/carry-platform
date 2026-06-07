@@ -33,8 +33,7 @@ class Dispatch private constructor(
     val cancelReason get() = _cancelReason
 
     companion object {
-        fun create(orderId: Long, laundromatId: Long, areaCode: String, desiredPickupAt: Instant): Dispatch {
-            val now = Instant.now()
+        fun create(orderId: Long, laundromatId: Long, areaCode: String, desiredPickupAt: Instant, now: Instant): Dispatch {
             return Dispatch(
                 id = null, orderId = orderId, laundromatId = laundromatId,
                 _status = DispatchStatus.PENDING, _carrierId = null,
@@ -55,36 +54,36 @@ class Dispatch private constructor(
         )
     }
 
-    fun claimByCarrier(carrierId: Long) {
+    fun claimByCarrier(carrierId: Long, now: Instant) {
         if (_status != DispatchStatus.PENDING) throw DispatchNotPendingException()
         _status = DispatchStatus.ACCEPTED
         _carrierId = carrierId
         _assignedBy = AssignedBy.CARRIER
-        _acceptedAt = Instant.now()
+        _acceptedAt = now
     }
 
-    fun assignByCoordinator(carrierId: Long) {
+    fun assignByCoordinator(carrierId: Long, now: Instant) {
         if (_status != DispatchStatus.PENDING) throw DispatchNotPendingException()
         _status = DispatchStatus.ASSIGNED
         _carrierId = carrierId
         _assignedBy = AssignedBy.COORDINATOR
-        _assignedAt = Instant.now()
+        _assignedAt = now
     }
 
-    fun acceptAssignment() {
+    fun acceptAssignment(now: Instant) {
         if (_status != DispatchStatus.ASSIGNED) throw DispatchAlreadyAcceptedException()
         _status = DispatchStatus.ACCEPTED
-        _acceptedAt = Instant.now()
+        _acceptedAt = now
     }
 
-    fun rejectAssignment(): PenaltyRecord {
+    fun rejectAssignment(now: Instant): PenaltyRecord {
         if (_status != DispatchStatus.ASSIGNED) throw DispatchAlreadyAcceptedException()
         val penalizedCarrierId = _carrierId!!
         _status = DispatchStatus.PENDING
         _carrierId = null
         _assignedBy = null
         _assignedAt = null
-        return PenaltyRecord.create(penalizedCarrierId, id!!, PenaltyReason.REJECTED_FORCED_ASSIGNMENT)
+        return PenaltyRecord.create(penalizedCarrierId, id!!, PenaltyReason.REJECTED_FORCED_ASSIGNMENT, now)
     }
 
     fun cancel(reason: String) {
@@ -100,7 +99,7 @@ class Dispatch private constructor(
         _status = DispatchStatus.TIMEOUT
     }
 
-    fun isExpired(): Boolean =
+    fun isExpired(now: Instant): Boolean =
         _status == DispatchStatus.PENDING &&
-            Instant.now().isAfter(desiredPickupAt.minus(30, ChronoUnit.MINUTES))
+            now.isAfter(desiredPickupAt.minus(30, ChronoUnit.MINUTES))
 }
