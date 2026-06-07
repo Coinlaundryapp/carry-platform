@@ -2,6 +2,7 @@
 
 > 작성일: 2026-06-07 · 브랜치 `feature/refresh-token-rotation-logout` (base `origin/develop` `579975e`)
 > 백로그 출처: `2026-06-07-carry-remaining-backlog.md` P1 #1. 직전 인증 작업(#77 Kakao 로그인/refresh wiring)의 직접 연장.
+> 리뷰 1회 반영(원자성·유예창·직렬화·test 컨텍스트·장애정책) 후 v2.
 
 ## 1. 문제
 
@@ -23,98 +24,135 @@
 
 YAGNI 제외: "전 디바이스 일괄 로그아웃"(단일 세션 logout만), access 블랙리스트.
 
-## 3. 모델 — 세션 단위 allowlist + 회전
+## 3. 모델 — 세션 단위 allowlist + 원자적 회전 + 유예창
 
 refresh 토큰에 claim 2개 추가:
 - `sid` (session id, UUID): **한 디바이스 로그인 동안 회전돼도 불변**. 세션의 정체성.
 - `jti` (token id, UUID): **토큰마다 고유**. 회전마다 갱신.
 
-Redis는 **세션별 "현재 유효한 jti"** 하나만 보관한다:
+Redis는 **세션별 상태**를 하나의 hash로 보관한다:
 
 ```
-Key:   auth:refresh:{sid}        Value: 현재 jti (String)     TTL: refresh 수명(기본 7d), 회전 시 갱신
+Key: auth:refresh:{sid}   (hash)   TTL: refresh 수명(기본 7d), 회전 시 갱신
+  cur    = 현재 유효 jti
+  prev   = 직전(직전 회전 전) jti        ← 유예창 대상
+  prevAt = prev가 기록된 서버시각(ms)     ← 유예 만료 판정
 ```
 
 - 디바이스별 다중 세션 = sid가 디바이스마다 다른 UUID → 키 분리(D1).
-- "현재 jti와 다른 jti가 제시됨" = 이미 회전된 옛 토큰의 재사용 = 탈취 신호 → 키 삭제로 세션 폐기(D2).
+- "제시된 jti가 cur도 prev(유예 내)도 아님" = 이미 회전된 옛 토큰의 재사용 = 탈취 신호 → 키 삭제로 세션 폐기(D2).
 - logout = 키 삭제(D3, refresh만 폐기). access는 자연 만료.
+
+### 3.1 원자성 (리뷰 #3·#4 해소)
+
+탐지(GET)와 회전/폐기(SET/DEL)를 **단일 Lua 스크립트**로 원자 실행한다. 비원자 GET-then-SET이 만드는 두 결함을 차단:
+- **TOCTOU**: 재사용 탐지와 `DEL` 사이에 정상 회전이 끼어들어 세션이 되살아나는 창 제거.
+- **정상 동시요청 self-lock**: 클라이언트의 정상 재시도(응답 유실 후 재요청, 더블탭, 네트워크 retry)로 같은 토큰이 짧은 간격에 2회 제시되면, 단순 CAS는 두 번째를 "재사용"으로 오판해 세션을 폭파한다.
+
+### 3.2 유예창 (리뷰 #3, RFC 6819 leeway)
+
+직전 jti(`prev`)는 **`prevAt`로부터 grace(기본 10s) 이내**라면 재사용으로 보지 않고 **정상 재시도로 간주해 다시 회전**한다. 단 이때 `prev`는 전진시키지 않아(`cur`만 교체) 유예창이 슬라이딩하지 않게 **경계를 고정**한다. 이는 Auth0 등 성숙 구현의 `reuse interval`과 동형이며, 정상 사용자 lockout과 탈취 탐지의 균형점이다. grace를 넘긴 옛 토큰은 진짜 재사용 → 세션 폭파.
 
 ## 4. 흐름
 
 ### 4.1 로그인/가입 (issueTokens)
-1. `sid = UUID`, `jti = UUID` 생성
-2. `redis.set(auth:refresh:{sid}, jti, ttl=7d)`
+1. `sid = UUID`, `jti = UUID`
+2. `store.start(sid, jti)` → `HSET key cur=jti` + `PEXPIRE 7d`
 3. access + refresh(sub, sid, jti) 반환
 
 ### 4.2 refresh (회전)
-1. 서명·`purpose=REFRESH` 검증 → `userId, sid, jti` 추출 (실패 → 401 `AuthTokenInvalidException`)
+1. 서명·`purpose=REFRESH` 검증 → `userId, sid, presentedJti` 추출 (실패 → 401 `AuthTokenInvalidException`)
 2. user 조회 + active 확인 (실패 → 401)
-3. `stored = redis.get(auth:refresh:{sid})`
-   - `stored == null` → **로그아웃됨/만료** → 401 `AuthTokenInvalidException`
-   - `stored != jti` → **재사용 감지** → `redis.del(sid)` 세션 폐기 → 401 `RefreshTokenReuseException` (warn 로그)
-   - `stored == jti` → **회전**:
-     - `newJti = UUID`
-     - `redis.set(auth:refresh:{sid}, newJti, ttl=7d)` (TTL 갱신 = 슬라이딩)
-     - 새 access + 새 refresh(sub, sid, newJti) **둘 다** 반환 (`TokenPair`)
+3. `newJti = UUID` 로 새 refresh 토큰 발급(아직 미확정)
+4. `result = store.rotate(sid, presentedJti, newJti)` — 원자 Lua:
+   - `cur` 없음 → **`ABSENT`** (로그아웃됨/만료)
+   - `cur == presentedJti` → 회전: `prev←cur, prevAt←now, cur←newJti`, `PEXPIRE 7d` → **`ROTATED`**
+   - `prev == presentedJti` 이고 `now - prevAt ≤ grace` → 유예 재시도: `cur←newJti`(prev 고정), `PEXPIRE 7d` → **`ROTATED`**
+   - 그 외 → 진짜 재사용: `DEL key` → **`REUSE`**
+5. 매핑:
+   - `ROTATED` → 새 access + (newJti 담긴) 새 refresh 둘 다 반환 (`TokenPair`)
+   - `ABSENT` → 401 `AuthTokenInvalidException`
+   - `REUSE` → 401 `RefreshTokenReuseException` (warn 로그; 세션은 Lua가 이미 폐기)
 
 ### 4.3 logout (`POST /api/v2/auth/logout`)
-1. refresh 토큰 파싱 → `sid` 추출
-2. `redis.del(auth:refresh:{sid})` — 멱등(없는 키 삭제=no-op)
-3. **204 No Content** 반환
-4. 파싱 불가 토큰(서명 불량 등)도 폐기할 세션이 없으므로 동일하게 204 (세션 존재 여부 비노출)
+1. `parseRefreshToken(token)` — **서명+purpose 완전검증** 후에만 `sid` 추출 (리뷰 #7: 미검증 토큰에서 sid를 뽑아 임의 세션을 evict하는 DoS 차단)
+2. 검증 실패(서명불량/만료/purpose불일치) → 폐기할 세션 없음 → **204** (세션 존재 여부 비노출, Redis 미접촉)
+3. 검증 성공 → `store.delete(sid)` = `DEL key` (멱등, 없는 키 삭제=no-op) → **204**
 
 ## 5. 헥사고날 배치 (기존 패턴 준수)
 
 ### 5.1 carry-security `JwtProvider`
-- `createRefreshToken(userId: Long, sessionId: String, jti: String): String` — **순수 빌더**. sid/jti 주입받음, UUID 생성 안 함. `.withClaim("sid", sessionId).withJWTId(jti)` 추가.
-- `parseRefreshToken(token: String): RefreshClaims?` — 반환 타입 `Long?` → `RefreshClaims(userId, sessionId, jti)`. purpose 검증 유지. sid/jti 누락 시 null(구 토큰 호환 거부).
+- `createRefreshToken(userId: Long, sessionId: String, jti: String): String` — **순수 빌더**(sid/jti 주입, UUID 생성 안 함). `.withClaim("sid", sessionId).withJWTId(jti)` 추가.
+- `parseRefreshToken(token): RefreshClaims?` — 반환 `Long?` → `RefreshClaims(userId, sessionId, jti)`. purpose 검증 유지. sid/jti 누락 토큰(구 무상태 토큰) → null.
 - 신규 타입 `RefreshClaims(userId: Long, sessionId: String, jti: String)` (carry-security).
-- `refreshTokenExpiration` 노출(getter 또는 어댑터가 `JwtProperties` 직접 주입) — TTL 진실원천.
 
-### 5.2 carry-user `AuthTokenPort` (outbound)
-- `issueRefreshToken(userId: Long): IssuedRefreshToken` — **새 세션** (sid+jti 신규 생성).
-- `issueRefreshToken(userId: Long, sessionId: String): IssuedRefreshToken` — **회전** (sid 고정, jti 신규).
-- `parseRefreshToken(token: String): RefreshTokenClaims?` — `Long?` → `RefreshTokenClaims(userId, sessionId, jti)`.
-- 신규 타입:
-  - `IssuedRefreshToken(token: String, sessionId: String, jti: String, ttl: Duration)` — **TTL을 토큰과 함께 반환** → TTL 진실원천=JwtProperties 한 곳, store는 ttl을 인자로 받아 generic 유지.
-  - `RefreshTokenClaims(userId: Long, sessionId: String, jti: String)`
+### 5.2 carry-security `JwtProperties`
+- `refreshTokenRotationGraceMillis: Long = 10000` 추가(유예창, §3.2). `jwt.refresh-token-rotation-grace` 키.
 
-### 5.3 carry-user `RefreshTokenStorePort` (outbound, 신규)
+### 5.3 carry-user `AuthTokenPort` (outbound)
+- `issueRefreshToken(userId: Long): IssuedRefreshToken` — **새 세션**(sid+jti 신규).
+- `issueRefreshToken(userId: Long, sessionId: String): IssuedRefreshToken` — **회전**(sid 고정, jti 신규).
+- `parseRefreshToken(token): RefreshTokenClaims?` — `Long?` → `RefreshTokenClaims(userId, sessionId, jti)`.
+- 신규 타입: `IssuedRefreshToken(token: String, sessionId: String, jti: String)`, `RefreshTokenClaims(userId: Long, sessionId: String, jti: String)`.
+- UUID 생성은 어댑터(infra) 책임.
+
+### 5.4 carry-user `RefreshTokenStorePort` (outbound, 신규)
+```kotlin
+enum class RotateResult { ROTATED, ABSENT, REUSE }
+
+interface RefreshTokenStorePort {
+    fun start(sessionId: String, jti: String)
+    fun rotate(sessionId: String, presentedJti: String, newJti: String): RotateResult
+    fun delete(sessionId: String)
+}
 ```
-fun save(sessionId: String, jti: String, ttl: Duration)   // 신규 세션 + 회전 공용(set overwrite)
-fun currentJti(sessionId: String): String?
-fun delete(sessionId: String)                              // logout + 재사용 폐기, 멱등
-```
+- 원자성·유예·TTL은 **어댑터 내부**에 캡슐화 → 포트는 의도만 노출(서비스는 `RotateResult`로 분기). ttl/grace를 인자로 흘리지 않아 포트가 깔끔.
 
-### 5.4 carry-user `RedisRefreshTokenStore` (adapter.outbound.auth, 신규)
-- `RedisTemplate<String, Any>` 위임. `opsForValue().set(key, jti, ttl)` / `get` / `RedisTemplate.delete`.
+### 5.5 carry-user `RedisRefreshTokenStore` (adapter.outbound.auth, 신규)
+- **`StringRedisTemplate`** 위임 (리뷰 #6: 공유 `RedisTemplate<String,Any>`는 `GenericJackson2JsonRedisSerializer`로 값이 JSON-인용(`"uuid"`)돼 Lua의 raw string 비교가 깨짐 → raw string 직렬화 강제).
+- `rotate`는 `RedisTemplate.execute(RedisScript<String>, keys, args...)`로 Lua 1회 실행, 반환 문자열 → `RotateResult` 매핑. Lua는 `redis.call('TIME')`로 서버시각 사용(클럭 주입 불필요·원자).
+- TTL=`JwtProperties.refreshTokenExpiration`, grace=`JwtProperties.refreshTokenRotationGraceMillis` 주입(carry-user는 carry-security 의존 → JwtProperties 빈 주입 가능; JwtProvider와 동일 source-of-truth=JwtProperties).
 - 키 prefix `auth:refresh:`.
-- `@ConditionalOnBean(RedisConnectionFactory)` 정합(carry-infra-redis와 동일 게이팅) — local/dev/prod에 Redis 존재.
 
-### 5.5 carry-user `JwtAuthTokenAdapter`
-- UUID 생성(infra 책임): `issueRefreshToken`에서 `sid`/`jti`를 `UUID.randomUUID().toString()`로 생성.
-- TTL: `JwtProperties.refreshTokenExpiration`(ms) → `Duration.ofMillis(...)`로 변환해 `IssuedRefreshToken`에 담음.
+### 5.6 carry-user `InMemoryRefreshTokenStore` (adapter.outbound.auth, 신규 — fallback)
+- `ConcurrentHashMap<sid, Entry(cur, prev, prevAt)>` + `synchronized` rotate로 **Lua와 동일 의미** 구현. grace 판정용 `Clock` 주입(테스트 결정성).
+- 용도: ① Redis 미존재 환경(test 프로파일은 `RedisAutoConfiguration` 제외) ② 알고리즘의 결정적 단위테스트.
+
+### 5.7 carry-user `RefreshTokenStoreConfig` (adapter.outbound.auth, 신규 — 와이어링)
+- **geo `GeocodingResilienceConfig` 선례 차용**(리뷰 #1): `@Bean fun refreshTokenStorePort(@Autowired(required=false) stringRedisTemplate: StringRedisTemplate?, jwtProperties)` → Redis 있으면 `RedisRefreshTokenStore`, 없으면 `InMemoryRefreshTokenStore`(warn 로그).
+- 이유: `AuthService`가 `RefreshTokenStorePort`를 **필수 생성자 의존**으로 받는데, test 프로파일(application-test.yml이 `RedisAutoConfiguration` exclude)엔 `StringRedisTemplate` 빈이 없다. 어댑터에 `@ConditionalOnBean`만 달면 빈이 아예 없어 `@SpringBootTest` 컨텍스트가 "no RefreshTokenStorePort"로 깨진다. nullable 와이어링 + InMemory fallback이 정석(geo와 동형).
+
+### 5.8 carry-user `JwtAuthTokenAdapter`
+- UUID 생성(infra): `issueRefreshToken`에서 `sid`/`jti` = `UUID.randomUUID().toString()`.
 - `parseRefreshToken`: `JwtProvider.RefreshClaims` → 포트 `RefreshTokenClaims` 매핑(SignupClaims→SignupIdentity 선례).
 
-### 5.6 carry-user `AuthService` (application)
+### 5.9 carry-user `AuthService` (application)
 - 생성자에 `RefreshTokenStorePort` 추가.
-- `issueTokens(user)`: `issued = issueRefreshToken(user.id)` → `store.save(issued.sessionId, issued.jti, issued.ttl)` → `TokenPair(access, issued.token)`.
-- `refresh(refreshToken): TokenPair` (반환 타입 `String`→`TokenPair`): §4.2 로직.
-- `logout(refreshToken)`: §4.3 로직 (신규).
+- `issueTokens(user)`: `issued = issueRefreshToken(user.id)` → `store.start(issued.sessionId, issued.jti)` → `TokenPair(access, issued.token)`.
+- `refresh(refreshToken): TokenPair` (반환 `String`→`TokenPair`): §4.2.
+  - **`@Transactional(readOnly = true)` 제거**(리뷰 #2): 메서드의 주효과가 이제 Redis 상태변경(회전/폐기)이라 readOnly는 오도. 클래스 기본(read-write) 사용. ⚠️ **Redis 연산은 JPA 트랜잭션 밖**(롤백 안 됨) — DB 조회(findById) 후 Redis 회전 순서 유지.
+- `logout(refreshToken)`: §4.3 (신규).
 
-### 5.7 carry-user `AuthUseCase` (inbound)
-- `refresh(refreshToken: String): String` → `: TokenPair`.
+### 5.10 carry-user `AuthUseCase` (inbound)
+- `refresh(refreshToken): String` → `: TokenPair`.
 - `logout(refreshToken: String)` 추가.
 
-### 5.8 carry-user `AuthController` + DTO
+### 5.11 carry-user `AuthController` + DTO
 - `POST /refresh`: 응답 `AccessTokenResponse` → **`TokenResponse`**(access+refresh, 이미 존재).
-- `POST /logout`: 신규, body `RefreshRequest`, `204 No Content`. 멱등.
-- `AccessTokenResponse`: refresh가 유일 소비자였으므로 미사용 시 제거.
+- `POST /logout`: 신규, body `RefreshRequest`, **204 No Content**. 멱등.
+- `AccessTokenResponse`: refresh가 유일 소비자였으므로 제거.
 
-### 5.9 carry-user `AuthExceptions`
-- 신규 `RefreshTokenReuseException` — `ErrorCode.AUTH_TOKEN_INVALID`(동일 **401** 봉투, #79 통일분 재사용). 별도 타입은 **warn 로깅·향후 감사로그(#2) 연결**용 식별자.
+### 5.12 carry-user `AuthExceptions`
+- 신규 `RefreshTokenReuseException : BusinessException(ErrorCode.AUTH_TOKEN_INVALID, "...")` (리뷰 #8: 반드시 `BusinessException` 서브클래스 → 기존 `@RestControllerAdvice`가 **동일 401 봉투** 생성, 핸들러 변경 불필요). 별도 타입은 warn 로깅·향후 감사로그(#2) 연결용 식별자.
 
-## 6. API 변경 요약
+## 6. Redis 장애 정책 (리뷰 #5 — fail-closed)
+
+런타임 Redis 접속불가 시 연산별 정책. 세 연산 모두 **예외를 전파(catch 안 함) = fail-closed**:
+- **login(`start`) 실패** → 추적불가 토큰을 발급하지 않음(로그인 5xx). 추적 못 할 refresh를 쥐여주지 않는다.
+- **refresh(`rotate`) 실패** → 5xx 전파(재발급 거부). 무상태 우회 없음.
+- **logout(`delete`) 실패** → 5xx 전파. 보안 연산(폐기)이 조용히 no-op 되지 않게 정직하게 실패(클라 재시도). "멱등 204"는 **Redis 정상 + 없는 키 삭제** 시의 의미이지 Redis 다운 시가 아니다.
+
+## 7. API 변경 요약
 
 | 엔드포인트 | 변경 전 | 변경 후 |
 |-----------|---------|---------|
@@ -122,25 +160,29 @@ fun delete(sessionId: String)                              // logout + 재사용
 | `POST /api/v2/auth/logout` | (없음) | 신규, 204, 멱등 |
 
 ⚠️ refresh 응답 계약 변경 — 클라이언트는 회전된 새 refresh를 저장해야 함. **Carry 미런칭(실트래픽 0) → 마이그레이션 무관**. 기존 발급된 구 refresh(sid/jti 없음)는 parse에서 null → 401 → 재로그인(허용).
+⚠️ 프론트 노트(리뷰 #10): logout 후에도 **기존 access는 자연 만료(≤1h)까지 유효**(D3). 서버 즉시 무효화 아님 — 클라가 access를 즉시 폐기해야 체감 로그아웃.
 
-## 7. 테스트 (TDD, Red→Green)
+## 8. 테스트 (TDD, Red→Green)
 
 | 레이어 | 케이스 |
 |--------|--------|
 | `JwtProvider` 단위 | sid/jti 라운드트립(create→parse 일치), 잘못된 purpose 거부, sid/jti 누락 토큰 거부 |
-| `RedisRefreshTokenStore` 단위 | save(TTL 전달)·get·delete (mockk RedisTemplate, geo 패턴) |
-| `JwtAuthTokenAdapter` 단위 | issueRefreshToken 새 세션 vs 회전(sid 고정/jti 변화), ttl=refreshTokenExpiration, parse 매핑 |
-| `AuthService` 단위(store mock) | 회전 정상(save 새 jti·TokenPair 반환) / 재사용(stored≠jti → delete 호출 + throw) / null(throw) / logout(delete 호출) |
-| `carry-app` 통합(Redis 컨테이너) | 로그인→refresh 회전→이전 refresh 재사용 시 세션 폐기(이후 회전된 것도 무효)→logout 후 refresh 거부 |
-| 라이브 스모크 | docker 풀스택: 로그인→refresh(회전 확인)→옛 토큰 재사용→세션 폐기→logout |
+| `InMemoryRefreshTokenStore` 단위(Clock 주입) | start→rotate(정상) / 재사용(옛 jti→REUSE+키삭제) / ABSENT(없는 sid) / 유예 재시도(prev within grace→ROTATED) / 유예 만료(prev beyond grace→REUSE) |
+| `RedisRefreshTokenStore` 단위(mockk) | execute(script, key, args) 호출·반환문자열→RotateResult 매핑 |
+| `RedisRefreshTokenStore` 통합(Testcontainers Redis `GenericContainer`, 실 Lua) | start/rotate정상/REUSE/유예/delete 실제 Redis 검증 |
+| `JwtAuthTokenAdapter` 단위 | 새 세션 vs 회전(sid 고정·jti 변화), parse 매핑 |
+| `AuthService` 단위(store mock) | 회전(ROTATED→TokenPair, start/rotate 호출) / REUSE(→RefreshTokenReuseException) / ABSENT(→AuthTokenInvalidException) / logout(검증 성공→delete 호출, 검증 실패→delete 미호출) |
+| `carry-app` `AuthControllerTest` | refresh 200+access+refresh / logout 204 (mock UseCase) |
 
-## 8. 검증 흐름
+⚠️ 기존 `carry-app/.../AuthControllerTest`의 "refresh는 200과 새 access 반환" 케이스는 `authUseCase.refresh`가 `String`→`TokenPair` 반환으로 바뀌어 **수정 필수**(리뷰 #9): mock 반환·assertion에 `refreshToken` 추가. 기존 `carry-user/.../AuthServiceTest`의 AuthService 생성자 인자도 정합.
+
+## 9. 검증 흐름
 
 전체 `compileTestKotlin`(cross-module 호출자 깨짐 검출) → 영향모듈 `:test`(carry-security/carry-user) → `:carry-app:test`(Testcontainers) → **라이브 풀스택 스모크**(`MANAGEMENT_TRACING_ENABLED=false`). 이슈 먼저 → PR base develop → **dev 머지=사용자 게이트**.
 
-## 9. 영향 범위 (호출자 정합)
+## 10. 영향 범위 (호출자 정합)
 
-- `AuthService` 생성자 시그니처 변경 → carry-user 테스트의 AuthService 생성 지점.
-- `AuthUseCase.refresh` 반환 타입 변경 → `AuthController.refresh`, 통합 테스트.
-- `AuthTokenPort.parseRefreshToken`/`issueRefreshToken` 시그니처 변경 → `JwtAuthTokenAdapter`, AuthService, 관련 테스트 mock.
-- `JwtProvider.parseRefreshToken`/`createRefreshToken` 시그니처 변경 → JwtProvider 테스트, 어댑터.
+- `AuthService` 생성자 변경 → `AuthServiceTest`.
+- `AuthUseCase.refresh` 반환 변경 → `AuthController.refresh`, `AuthControllerTest`.
+- `AuthTokenPort.parseRefreshToken`/`issueRefreshToken` 변경 → `JwtAuthTokenAdapter`, `AuthService`, mock.
+- `JwtProvider.parseRefreshToken`/`createRefreshToken` 변경 → JwtProvider 테스트, 어댑터.
