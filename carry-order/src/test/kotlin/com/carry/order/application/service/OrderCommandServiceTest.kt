@@ -1,5 +1,7 @@
 package com.carry.order.application.service
 
+import com.carry.audit.domain.AuditAction
+import com.carry.audit.port.AuditPort
 import com.carry.common.exception.BusinessException
 import com.carry.common.exception.ErrorCode
 import com.carry.common.metrics.MetricsPort
@@ -35,9 +37,11 @@ class OrderCommandServiceTest {
     private val serviceAvailabilityQueryPort = mockk<ServiceAvailabilityQueryPort>(relaxed = true)
     private val eventPublisher = mockk<EventPublisherPort>(relaxed = true)
     private val metrics = mockk<MetricsPort>(relaxed = true)
+    private val auditPort = mockk<AuditPort>(relaxed = true)
 
     private val sut = OrderCommandService(
-        orderPersistencePort, userQueryPort, laundromatQueryPort, serviceAvailabilityQueryPort, eventPublisher, metrics,
+        orderPersistencePort, userQueryPort, laundromatQueryPort, serviceAvailabilityQueryPort,
+        eventPublisher, metrics, auditPort,
     )
 
     private val address = OrderShippingAddress(
@@ -164,6 +168,14 @@ class OrderCommandServiceTest {
             // 캐스케이드(dispatch/delivery 취소 + 환불) 트리거용 이벤트는 그대로 발행
             verify { eventPublisher.publish("Order", "1", "OrderCancelledEvent", any(), any()) }
             verify { metrics.incrementCounter("carry.order.cancelled", "by" to "COORDINATOR") }
+            // 민감 작업 감사: 변이 전(PAID)→후(REFUND_PENDING) 기록
+            verify {
+                auditPort.record(
+                    AuditAction.ORDER_CANCEL, "ORDER", "1",
+                    mapOf("status" to "PAID"),
+                    mapOf("status" to "REFUND_PENDING", "reason" to "세탁소 사정으로 취소", "cancelledBy" to "COORDINATOR"),
+                )
+            }
         }
 
         @Test

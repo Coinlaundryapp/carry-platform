@@ -8,6 +8,7 @@ plugins {
 dependencies {
     implementation(project(":carry-common"))
     implementation(project(":carry-event"))
+    implementation(project(":carry-audit"))
     implementation(project(":carry-infra-persistence"))
     implementation(project(":carry-infra-kafka"))
     implementation(project(":carry-infra-redis"))

@@ -3,6 +3,7 @@ rootProject.name = "carry-platform"
 // ── Common ──
 include("carry-common")
 include("carry-event")
+include("carry-audit")
 
 // ── Infrastructure ──
 include("carry-infra-persistence")

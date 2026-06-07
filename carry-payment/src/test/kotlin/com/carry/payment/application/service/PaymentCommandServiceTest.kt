@@ -36,9 +36,10 @@ class PaymentCommandServiceTest {
     private val eventPublisher = mockk<EventPublisherPort>(relaxed = true)
     private val metrics = mockk<MetricsPort>(relaxed = true)
     private val paymentGateway = mockk<PaymentGatewayPort>()
+    private val auditPort = mockk<com.carry.audit.port.AuditPort>(relaxed = true)
 
     private val sut = PaymentCommandService(
-        paymentPersistencePort, invoicePersistencePort, paymentGatewayResolver, eventPublisher, metrics,
+        paymentPersistencePort, invoicePersistencePort, paymentGatewayResolver, eventPublisher, metrics, auditPort,
     )
 
     private val now = Instant.now()
