@@ -2,7 +2,7 @@ package com.carry.delivery.application.service
 
 import com.carry.common.metrics.MetricsPort
 import com.carry.delivery.application.port.outbound.DeliveryPersistencePort
-import com.carry.delivery.application.port.outbound.PaymentQueryPort
+import com.carry.delivery.application.port.outbound.contract.FakePaymentQueryPort
 import com.carry.delivery.domain.exception.DeliveryNotOwnedException
 import com.carry.delivery.domain.exception.OrderNotPaidException
 import com.carry.delivery.domain.model.Delivery
@@ -29,7 +29,7 @@ import java.time.ZoneOffset
 class DeliveryCommandServiceTest {
 
     private val deliveryPersistencePort = mockk<DeliveryPersistencePort>(relaxed = true)
-    private val paymentQueryPort = mockk<PaymentQueryPort>()
+    private val paymentQueryPort = FakePaymentQueryPort()
     private val eventPublisher = mockk<EventPublisherPort>(relaxed = true)
     private val metrics = mockk<MetricsPort>(relaxed = true)
 
@@ -134,7 +134,7 @@ class DeliveryCommandServiceTest {
         fun `결제 완료된 주문의 배달을 완료하고 이벤트를 발행한다`() {
             val delivery = deliveryAt(DeliveryStatus.DELIVERY_PENDING)
             every { deliveryPersistencePort.findById(1L) } returns delivery
-            every { paymentQueryPort.isOrderPaid(100L) } returns true
+            paymentQueryPort.markPaid(100L)
             val saved = slot<Delivery>()
             every { deliveryPersistencePort.save(capture(saved)) } answers { saved.captured }
 
@@ -150,7 +150,7 @@ class DeliveryCommandServiceTest {
         fun `결제되지 않은 주문의 배달 완료 시 예외가 발생한다`() {
             val delivery = deliveryAt(DeliveryStatus.DELIVERY_PENDING)
             every { deliveryPersistencePort.findById(1L) } returns delivery
-            every { paymentQueryPort.isOrderPaid(100L) } returns false
+            // paymentQueryPort에 markPaid를 호출하지 않아 isOrderPaid가 false를 반환
 
             assertThatThrownBy { sut.completeDelivery(1L, listOf(5L), 50L) }
                 .isInstanceOf(OrderNotPaidException::class.java)
