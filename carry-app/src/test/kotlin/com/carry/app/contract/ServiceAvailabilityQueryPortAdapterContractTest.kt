@@ -36,6 +36,18 @@ class ServiceAvailabilityQueryPortAdapterContractTest : ServiceAvailabilityQuery
         persistence.put(area)
     }
 
+    override fun arrangePickupOutsideHours() {
+        // deliveryAt(화 12:00 KST)은 전일 운영으로 통과, pickupAt(월 12:00 KST)는 좁은 슬롯 밖
+        val area = ServiceArea.create(areaCode, "강남구").apply {
+            activate()
+            // delivery 요일(화) 전일 운영
+            setSchedule(deliveryAt.atZone(KST).dayOfWeek, LocalTime.MIN, LocalTime.of(23, 59))
+            // pickup 요일(월) 좁은 슬롯 — 정오 미포함
+            setSchedule(pickupAt.atZone(KST).dayOfWeek, LocalTime.of(11, 0), LocalTime.of(11, 30))
+        }
+        persistence.put(area)
+    }
+
     private fun activeAllWeekArea(): ServiceArea =
         ServiceArea.create(areaCode, "강남구").apply {
             activate()

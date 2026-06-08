@@ -66,10 +66,10 @@ Carry는 22모듈 모듈러 모놀리스다. 한 모듈이 **다른 모듈이 �
 
 | 포트 | 계약 절 | arrange 훅 |
 |---|---|---|
-| **UserQueryPort** | ①9필드 round-trip 매핑(`expected.zipCode`는 non-null·non-blank — §3 비대칭 참조) ②nullable `entranceInfo=null` 보존 ③주소 부재/미소유 시 예외 전파 | `arrangeAddress(u,a,expected)`, `arrangeMissingAddress(u,a)` |
+| **UserQueryPort** | ①9필드 round-trip 매핑(`expected.zipCode`는 non-null·non-blank — §3 비대칭 참조) ②nullable `entranceInfo=null` 보존 ③주소 부재/미소유 시 예외 전파 | `arrangeAddress(u,a,expected)`, `arrangeMissing(u,a)` |
 | **PaymentQueryPort** | ①결제 없음→false ②존재+비COMPLETED→false ③COMPLETED→true | `arrangePaid(orderId)`, `arrangeUnpaid(orderId, status?)`, `arrangeNoPayment(orderId)` |
 | **LaundromatQueryPort** | ①존재→true ②부재(provider `LaundromatNotFoundException`)→false | `arrangeExisting(id)`, `arrangeMissing(id)` |
-| **ServiceAvailabilityQueryPort** | ①가용→no-throw ②area 부재→throw ③시간 불가→throw | `arrangeAvailable(area, pickup, deliver)`, `arrangeMissingArea(area)`, `arrangeUnavailableTime(area, …)` |
+| **ServiceAvailabilityQueryPort** | ①가용→no-throw ②area 부재→throw ③delivery 시각 불가→throw ④pickup 시각 불가→throw(두 instant 독립 검증) | `arrangeAvailable()`, `arrangeMissingArea()`, `arrangeDeliveryOutsideHours()`, `arrangePickupOutsideHours()` |
 
 > **`arrangeAvailable` real측 복잡도 주의**: `ServiceArea.checkAvailability(at, zoneId=Asia/Seoul)`는 **pickup·delivery 두 instant 모두**에 대해 호출되며, ⓐ `status==ACTIVE` ⓑ 해당 instant의 **KST 요일**에 매칭되는 `OperatingSchedule`이 ⓒ 그 시각을 포함하는 슬롯을 가질 때만 통과한다. 따라서 real측 arrange는 `ServiceArea.reconstitute(...)` + ACTIVE 상태 + 두 instant의 KST 요일(다른 날이면 schedule 2개)·시간을 덮는 `OperatingSchedule`(들)·HolidayOverride 없음으로 구성한다. **픽스처는 KST 자정을 가로지르지 않는 pickup/delivery instant를 선택**해 우연한 요일 분기를 피한다(UTC 아닌 KST 기준).
 

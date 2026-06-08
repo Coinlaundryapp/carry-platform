@@ -19,4 +19,8 @@ class FakeServiceAvailabilityQueryPortContractTest : ServiceAvailabilityQueryPor
     override fun arrangeDeliveryOutsideHours() {
         fake.markUnavailableAt(areaCode, deliveryAt)
     }
+
+    override fun arrangePickupOutsideHours() {
+        fake.markUnavailableAt(areaCode, pickupAt)
+    }
 }

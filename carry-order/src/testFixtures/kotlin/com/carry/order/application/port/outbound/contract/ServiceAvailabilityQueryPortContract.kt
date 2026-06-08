@@ -24,6 +24,9 @@ abstract class ServiceAvailabilityQueryPortContract {
     /** areaCode는 있으나 delivery 시각이 운영시간 밖인 상태 */
     protected abstract fun arrangeDeliveryOutsideHours()
 
+    /** areaCode는 있으나 pickup 시각이 운영시간 밖인 상태 */
+    protected abstract fun arrangePickupOutsideHours()
+
     @Test
     fun `가용하면 예외 없이 통과`() {
         arrangeAvailable()
@@ -39,8 +42,15 @@ abstract class ServiceAvailabilityQueryPortContract {
     }
 
     @Test
-    fun `delivery 시각이 운영시간 밖이면 예외 (두 instant 모두 검증)`() {
+    fun `delivery 시각이 운영시간 밖이면 예외`() {
         arrangeDeliveryOutsideHours()
+        assertThatThrownBy { subject().checkAvailability(areaCode, pickupAt, deliveryAt) }
+            .isInstanceOf(RuntimeException::class.java)
+    }
+
+    @Test
+    fun `pickup 시각이 운영시간 밖이면 예외 (delivery만이 아니라 두 instant 모두 검증됨)`() {
+        arrangePickupOutsideHours()
         assertThatThrownBy { subject().checkAvailability(areaCode, pickupAt, deliveryAt) }
             .isInstanceOf(RuntimeException::class.java)
     }
