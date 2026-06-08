@@ -1,0 +1,32 @@
+package com.carry.app.contract.fake
+
+import com.carry.payment.application.port.outbound.PaymentPersistencePort
+import com.carry.payment.domain.model.Payment
+import com.carry.payment.domain.vo.PaymentStatus
+import com.carry.payment.domain.vo.PgProvider
+import java.time.Instant
+
+class FakePaymentPersistencePort : PaymentPersistencePort {
+    private val byOrderId = mutableMapOf<Long, Payment>()
+
+    fun put(orderId: Long, status: PaymentStatus) {
+        byOrderId[orderId] = Payment.reconstitute(
+            id = orderId,
+            invoiceId = orderId,
+            orderId = orderId,
+            customerId = 1L,
+            status = status,
+            pgProvider = PgProvider.TOSS_PAYMENTS,
+            pgTransactionId = null,
+            amount = 10_000L,
+            paidAt = if (status == PaymentStatus.COMPLETED) Instant.EPOCH else null,
+            failReason = null,
+            createdAt = Instant.EPOCH,
+            updatedAt = Instant.EPOCH,
+        )
+    }
+
+    override fun save(payment: Payment): Payment = payment
+    override fun findById(id: Long): Payment? = byOrderId.values.find { it.id == id }
+    override fun findByOrderId(orderId: Long): Payment? = byOrderId[orderId]
+}
