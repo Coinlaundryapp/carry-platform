@@ -8,10 +8,10 @@ import com.carry.common.metrics.MetricsPort
 import com.carry.event.port.EventPublisherPort
 import com.carry.order.application.port.inbound.CreateOrderCommand
 import com.carry.order.application.port.inbound.SelectedOptionCommand
-import com.carry.order.application.port.outbound.LaundromatQueryPort
 import com.carry.order.application.port.outbound.OrderPersistencePort
-import com.carry.order.application.port.outbound.ServiceAvailabilityQueryPort
-import com.carry.order.application.port.outbound.UserQueryPort
+import com.carry.order.application.port.outbound.contract.FakeLaundromatQueryPort
+import com.carry.order.application.port.outbound.contract.FakeServiceAvailabilityQueryPort
+import com.carry.order.application.port.outbound.contract.FakeUserQueryPort
 import com.carry.order.domain.exception.OrderNotCancellableException
 import com.carry.order.domain.exception.OrderNotOwnedException
 import com.carry.order.domain.model.Order
@@ -34,9 +34,9 @@ import java.time.temporal.ChronoUnit
 class OrderCommandServiceTest {
 
     private val orderPersistencePort = mockk<OrderPersistencePort>(relaxed = true)
-    private val userQueryPort = mockk<UserQueryPort>()
-    private val laundromatQueryPort = mockk<LaundromatQueryPort>()
-    private val serviceAvailabilityQueryPort = mockk<ServiceAvailabilityQueryPort>(relaxed = true)
+    private val userQueryPort = FakeUserQueryPort()
+    private val laundromatQueryPort = FakeLaundromatQueryPort()
+    private val serviceAvailabilityQueryPort = FakeServiceAvailabilityQueryPort()
     private val eventPublisher = mockk<EventPublisherPort>(relaxed = true)
     private val metrics = mockk<MetricsPort>(relaxed = true)
     private val auditPort = mockk<AuditPort>(relaxed = true)
@@ -69,8 +69,9 @@ class OrderCommandServiceTest {
 
         @Test
         fun `주문을 생성하고 Outbox 이벤트를 발행한다`() {
-            every { userQueryPort.getShippingAddress(1L, 10L) } returns address
-            every { laundromatQueryPort.existsById(100L) } returns true
+            userQueryPort.put(1L, 10L, address)
+            laundromatQueryPort.add(100L)
+            serviceAvailabilityQueryPort.markAvailable("GANGNAM")
             val saved = slot<Order>()
             every { orderPersistencePort.save(capture(saved)) } answers {
                 Order.reconstitute(
@@ -97,8 +98,8 @@ class OrderCommandServiceTest {
 
         @Test
         fun `존재하지 않는 세탁소로 주문하면 예외가 발생한다`() {
-            every { userQueryPort.getShippingAddress(1L, 10L) } returns address
-            every { laundromatQueryPort.existsById(100L) } returns false
+            userQueryPort.put(1L, 10L, address)
+            // laundromatQueryPort에 100L을 add하지 않아 existsById가 false를 반환
 
             assertThatThrownBy { sut.createOrder(aCommand()) }
                 .isInstanceOf(BusinessException::class.java)
