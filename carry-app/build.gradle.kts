@@ -44,4 +44,5 @@ dependencies {
     testImplementation("com.ninja-squad:springmockk:4.0.2")
     testImplementation("io.mockk:mockk:1.13.13")
     testImplementation("org.assertj:assertj-core:3.27.0")
+    testImplementation(testFixtures(project(":carry-order")))
 }
