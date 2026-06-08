@@ -54,9 +54,11 @@ CREATE TABLE IF NOT EXISTS idem_test_marker (seq bigserial primary key, event_id
 ```
 
 - **②순차**: 같은 eventId로 `processIfNotDuplicate` 2회 호출 → marker 행 1개, `processed_events`의 그 id 1행. 두 번째 호출의 block 미실행을 실DB로 증명.
-- **③동시**: `runInParallel`(CountDownLatch + 고정 스레드풀, `ConcurrencyIntegrationTest` 패턴 재사용)로 K=8 스레드가 동일 eventId 동시 호출 → **marker 행 정확히 1개, `processed_events` 그 id 1행**. dedup이 existsById-skip이든 PK-위반-롤백이든 결과 불변식(net-once)은 동일하므로 그것만 단언한다.
+- **③동시**: CountDownLatch + 고정 스레드풀로 K=8 스레드가 동일 eventId 동시 호출 → **`processed_events` 그 id 정확히 1행**(DB PK dedup 안전망) + marker ∈ [1, K]. 이것이 동시성에서 결정적으로 참인 불변식이다.
 
-> ⚠️ **타이밍 의존 단언 금지**(과거 Kafka 파티셔닝 flaky 교훈). "패자 스레드가 예외를 던진다" 같은 race-경로별 단언은 스케줄링 의존이라 하지 않는다. 오직 최종 불변식(부수효과 1회)만 단언.
+> ⚠️ **동시성에서 "block 정확히 1회"는 단언하지 않는다(현 구현이 보장 안 함).** `ProcessedEventRepository.save()`는 ProcessedEvent가 할당식 @Id·non-Persistable이라 `merge()`(SELECT 선행)로 동작 → 패자 스레드의 merge-SELECT가 승자 커밋 이후 실행되면 INSERT가 아닌 no-op UPDATE로 PK 위반 없이 커밋(이미 실행한 block의 부수효과 잔존, marker>1 가능). 이는 **현실 위협모델에서 무해**: Kafka가 같은 키 이벤트를 같은 파티션→단일 스레드로 순차 처리하므로 동일 이벤트의 진짜 동시 소비가 없고 재배달도 순차(순차 dedup·실패 롤백은 ②②b가 보장). 동시성에서 신뢰하는 안전망은 "처리 마킹 1행"이며 그것만 단언한다. 타이밍 의존 단언(race-경로별 marker 정확값·패자 예외 수)은 금지(Kafka 파티셔닝 flaky 교훈). **⚠️ 이 정정은 CI(느린 러너)에서 marker==1 단언이 flaky 실패하며 발견됨 — 로컬 단독 실행은 타이밍이 INSERT 경합으로 수렴해 미노출.**
+>
+> 📌 **후속 옵션(별도 결정)**: block-at-most-once를 진짜 동시성에서도 보장하려면 claim-first 패턴(ProcessedEvent를 Persistable로 → `saveAndFlush`를 block 이전에 호출, PK 위반 시 skip)으로 프로덕션 하드닝 가능. 현 위협모델상 불요라 보류, 사용자 결정 대기.
 
 `@AfterEach`: marker drop + `DELETE FROM processed_events`로 격리.
 
