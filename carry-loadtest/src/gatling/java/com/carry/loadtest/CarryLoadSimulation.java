@@ -58,11 +58,13 @@ public class CarryLoadSimulation extends Simulation {
             claimDispatch.injectOpen(rampUsers(20).during(30)) // ≤ 시드 PENDING 풀 크기(30)
         ).protocols(httpProtocol)
          .assertions(
-            global().responseTime().percentile3().lt(BASELINE_P95_MS), // 최초 측정 후 기준선*1.5로 설정
+            global().responseTime().percentile3().lt(BASELINE_P95_MS), // 측정 기준선 + 변동성 여유
             global().failedRequests().percent().lt(1.0)
          );
     }
 
-    // 최초 측정 전에는 느슨하게(2000) 두고, Task 11 측정 후 기준선×1.5로 교체.
-    static final int BASELINE_P95_MS = 2000;
+    // 2026-06-09 라이브 측정(공유 dev 머신, 3회): 글로벌 p95 = 130 / 303 / 55 ms, 실패율 0%.
+    // 단일 실행 × 1.5는 변동성(303ms 스파이크)에 과적합 → 최악 관측치 + 여유로 500ms 설정.
+    // 진짜 회귀(예: N+1 재유입, 인덱스 누락)는 p95를 초 단위로 밀어올리므로 이 임계로 검출 가능.
+    static final int BASELINE_P95_MS = 500;
 }
