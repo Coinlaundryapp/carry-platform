@@ -77,7 +77,7 @@ class OrderControllerTest {
         shippingAddress = address,
         desiredPickupAt = pickupAt, desiredDeliveryAt = deliveryAt,
         carrierId = null, invoiceId = null, totalAmount = null, actualWeight = null,
-        cancelReason = null, cancelledBy = null, cancelledAt = null, completedAt = null,
+        cancellation = null, completedAt = null,
         createdAt = now, updatedAt = now,
     )
 

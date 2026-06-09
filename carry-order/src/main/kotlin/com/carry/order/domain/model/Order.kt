@@ -4,6 +4,7 @@ import com.carry.common.exception.requireInput
 import com.carry.order.domain.exception.InvalidOrderStatusTransitionException
 import com.carry.order.domain.exception.OrderNotCancellableException
 import com.carry.order.domain.vo.CancelledBy
+import com.carry.order.domain.vo.OrderCancellation
 import com.carry.order.domain.vo.OrderShippingAddress
 import com.carry.order.domain.vo.OrderStatus
 import com.carry.order.domain.vo.SelectedOption
@@ -24,9 +25,7 @@ class Order private constructor(
     private var _invoiceId: Long?,
     private var _totalAmount: Long?,
     private var _actualWeight: BigDecimal?,
-    private var _cancelReason: String?,
-    private var _cancelledBy: CancelledBy?,
-    private var _cancelledAt: Instant?,
+    private var _cancellation: OrderCancellation?,
     private var _completedAt: Instant?,
     val createdAt: Instant,
     val updatedAt: Instant,
@@ -36,9 +35,7 @@ class Order private constructor(
     val invoiceId get() = _invoiceId
     val totalAmount get() = _totalAmount
     val actualWeight get() = _actualWeight
-    val cancelReason get() = _cancelReason
-    val cancelledBy get() = _cancelledBy
-    val cancelledAt get() = _cancelledAt
+    val cancellation get() = _cancellation
     val completedAt get() = _completedAt
 
     companion object {
@@ -69,9 +66,7 @@ class Order private constructor(
                 _invoiceId = null,
                 _totalAmount = null,
                 _actualWeight = null,
-                _cancelReason = null,
-                _cancelledBy = null,
-                _cancelledAt = null,
+                _cancellation = null,
                 _completedAt = null,
                 createdAt = now,
                 updatedAt = now,
@@ -92,9 +87,7 @@ class Order private constructor(
             invoiceId: Long?,
             totalAmount: Long?,
             actualWeight: BigDecimal?,
-            cancelReason: String?,
-            cancelledBy: CancelledBy?,
-            cancelledAt: Instant?,
+            cancellation: OrderCancellation?,
             completedAt: Instant?,
             createdAt: Instant,
             updatedAt: Instant,
@@ -102,7 +95,7 @@ class Order private constructor(
             id, customerId, status, laundromatId, laundryItemType,
             selectedOptions, shippingAddress, desiredPickupAt, desiredDeliveryAt,
             carrierId, invoiceId, totalAmount, actualWeight,
-            cancelReason, cancelledBy, cancelledAt, completedAt, createdAt, updatedAt,
+            cancellation, completedAt, createdAt, updatedAt,
         )
     }
 
@@ -152,9 +145,7 @@ class Order private constructor(
             throw OrderNotCancellableException(id, _status)
         }
         _status = OrderStatus.CANCELLED
-        _cancelReason = reason
-        _cancelledBy = by
-        _cancelledAt = now
+        _cancellation = OrderCancellation(reason, by, now)
     }
 
     fun isCancellable(): Boolean = _status.isCancellable()

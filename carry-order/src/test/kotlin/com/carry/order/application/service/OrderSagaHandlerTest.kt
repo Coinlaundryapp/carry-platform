@@ -47,7 +47,7 @@ class OrderSagaHandlerTest {
         shippingAddress = address, desiredPickupAt = now, desiredDeliveryAt = now.plus(4, ChronoUnit.HOURS),
         carrierId = if (status >= OrderStatus.DISPATCHED) 100L else null,
         invoiceId = null, totalAmount = null, actualWeight = null,
-        cancelReason = null, cancelledBy = null, cancelledAt = null, completedAt = null,
+        cancellation = null, completedAt = null,
         createdAt = now, updatedAt = now,
     )
 
@@ -72,7 +72,7 @@ class OrderSagaHandlerTest {
         sut.onDispatchTimeout(DispatchTimeoutEvent(10L, 1L))
 
         assertThat(saved.captured.status).isEqualTo(OrderStatus.CANCELLED)
-        assertThat(saved.captured.cancelledBy).isEqualTo(CancelledBy.SYSTEM)
+        assertThat(saved.captured.cancellation?.by).isEqualTo(CancelledBy.SYSTEM)
     }
 
     @Test
@@ -169,7 +169,7 @@ class OrderSagaHandlerTest {
             laundryItemType = "REGULAR", selectedOptions = listOf(SelectedOption("WASH", "STANDARD")),
             shippingAddress = address, desiredPickupAt = createdAt, desiredDeliveryAt = now,
             carrierId = 100L, invoiceId = null, totalAmount = null, actualWeight = null,
-            cancelReason = null, cancelledBy = null, cancelledAt = null, completedAt = null,
+            cancellation = null, completedAt = null,
             createdAt = createdAt, updatedAt = createdAt,
         )
         every { orderPersistencePort.findById(1L) } returns order

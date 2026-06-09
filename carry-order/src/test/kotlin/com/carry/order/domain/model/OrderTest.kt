@@ -54,7 +54,7 @@ class OrderTest {
         laundryItemType = "REGULAR", selectedOptions = options,
         shippingAddress = address, desiredPickupAt = pickupAt, desiredDeliveryAt = deliveryAt,
         carrierId = null, invoiceId = null, totalAmount = null, actualWeight = null,
-        cancelReason = null, cancelledBy = null, cancelledAt = null, completedAt = null,
+        cancellation = null, completedAt = null,
         createdAt = now, updatedAt = now,
     )
 
@@ -150,9 +150,9 @@ class OrderTest {
             val order = reconstitutedOrder(OrderStatus.CREATED)
             order.cancel("고객 요청", CancelledBy.CUSTOMER, now)
             assertThat(order.status).isEqualTo(OrderStatus.CANCELLED)
-            assertThat(order.cancelReason).isEqualTo("고객 요청")
-            assertThat(order.cancelledBy).isEqualTo(CancelledBy.CUSTOMER)
-            assertThat(order.cancelledAt).isEqualTo(now)
+            assertThat(order.cancellation?.reason).isEqualTo("고객 요청")
+            assertThat(order.cancellation?.by).isEqualTo(CancelledBy.CUSTOMER)
+            assertThat(order.cancellation?.at).isEqualTo(now)
         }
 
         @Test
@@ -174,7 +174,7 @@ class OrderTest {
             val order = reconstitutedOrder(OrderStatus.PAYMENT_FAILED)
             order.cancel("재결제 시한 초과", CancelledBy.SYSTEM, now)
             assertThat(order.status).isEqualTo(OrderStatus.CANCELLED)
-            assertThat(order.cancelledBy).isEqualTo(CancelledBy.SYSTEM)
+            assertThat(order.cancellation?.by).isEqualTo(CancelledBy.SYSTEM)
         }
     }
 

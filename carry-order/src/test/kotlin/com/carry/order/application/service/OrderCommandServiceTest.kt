@@ -85,7 +85,7 @@ class OrderCommandServiceTest {
                     desiredPickupAt = saved.captured.desiredPickupAt,
                     desiredDeliveryAt = saved.captured.desiredDeliveryAt,
                     carrierId = null, invoiceId = null, totalAmount = null, actualWeight = null,
-                    cancelReason = null, cancelledBy = null, cancelledAt = null, completedAt = null,
+                    cancellation = null, completedAt = null,
                     createdAt = now, updatedAt = now,
                 )
             }
@@ -121,7 +121,7 @@ class OrderCommandServiceTest {
             shippingAddress = address, desiredPickupAt = now.plus(2, ChronoUnit.HOURS),
             desiredDeliveryAt = now.plus(6, ChronoUnit.HOURS),
             carrierId = null, invoiceId = null, totalAmount = null, actualWeight = null,
-            cancelReason = null, cancelledBy = null, cancelledAt = null, completedAt = null,
+            cancellation = null, completedAt = null,
             createdAt = now, updatedAt = now,
         )
 
@@ -165,7 +165,7 @@ class OrderCommandServiceTest {
                     selectedOptions = saved.captured.selectedOptions, shippingAddress = saved.captured.shippingAddress,
                     desiredPickupAt = saved.captured.desiredPickupAt, desiredDeliveryAt = saved.captured.desiredDeliveryAt,
                     carrierId = null, invoiceId = null, totalAmount = null, actualWeight = null,
-                    cancelReason = null, cancelledBy = null, cancelledAt = null, completedAt = null,
+                    cancellation = null, completedAt = null,
                     createdAt = now, updatedAt = now,
                 )
             }
@@ -188,7 +188,7 @@ class OrderCommandServiceTest {
                 selectedOptions = listOf(SelectedOption("WASH", "STANDARD")),
                 shippingAddress = address, desiredPickupAt = now, desiredDeliveryAt = now.plus(4, ChronoUnit.HOURS),
                 carrierId = null, invoiceId = null, totalAmount = null, actualWeight = null,
-                cancelReason = null, cancelledBy = null, cancelledAt = null, completedAt = null,
+                cancellation = null, completedAt = null,
                 createdAt = now, updatedAt = now,
             )
             every { orderPersistencePort.findById(1L) } returns order
@@ -208,7 +208,7 @@ class OrderCommandServiceTest {
                 selectedOptions = listOf(SelectedOption("WASH", "STANDARD")),
                 shippingAddress = address, desiredPickupAt = now, desiredDeliveryAt = now.plus(4, ChronoUnit.HOURS),
                 carrierId = 100L, invoiceId = null, totalAmount = null, actualWeight = java.math.BigDecimal("3.0"),
-                cancelReason = null, cancelledBy = null, cancelledAt = null, completedAt = null,
+                cancellation = null, completedAt = null,
                 createdAt = now, updatedAt = now,
             )
             every { orderPersistencePort.findById(1L) } returns order
@@ -223,7 +223,7 @@ class OrderCommandServiceTest {
             selectedOptions = listOf(SelectedOption("WASH", "STANDARD")),
             shippingAddress = address, desiredPickupAt = now, desiredDeliveryAt = now.plus(4, ChronoUnit.HOURS),
             carrierId = 100L, invoiceId = 200L, totalAmount = 18000L, actualWeight = java.math.BigDecimal("5.0"),
-            cancelReason = null, cancelledBy = null, cancelledAt = null, completedAt = null,
+            cancellation = null, completedAt = null,
             createdAt = now, updatedAt = now,
         )
 
@@ -269,7 +269,7 @@ class OrderCommandServiceTest {
                 selectedOptions = listOf(SelectedOption("WASH", "STANDARD")),
                 shippingAddress = address, desiredPickupAt = now, desiredDeliveryAt = now.plus(4, ChronoUnit.HOURS),
                 carrierId = null, invoiceId = null, totalAmount = null, actualWeight = null,
-                cancelReason = null, cancelledBy = null, cancelledAt = null, completedAt = null,
+                cancellation = null, completedAt = null,
                 createdAt = now, updatedAt = now,
             )
             every { orderPersistencePort.findById(1L) } returns order

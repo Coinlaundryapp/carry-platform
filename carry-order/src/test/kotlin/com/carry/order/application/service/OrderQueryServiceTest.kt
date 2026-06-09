@@ -32,7 +32,7 @@ class OrderQueryServiceTest {
         selectedOptions = listOf(SelectedOption("WASH", "STANDARD")),
         shippingAddress = address, desiredPickupAt = now, desiredDeliveryAt = now.plus(4, ChronoUnit.HOURS),
         carrierId = null, invoiceId = null, totalAmount = null, actualWeight = null,
-        cancelReason = null, cancelledBy = null, cancelledAt = null, completedAt = null,
+        cancellation = null, completedAt = null,
         createdAt = now, updatedAt = now,
     )
 

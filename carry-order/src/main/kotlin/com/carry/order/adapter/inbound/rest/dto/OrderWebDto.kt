@@ -76,7 +76,7 @@ data class OrderResponse(
             carrierId = order.carrierId,
             totalAmount = order.totalAmount,
             actualWeight = order.actualWeight,
-            cancelReason = order.cancelReason,
+            cancelReason = order.cancellation?.reason,
             completedAt = order.completedAt,
             createdAt = order.createdAt,
         )
