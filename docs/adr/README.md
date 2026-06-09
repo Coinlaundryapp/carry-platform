@@ -18,6 +18,7 @@ ADR(Architecture Decision Record)은 **중요한 아키텍처 결정**을 그 *�
 | [0003](0003-module-decomposition-criteria.md) | 모듈 분리 기준 | Accepted | 2026-06-09 |
 | [0004](0004-choreography-saga.md) | Choreography Saga 채택 | Accepted | 2026-06-09 |
 | [0005](0005-event-schema-evolution.md) | 이벤트 스키마 진화 전략 | Accepted | 2026-06-10 |
+| [0006](0006-module-decomposition-reassessment.md) | 모듈 과분해 재평가 | Accepted | 2026-06-10 |
 
 ## 상태 정의
 
