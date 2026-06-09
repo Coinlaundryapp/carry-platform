@@ -19,6 +19,7 @@ ADR(Architecture Decision Record)은 **중요한 아키텍처 결정**을 그 *�
 | [0004](0004-choreography-saga.md) | Choreography Saga 채택 | Accepted | 2026-06-09 |
 | [0005](0005-event-schema-evolution.md) | 이벤트 스키마 진화 전략 | Accepted | 2026-06-10 |
 | [0006](0006-module-decomposition-reassessment.md) | 모듈 과분해 재평가 | Accepted | 2026-06-10 |
+| [0007](0007-modular-monolith-over-microservices.md) | 모듈러 모놀리스 유지 (MSA 보류) | Accepted | 2026-06-10 |
 
 ## 상태 정의
 
