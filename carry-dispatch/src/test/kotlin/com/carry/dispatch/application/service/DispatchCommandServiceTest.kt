@@ -9,6 +9,8 @@ import com.carry.dispatch.application.port.outbound.DispatchPersistencePort
 import com.carry.dispatch.application.port.outbound.PenaltyRecordPersistencePort
 import com.carry.dispatch.domain.exception.CarrierNotInAreaException
 import com.carry.dispatch.domain.exception.DispatchNotOwnedException
+import com.carry.dispatch.domain.exception.DispatchTimeoutNotAllowedException
+import com.carry.event.dispatch.DispatchTimeoutEvent
 import com.carry.dispatch.domain.model.CarrierArea
 import com.carry.dispatch.domain.model.Dispatch
 import com.carry.dispatch.domain.vo.AssignedBy
@@ -192,6 +194,53 @@ class DispatchCommandServiceTest {
             verify { penaltyRecordPersistencePort.save(any()) }
             verify(exactly = 0) { eventPublisher.publish(any(), any(), any(), any(), any()) }
             verify { metrics.incrementCounter("carry.dispatch.rejected") }
+        }
+    }
+
+    @Nested
+    inner class TimeoutDispatch {
+
+        @Test
+        fun `PENDING 배차를 타임아웃하면 TIMEOUT으로 전이하고 DispatchTimeoutEvent를 발행하며 타임아웃 카운터를 증가시킨다`() {
+            val dispatch = pendingDispatch()
+            every { dispatchPersistencePort.findById(1L) } returns dispatch
+            val saved = slot<Dispatch>()
+            every { dispatchPersistencePort.save(capture(saved)) } answers {
+                Dispatch.reconstitute(
+                    id = 1L, orderId = saved.captured.orderId, laundromatId = saved.captured.laundromatId,
+                    status = saved.captured.status, carrierId = saved.captured.carrierId,
+                    areaCode = saved.captured.areaCode, desiredPickupAt = saved.captured.desiredPickupAt,
+                    assignedBy = saved.captured.assignedBy, assignedAt = saved.captured.assignedAt,
+                    acceptedAt = saved.captured.acceptedAt, cancelReason = saved.captured.cancelReason,
+                    createdAt = now, updatedAt = now,
+                )
+            }
+
+            val result = sut.timeoutDispatch(1L)
+
+            assertThat(result.status).isEqualTo(DispatchStatus.TIMEOUT)
+            // 같은 키(orderId) 파티셔닝 + Order 사가가 onDispatchTimeout 으로 소비.
+            verify {
+                eventPublisher.publish(
+                    "Dispatch", "10", "DispatchTimeoutEvent",
+                    DispatchTimeoutEvent(dispatchId = 1L, orderId = 10L), any(),
+                )
+            }
+            verify { metrics.incrementCounter("carry.dispatch.timeout") }
+        }
+
+        @Test
+        fun `PENDING이 아닌 배차 타임아웃 시도는 예외를 던지고 이벤트도 카운터도 발생하지 않는다`() {
+            // 멀티 인스턴스 레이스로 이미 ACCEPTED 된 배차에 늦게 도착한 타임아웃 — 멱등하게 거부.
+            every { dispatchPersistencePort.findById(1L) } returns assignedDispatch().also {
+                it.acceptAssignment(now)
+            }
+
+            assertThatThrownBy { sut.timeoutDispatch(1L) }
+                .isInstanceOf(DispatchTimeoutNotAllowedException::class.java)
+
+            verify(exactly = 0) { eventPublisher.publish(any(), any(), any(), any(), any()) }
+            verify(exactly = 0) { metrics.incrementCounter("carry.dispatch.timeout") }
         }
     }
 }

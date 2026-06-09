@@ -48,10 +48,10 @@ groups:
           description: 'lag={{ $value }} (>1000, 10분 지속)'
           runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/kafka-consumer-lag.md'
 
-      # Rule #4 — 배차 타임아웃율 (15분 평균, absent 가드)
-      # ⚠ carry_dispatch_timeout_total 메트릭은 아직 미구현(known debt #1).
-      # `and sum(rate(...timeout...) > 0` 가드로 메트릭 absent 시 firing 차단.
-      # 메트릭 도입 시 룰이 자동 활성화된다.
+      # Rule #4 — 배차 타임아웃율 (15분 평균)
+      # carry_dispatch_timeout_total 은 DispatchTimeoutSweeper → timeoutDispatch 경로로 발행된다.
+      # `and sum(rate(...timeout...)) > 0` 가드는 타임아웃이 실제 0건일 때(또는 메트릭 부재 시)
+      # 비율 잡음으로 인한 오발화를 막는 정상 의미론으로 유지한다.
       - alert: DispatchTimeoutRate
         expr: |
           (
