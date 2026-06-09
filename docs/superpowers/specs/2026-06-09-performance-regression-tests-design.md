@@ -107,7 +107,8 @@ Testcontainers in-process 부하가 아닌 **실부팅 외부 부하**를 택한
 - Tier2 Gatling 시뮬레이션이 3개 시나리오의 p95를 측정하고 기준선이 문서화됨.
 - Tier2가 격리된 소스셋/모듈이라 일반 빌드·테스트에 영향 0.
 - 전체 `compileTestKotlin` + 영향 모듈 `:test` + `:carry-app:test` GREEN + 라이브 풀스택 스모크(Gatling 실행) 통과.
-- 프로덕션 코드 변경 최소화(가능하면 0; 측정은 test/loadtest 소스셋에 격리).
+- 측정·부하 코드는 test/loadtest 소스셋에 격리(프로덕션 비즈니스 로직 무변경).
+- **단, Tier1 가드가 발견하는 실제 성능 결함은 정당하게 수정한다** — 이것이 성능 회귀 테스트 도입의 목적이다. (구현 중 발견: 주문 목록 조회의 `OrderJpaEntity.selectedOptions` EAGER N+1. fetch-join은 cursor 페이지네이션과 충돌하므로 `hibernate.default_batch_fetch_size` 설정으로 IN-배치 로딩으로 해결 → 쿼리 수를 건수 무관 고정.)
 
 ## 5. 리스크와 완화
 
