@@ -33,7 +33,7 @@
 - [시작하기](#시작하기)
 - [API 문서](#api-문서)
 - [프로젝트 구조](#프로젝트-구조)
-- [로드맵](#로드맵)
+- [로드맵 · 문서](#로드맵--문서)
 
 ---
 
@@ -290,22 +290,26 @@ carry-{module}/
 
 ---
 
-## 로드맵
+## 로드맵 · 문서
 
-| Phase | 내용 | 상태 |
-|-------|------|------|
-| **Phase 1** | 프로젝트 기반 구축 (Gradle, Docker, CI/CD) | Done |
-| **Phase 2** | 핵심 도메인 (User, Laundromat, Price, Geo) | Done |
-| **Phase 3** | 주문 사가 (Order, Payment, Dispatch + CDC + OTel) | Done |
-| **Phase 4** | 부가 도메인 (Operation, Review, Notification, Media) | Done |
-| **Phase 5** | 마이크로서비스 전환 (K8s, DB 분리, API Gateway) | Planned |
-| **Phase 6** | 서비스 메시 + 카나리 배포 (Linkerd, Flagger) | Planned |
+엔지니어링 개선 로드맵([`ROADMAP.md`](ROADMAP.md))의 **Phase 1~7이 사실상 완료**되었다
+(예외계층·장애복원력·관측성·보안·테스트 성숙도·진화관리·DX). 상세 체크리스트와 진행 노트는
+`ROADMAP.md`, 설계 의사결정은 아래 ADR 참조.
 
-### 마이크로서비스 분리 순서
+- **아키텍처 의사결정**: [`docs/adr/`](docs/adr/) — ADR-0001 도메인/JPA 분리 · 0002 Outbox+CDC ·
+  0003 모듈 분리 기준 · 0004 Choreography Saga · 0005 이벤트 스키마 진화 · 0006 모듈 과분해 재평가 ·
+  0007 모듈러 모놀리스 유지
+- **기여 가이드**: [`CONTRIBUTING.md`](CONTRIBUTING.md) — 아키텍처 규칙·3-Method 패턴·테스트 기준·커밋/PR 규약
+
+### 마이크로서비스 전환 — 보류 (ADR-0007)
+
+이 프로젝트는 **모듈러 모놀리스를 유지**한다. 분산 시스템 패턴(Outbox+CDC, Choreography Saga,
+멱등 소비, 강제된 경계)은 단일 배포 단위에서 이미 시연되며, 1인·비프로덕션 맥락에서 실제 분리는
+이득 대비 비용이 크다. 다만 트리거(트래픽 격차·팀 분리·규제 격리·클라우드 준비) 도달 시
+**저비용 분리가 가능한 seam**을 ADR-0007에 명시해 두었다:
 
 ```
-1. Notification  ──►  2. Media  ──►  3. Dispatch  ──►  4. Payment  ──►  5. Order
-   (무상태, 독립)      (S3 집중)      (독립 스케일링)    (보안 요구)      (코어 도메인)
+가장 분리하기 쉬운 순서(필요 시):  Notification(순수 이벤트 소비)  ──►  Payment(이벤트 + 단일 QueryPort)
 ```
 
 ---
