@@ -218,7 +218,11 @@ spring:
         default_batch_fetch_size: 100
 ```
 
-(각 파일의 기존 `hibernate:` 하위에 키를 추가. 이미 `dialect`/`format_sql` 등이 있는 블록에 합친다.) 이로써 K개 주문의 selectedOptions를 1개의 IN 쿼리로 배치 로딩 → 목록 SELECT 수가 건수와 무관하게 고정(목록 1 + 배치 1 ≈ 2).
+파일별 삽입 위치(YAML 경로는 정확히 `spring.jpa.properties.hibernate.default_batch_fetch_size` — `spring.jpa.hibernate` 아래가 아니다):
+- `application.yml` / `application-test.yml`: 이미 `spring.jpa.properties.hibernate` 블록(dialect/format_sql 등)이 있으므로 그 하위에 키만 **합친다**.
+- `application-local.yml`: `spring.jpa` 아래에 `hibernate.ddl-auto`/`show-sql`만 있고 `properties:` 키가 **없다**. `spring.jpa:` 하위에 새 `properties.hibernate.default_batch_fetch_size` 서브트리를 **신규 추가**한다(`hibernate.ddl-auto`의 형제로).
+
+이로써 K개 주문의 selectedOptions를 1개의 IN 쿼리로 배치 로딩 → 목록 SELECT 수가 건수와 무관하게 고정(목록 1 + 배치 1 ≈ 2). (설정은 앱 전역에 적용되는 의도된 변경 — order 한정 아님.)
 
 - [ ] **Step 4: 재실행 → GREEN + 상한 실측 기록**
 

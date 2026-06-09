@@ -47,7 +47,7 @@
 
 1. **커서 목록 조회 (핵심)**: `GET /api/v2/orders/my`(주문) / `GET /api/v2/dispatches/available`(배차) 경로. K건(예: 20건)을 조회할 때 실행 SELECT 수가 K에 비례하지 않음을 단언. 고정 상한(예: `<= 3`)으로 N+1 부재를 보장. 데이터를 10건/20건으로 늘려도 쿼리 수가 동일함을 검증하는 형태가 가장 강력.
 2. **주문 생성**: `OrderController.createOrder`(`POST /api/v2/orders`, 일반 고객 경로 — `OrderCoordinatorController` 아님) 단일 실행 시 write 경로의 INSERT/SELECT 횟수 상한 단언.
-3. **배차 수락**: `DispatchCarrierController.accept`(`POST /api/v2/dispatches/{id}/accept`) 단일 실행 시 쿼리 횟수 상한 단언.
+3. **배차 수락**: carrier의 주 수락 경로인 공개 배차 선점 `DispatchCarrierController.claim`(`POST /api/v2/dispatches/{id}/claim`) 단일 실행 시 쿼리 횟수 상한 단언. (`accept`(ASSIGNED→ACCEPTED)는 coordinator 배정 선행이 필요해 셋업이 복잡하므로 측정은 claim 경로로 한다.)
 
 상한값은 "현재 측정값 + 작은 여유"로 설정해 의도적 증가는 통과시키되 우발적 폭증을 차단한다. **각 상한의 근거가 되는 실측치를 측정해 테스트 주석 + 이 spec(또는 README)에 기록하는 것을 명시적 산출물로 둔다** — assertion 임계값을 근거 없는 매직 넘버로 남기지 않는다.
 
