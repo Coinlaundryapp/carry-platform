@@ -1,12 +1,9 @@
 # DispatchTimeoutRate
 
-## 🚧 본 룰은 현재 비활성 상태 🚧
-
-`carry_dispatch_timeout_total` 메트릭이 아직 구현되지 않아 본 룰은 **absent 가드**로 firing
-차단됨. Phase 2 후속 PR로 dispatch 자동 만료 스케줄러 + `Dispatch.timeout()` 카운터 호출이
-도입되면 자동으로 활성화된다. 본 런북은 활성화 시점을 대비한 사전 작성.
-
-관련 known-debt: `carry.dispatch.timeout` 메트릭 미구현 (carry-platform-known-debts).
+> ✅ **활성** (2026-06-10, PR #97): `DispatchTimeoutSweeper`(@Scheduled) → `timeoutDispatch` 경로가
+> `carry_dispatch_timeout_total` 을 발행하면서 본 룰이 활성화됐다. expr 의
+> `and sum(rate(...timeout...)) > 0` 가드는 타임아웃 실제 0건일 때의 잡음 오발화를 막는
+> 정상 의미론으로 유지된다(아래 "활성화 후 시나리오" = 현행 시나리오).
 
 ---
 
