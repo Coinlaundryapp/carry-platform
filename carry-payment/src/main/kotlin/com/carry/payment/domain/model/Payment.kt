@@ -83,6 +83,12 @@ class Payment private constructor(
         _failReason = reason
     }
 
+    /** 환불 의도 표시(COMPLETED→REFUND_PENDING). 실제 PG 취소는 [markRefunded] 직전에 이뤄진다. */
+    fun markRefundPending() {
+        transitTo(PaymentStatus.REFUND_PENDING)
+    }
+
+    /** PG 취소 성공 후 호출(REFUND_PENDING→REFUNDED). */
     fun markRefunded() {
         transitTo(PaymentStatus.REFUNDED)
     }

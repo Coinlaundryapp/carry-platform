@@ -2,8 +2,6 @@ package com.carry.payment.application.service
 
 import com.carry.audit.domain.AuditAction
 import com.carry.audit.port.AuditPort
-import com.carry.common.exception.BusinessException
-import com.carry.common.exception.ErrorCode
 import com.carry.common.metrics.MetricsPort
 import com.carry.event.payment.PaymentCompletedEvent
 import com.carry.event.payment.PaymentFailedEvent
@@ -108,15 +106,27 @@ class PaymentCommandService(
     }
 
     @Transactional
-    override fun requestRefund(orderId: Long, reason: String) {
+    override fun markRefundPending(orderId: Long) {
         val payment = paymentPersistencePort.findByOrderId(orderId)
             ?: throw PaymentNotFoundException("orderId=$orderId")
 
-        if (payment.status != PaymentStatus.COMPLETED) {
-            throw BusinessException(ErrorCode.PAYMENT_NOT_REFUNDABLE, "환불 가능한 상태가 아닙니다: ${payment.status}")
-        }
+        // COMPLETED 일 때만 환불 대기로 전이. 선결제 없는 취소·중복 OrderCancelledEvent 는 무동작(멱등).
+        if (payment.status != PaymentStatus.COMPLETED) return
+
+        payment.markRefundPending()
+        paymentPersistencePort.save(payment)
+    }
+
+    @Transactional
+    override fun executeRefund(orderId: Long) {
+        val payment = paymentPersistencePort.findByOrderId(orderId)
+            ?: throw PaymentNotFoundException("orderId=$orderId")
+
+        // REFUND_PENDING 만 실행 대상(멱등 — 이미 환불됐거나 대상 아님).
+        if (payment.status != PaymentStatus.REFUND_PENDING) return
 
         val gateway = paymentGatewayResolver.resolve(payment.pgProvider)
+        // PG CB OPEN/실패 시 예외가 전파된다 → 호출 측(RefundRetrySweeper)이 REFUND_PENDING 유지·다음 주기 재시도.
         val cancelResult = gateway.cancelPayment(payment.pgTransactionId!!)
 
         if (!cancelResult.success) {
@@ -147,8 +157,8 @@ class PaymentCommandService(
             action = AuditAction.PAYMENT_REFUND,
             targetType = "PAYMENT",
             targetId = orderId.toString(),
-            before = mapOf("status" to PaymentStatus.COMPLETED.name),
-            after = mapOf("status" to saved.status.name, "reason" to reason),
+            before = mapOf("status" to PaymentStatus.REFUND_PENDING.name),
+            after = mapOf("status" to saved.status.name),
         )
     }
 }

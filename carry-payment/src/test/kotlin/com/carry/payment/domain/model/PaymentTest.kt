@@ -74,10 +74,19 @@ class PaymentTest {
         }
 
         @Test
-        fun `COMPLETED 상태에서 markRefunded 호출 시 REFUNDED로 전이한다`() {
+        fun `COMPLETED 에서 markRefundPending 으로 REFUND_PENDING 전이 후 markRefunded 로 REFUNDED 가 된다`() {
             val payment = reconstitutedPayment(PaymentStatus.COMPLETED)
+            payment.markRefundPending()
+            assertThat(payment.status).isEqualTo(PaymentStatus.REFUND_PENDING)
             payment.markRefunded()
             assertThat(payment.status).isEqualTo(PaymentStatus.REFUNDED)
+        }
+
+        @Test
+        fun `COMPLETED 에서 markRefunded 직접 호출은 불가하다 - REFUND_PENDING 경유 필요`() {
+            val payment = reconstitutedPayment(PaymentStatus.COMPLETED)
+            assertThatThrownBy { payment.markRefunded() }
+                .isInstanceOf(BusinessException::class.java)
         }
 
         @Test

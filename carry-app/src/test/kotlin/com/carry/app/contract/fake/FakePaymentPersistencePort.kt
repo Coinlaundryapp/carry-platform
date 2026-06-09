@@ -29,4 +29,5 @@ class FakePaymentPersistencePort : PaymentPersistencePort {
     override fun save(payment: Payment): Payment = payment
     override fun findById(id: Long): Payment? = byOrderId.values.find { it.id == id }
     override fun findByOrderId(orderId: Long): Payment? = byOrderId[orderId]
+    override fun findByStatus(status: PaymentStatus): List<Payment> = byOrderId.values.filter { it.status == status }
 }
