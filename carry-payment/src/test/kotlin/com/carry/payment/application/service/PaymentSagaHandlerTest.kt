@@ -29,31 +29,32 @@ class PaymentSagaHandlerTest {
     )
 
     @Test
-    fun `주문 취소 시 완료된 결제가 있으면 자동 환불을 요청한다`() {
+    fun `주문 취소 시 완료된 결제가 있으면 환불 대기로 표시한다`() {
         every { paymentPersistencePort.findByOrderId(10L) } returns aPayment(PaymentStatus.COMPLETED)
 
         sut.onOrderCancelled(OrderCancelledEvent(10L, "세탁소 사정", "COORDINATOR"))
 
-        verify { paymentCommandUseCase.requestRefund(10L, "세탁소 사정") }
+        // PG 즉시 호출이 아니라 환불 대기 표시 — 실제 PG 환불은 RefundRetrySweeper 가 수행(DLQ 위험 제거).
+        verify { paymentCommandUseCase.markRefundPending(10L) }
     }
 
     @Test
-    fun `주문 취소 시 결제가 없으면 환불을 요청하지 않는다`() {
+    fun `주문 취소 시 결제가 없으면 환불 대기 표시를 하지 않는다`() {
         // 선결제 없는 주문(CREATED/DISPATCHED 단계) 취소 — throw 하면 DLQ 로 빠지므로 조용히 skip
         every { paymentPersistencePort.findByOrderId(10L) } returns null
 
         sut.onOrderCancelled(OrderCancelledEvent(10L, "고객 변심", "CUSTOMER"))
 
-        verify(exactly = 0) { paymentCommandUseCase.requestRefund(any(), any()) }
+        verify(exactly = 0) { paymentCommandUseCase.markRefundPending(any()) }
     }
 
     @Test
-    fun `주문 취소 시 결제가 완료 상태가 아니면 환불을 요청하지 않는다`() {
+    fun `주문 취소 시 결제가 완료 상태가 아니면 환불 대기 표시를 하지 않는다`() {
         // 결제 실패(FAILED) 후 시한 초과로 취소된 경우 — 환불할 결제가 없음
         every { paymentPersistencePort.findByOrderId(10L) } returns aPayment(PaymentStatus.FAILED)
 
         sut.onOrderCancelled(OrderCancelledEvent(10L, "재결제 시한 초과", "SYSTEM"))
 
-        verify(exactly = 0) { paymentCommandUseCase.requestRefund(any(), any()) }
+        verify(exactly = 0) { paymentCommandUseCase.markRefundPending(any()) }
     }
 }

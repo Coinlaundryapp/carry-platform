@@ -4,6 +4,7 @@ import com.carry.payment.adapter.outbound.persistence.entity.PaymentJpaEntity
 import com.carry.payment.adapter.outbound.persistence.repository.PaymentJpaRepository
 import com.carry.payment.application.port.outbound.PaymentPersistencePort
 import com.carry.payment.domain.model.Payment
+import com.carry.payment.domain.vo.PaymentStatus
 import org.springframework.stereotype.Component
 
 @Component
@@ -28,5 +29,9 @@ class PaymentPersistenceAdapter(
 
     override fun findByOrderId(orderId: Long): Payment? {
         return paymentJpaRepository.findFirstByOrderIdOrderByIdDesc(orderId)?.toDomain()
+    }
+
+    override fun findByStatus(status: PaymentStatus): List<Payment> {
+        return paymentJpaRepository.findByStatus(status).map { it.toDomain() }
     }
 }

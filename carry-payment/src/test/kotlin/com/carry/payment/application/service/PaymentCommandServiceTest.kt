@@ -7,9 +7,11 @@ import com.carry.payment.application.port.outbound.InvoicePersistencePort
 import com.carry.payment.application.port.outbound.PaymentPersistencePort
 import com.carry.payment.application.port.outbound.PaymentGatewayPort
 import com.carry.payment.application.port.outbound.PaymentGatewayResolver
+import com.carry.payment.application.port.outbound.PgCancelResult
 import com.carry.payment.application.port.outbound.PgPaymentResult
 import com.carry.payment.domain.exception.InvoiceAlreadyPaidException
 import com.carry.payment.domain.exception.InvoiceNotFoundException
+import com.carry.payment.domain.exception.PaymentGatewayException
 import com.carry.payment.domain.model.Invoice
 import com.carry.payment.domain.model.Payment
 import com.carry.payment.domain.vo.ChargeType
@@ -136,6 +138,73 @@ class PaymentCommandServiceTest {
 
             assertThatThrownBy { sut.requestPayment(aCommand()) }
                 .isInstanceOf(InvoiceAlreadyPaidException::class.java)
+        }
+    }
+
+    @Nested
+    inner class Refund {
+
+        private fun aPayment(status: PaymentStatus) = Payment.reconstitute(
+            id = 1L, invoiceId = 1L, orderId = 10L, customerId = 100L, status = status,
+            pgProvider = PgProvider.TOSS_PAYMENTS, pgTransactionId = "tx_123", amount = 18000L,
+            paidAt = now, failReason = null, createdAt = now, updatedAt = now,
+        )
+
+        @Test
+        fun `markRefundPending - COMPLETED 결제를 REFUND_PENDING 으로 표시하고 PG를 호출하지 않는다`() {
+            every { paymentPersistencePort.findByOrderId(10L) } returns aPayment(PaymentStatus.COMPLETED)
+            val saved = slot<Payment>()
+            every { paymentPersistencePort.save(capture(saved)) } answers { saved.captured }
+
+            sut.markRefundPending(10L)
+
+            assertThat(saved.captured.status).isEqualTo(PaymentStatus.REFUND_PENDING)
+            verify(exactly = 0) { paymentGatewayResolver.resolve(any()) }
+        }
+
+        @Test
+        fun `markRefundPending - COMPLETED 가 아니면 무동작(멱등)`() {
+            every { paymentPersistencePort.findByOrderId(10L) } returns aPayment(PaymentStatus.REFUND_PENDING)
+
+            sut.markRefundPending(10L)
+
+            verify(exactly = 0) { paymentPersistencePort.save(any()) }
+        }
+
+        @Test
+        fun `executeRefund - REFUND_PENDING 결제를 PG 취소 성공 시 REFUNDED + RefundCompletedEvent`() {
+            every { paymentPersistencePort.findByOrderId(10L) } returns aPayment(PaymentStatus.REFUND_PENDING)
+            every { paymentGatewayResolver.resolve(PgProvider.TOSS_PAYMENTS) } returns paymentGateway
+            every { paymentGateway.cancelPayment("tx_123") } returns PgCancelResult(success = true, refundAmount = 18000L)
+            every { invoicePersistencePort.findById(1L) } returns anInvoice(InvoiceStatus.PAID)
+            val saved = slot<Payment>()
+            every { paymentPersistencePort.save(capture(saved)) } answers { saved.captured }
+
+            sut.executeRefund(10L)
+
+            assertThat(saved.captured.status).isEqualTo(PaymentStatus.REFUNDED)
+            verify { eventPublisher.publish("Payment", "10", "RefundCompletedEvent", any(), any()) }
+        }
+
+        @Test
+        fun `executeRefund - PG 취소 실패 시 예외를 던지고 환불 처리하지 않는다(스위퍼가 재시도)`() {
+            every { paymentPersistencePort.findByOrderId(10L) } returns aPayment(PaymentStatus.REFUND_PENDING)
+            every { paymentGatewayResolver.resolve(PgProvider.TOSS_PAYMENTS) } returns paymentGateway
+            every { paymentGateway.cancelPayment("tx_123") } returns PgCancelResult(success = false, failReason = "PG 거절")
+
+            assertThatThrownBy { sut.executeRefund(10L) }
+                .isInstanceOf(PaymentGatewayException::class.java)
+
+            verify(exactly = 0) { eventPublisher.publish(any(), any(), any(), any(), any()) }
+        }
+
+        @Test
+        fun `executeRefund - REFUND_PENDING 이 아니면 무동작(멱등)`() {
+            every { paymentPersistencePort.findByOrderId(10L) } returns aPayment(PaymentStatus.COMPLETED)
+
+            sut.executeRefund(10L)
+
+            verify(exactly = 0) { paymentGatewayResolver.resolve(any()) }
         }
     }
 }

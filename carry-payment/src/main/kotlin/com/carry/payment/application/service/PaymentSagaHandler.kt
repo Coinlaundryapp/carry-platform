@@ -32,11 +32,13 @@ class PaymentSagaHandler(
     override fun onOrderCancelled(event: OrderCancelledEvent) {
         SagaLogContext.withOrderId(event.orderId) {
             val payment = paymentPersistencePort.findByOrderId(event.orderId)
-            // 완료된 결제가 있을 때만 자동 환불. 선결제 없는 취소(CREATED/DISPATCHED 단계)나
+            // 완료된 결제가 있을 때만 환불 대기로 표시. 선결제 없는 취소(CREATED/DISPATCHED 단계)나
             // 결제 실패 후 취소는 환불 대상이 없으므로 조용히 skip — throw 하면 DLQ 로 빠진다.
+            // 실제 PG 환불은 RefundRetrySweeper 가 수행하므로, 여기서 PG 를 호출하지 않아
+            // PG 장애와 무관하게 이 핸들러는 항상 성공한다(DLQ 위험 제거).
             if (payment != null && payment.status == PaymentStatus.COMPLETED) {
-                log.info("Payment saga: onOrderCancelled — 자동 환불 요청 paymentId={}", payment.id)
-                paymentCommandUseCase.requestRefund(event.orderId, event.reason)
+                log.info("Payment saga: onOrderCancelled — 환불 대기 표시 paymentId={} (재시도 스위퍼가 PG 환불 실행)", payment.id)
+                paymentCommandUseCase.markRefundPending(event.orderId)
             } else {
                 log.info("Payment saga: onOrderCancelled — 환불 대상 결제 없음, skip")
             }

@@ -226,8 +226,12 @@ class PaymentSagaIntegrationTest : IntegrationTestBase() {
 
         val cancelEvent = outbox.readOutboxPayload<OrderCancelledEvent>("Order", "OrderCancelledEvent", orderId.toString())
 
-        // 결제 모듈: 자동 환불 → RefundCompletedEvent
+        // 결제 모듈: 환불 대기 표시(PG 미호출, DLQ 위험 제거) — 아직 RefundCompletedEvent 없음
         paymentSagaHandler.onOrderCancelled(cancelEvent)
+        outbox.assertOutboxDoesNotContain("Payment", "RefundCompletedEvent", orderId.toString())
+
+        // RefundRetrySweeper 가 하는 일(executeRefund)을 직접 실행 → PG 취소 + RefundCompletedEvent
+        paymentCommandService.executeRefund(orderId)
         outbox.assertOutboxContains("Payment", "RefundCompletedEvent", orderId.toString())
 
         // 주문 모듈: 환불 완료 수신 → REFUNDED
@@ -289,8 +293,9 @@ class PaymentSagaIntegrationTest : IntegrationTestBase() {
         val paidOrder = orderPersistencePort.findById(orderId)!!
         assertThat(paidOrder.status).isEqualTo(OrderStatus.PAID)
 
-        // 환불 요청
-        paymentCommandService.requestRefund(orderId, "고객 요청 환불")
+        // 환불: 대기 표시(COMPLETED→REFUND_PENDING) 후 스위퍼 경로(executeRefund)로 PG 환불
+        paymentCommandService.markRefundPending(orderId)
+        paymentCommandService.executeRefund(orderId)
         outbox.assertOutboxContains("Payment", "RefundCompletedEvent", orderId.toString())
     }
 }

@@ -12,11 +12,13 @@ enum class InvoiceStatus {
 }
 
 enum class PaymentStatus {
-    PENDING, COMPLETED, FAILED, REFUNDED;
+    PENDING, COMPLETED, FAILED, REFUND_PENDING, REFUNDED;
 
     fun canTransitionTo(target: PaymentStatus): Boolean = when (this) {
         PENDING -> target in listOf(COMPLETED, FAILED)
-        COMPLETED -> target == REFUNDED
+        // 환불은 의도 표시(REFUND_PENDING) 후 PG 취소 성공 시 REFUNDED 로 — PG 장애 시 재시도 가능하게 단계 분리.
+        COMPLETED -> target == REFUND_PENDING
+        REFUND_PENDING -> target == REFUNDED
         FAILED -> target == PENDING
         REFUNDED -> false
     }
