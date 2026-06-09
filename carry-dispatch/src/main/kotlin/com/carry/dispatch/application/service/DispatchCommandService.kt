@@ -18,6 +18,7 @@ import com.carry.audit.port.AuditPort
 import com.carry.common.metrics.MetricsPort
 import com.carry.event.dispatch.DispatchAcceptedEvent
 import com.carry.event.dispatch.DispatchCancelledEvent
+import com.carry.event.dispatch.DispatchTimeoutEvent
 import com.carry.event.port.EventPublisherPort
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -143,6 +144,28 @@ class DispatchCommandService(
                 reason = command.reason,
             ),
         )
+    }
+
+    @Transactional
+    override fun timeoutDispatch(dispatchId: Long): Dispatch {
+        val dispatch = findDispatch(dispatchId)
+        // PENDING 이 아니면 도메인이 DispatchTimeoutNotAllowedException 을 던진다 →
+        // 멀티 인스턴스 레이스로 이미 종결된 배차는 호출 측(스위퍼)이 건너뛴다(멱등).
+        dispatch.timeout()
+        val saved = dispatchPersistencePort.save(dispatch)
+
+        eventPublisher.publish(
+            aggregateType = "Dispatch",
+            aggregateId = saved.orderId.toString(),
+            eventType = "DispatchTimeoutEvent",
+            payload = DispatchTimeoutEvent(
+                dispatchId = saved.id!!,
+                orderId = saved.orderId,
+            ),
+        )
+
+        metrics.incrementCounter("carry.dispatch.timeout")
+        return saved
     }
 
     private fun findDispatch(dispatchId: Long): Dispatch {
