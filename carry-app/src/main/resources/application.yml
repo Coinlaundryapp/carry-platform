@@ -32,6 +32,9 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+        # EAGER 컬렉션(예: OrderJpaEntity.selectedOptions)을 결과 건수만큼 N+1로 초기화하지 않고
+        # IN-배치 한 번으로 로딩한다. fetch-join은 cursor 페이지네이션(LIMIT)과 충돌하므로 batch 사용.
+        default_batch_fetch_size: 100
     open-in-view: false
 
   flyway:
