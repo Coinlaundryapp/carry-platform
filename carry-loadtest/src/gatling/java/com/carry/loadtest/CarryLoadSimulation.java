@@ -37,15 +37,17 @@ public class CarryLoadSimulation extends Simulation {
             .body(StringBody(createBody))
             .check(status().is(201)));
 
-    // 배차 수락: available 목록에서 dispatchId를 추출 → claim. PENDING 풀이 유한하고 carrier 토큰이
-    // 단일(userId=2)이라 동시 claim이 같은 행을 노릴 수 있다. 풀(시드 30) > 사용자(20)지만
-    // 동일 행 경합으로 일부는 409(이미 선점)가 정상이므로 in(200,409)를 허용한다(README에 명시).
+    // 배차 수락: available 목록에서 dispatchId를 추출 → claim. available은 id DESC 정렬이라
+    // size=1을 뽑으면 모든 가상유저가 동일한 top 행을 노려 시드 30행 풀이 무의미해진다.
+    // 그래서 size=30으로 넓게 받아 findRandom()으로 행을 분산 선점한다 → 풀(30) > 사용자(20)라
+    // 대부분 200. carrier 토큰이 단일(userId=2)이라 잔여 경합으로 일부 409(이미 선점)는 정상이므로
+    // in(200,409)를 허용한다(README에 명시).
     ScenarioBuilder claimDispatch = scenario("배차 선점")
         .exec(http("GET /dispatches/available")
-            .get("/api/v2/dispatches/available?size=1")
+            .get("/api/v2/dispatches/available?size=30")
             .header("Authorization", "Bearer " + carrierToken)
             .check(status().is(200))
-            .check(jsonPath("$.data[0].id").saveAs("dispatchId")))
+            .check(jsonPath("$.data[*].id").findRandom().saveAs("dispatchId")))
         .exec(http("POST /dispatches/{id}/claim")
             .post("/api/v2/dispatches/#{dispatchId}/claim")
             .header("Authorization", "Bearer " + carrierToken)

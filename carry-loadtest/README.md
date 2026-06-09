@@ -14,11 +14,14 @@
 |---|----------|------------|------------|------|
 | ① | 주문 목록 조회 | `GET /api/v2/orders/my?size=20` | CUSTOMER(1) | rampUsers(50) / 30s |
 | ② | 주문 생성 | `POST /api/v2/orders` | CUSTOMER(1) | rampUsers(30) / 30s |
-| ③ | 배차 선점 | `GET /api/v2/dispatches/available` → `POST /api/v2/dispatches/{id}/claim` | CARRIER(2) | rampUsers(20) / 30s |
+| ③ | 배차 선점 | `GET /api/v2/dispatches/available?size=30` (findRandom) → `POST /api/v2/dispatches/{id}/claim` | CARRIER(2) | rampUsers(20) / 30s |
 
-시나리오 ③은 PENDING 배차 풀(시드 30개)을 소비한다. carrier 토큰이 단일(userId=2)이라
-동시 claim이 같은 행을 노릴 수 있어 `claim` 응답을 `status in (200, 409)`로 허용한다
-(409 = 이미 다른 가상유저가 선점). 풀(30) > 사용자(20)로 두어 대부분 200이 되도록 한다.
+시나리오 ③은 PENDING 배차 풀(시드 30개)을 소비한다. available 목록은 `id DESC` 정렬이라
+`size=1`을 뽑으면 모든 가상유저가 동일한 top 행을 노려 풀이 무의미해진다 → `size=30`으로
+넓게 받아 `findRandom()`으로 행을 분산 선점한다. 풀(30) > 사용자(20)이고 행이 흩어지므로
+대부분 200이 된다. 단, carrier 토큰이 단일(userId=2)이라 둘 이상이 같은 행을 무작위로
+고르는 잔여 경합이 가능해 `claim` 응답을 `status in (200, 409)`로 허용한다
+(409 = 이미 다른 가상유저가 선점).
 
 ## 실행 순서
 
@@ -112,4 +115,9 @@ docker compose down
 
 JIT 워밍업·GC·동시 실행 중인 무관 컨테이너(머신 공유) 영향으로 단일 실행 p95가 5배 이상
 흔들린다. 절대 수치는 **CI 게이트가 아니라 참고용**이며, 결정적 회귀 검출은 Tier1이 담당한다.
-③ 선점 시나리오는 시드 풀(30) > 사용자(20)라 4회 모두 409 없이 200으로 완료됐다.
+
+> **③ 선점 시나리오 baseline 주의**: 위 baseline 표(p50/p95/p99)는 이전의 단일 행(`size=1`,
+> `$.data[0].id`) claim 변형으로 측정한 값이다. 현재 코드는 `size=30` + `findRandom()`으로 행을
+> 분산하지만, claim 쿼리 경로(`POST /dispatches/{id}/claim`) 자체는 동일하므로 claim 1건당 지연은
+> 동등하다(목록 조회는 size=1→30으로 응답 페이로드가 소폭 커진다). 분산 변형 기준 수치는 다음
+> 라이브 실행에서 재확인 예정이다. 행 분산으로 잔여 경합이 줄어 409는 더 드물 것으로 기대된다.
