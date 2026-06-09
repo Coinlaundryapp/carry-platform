@@ -74,4 +74,24 @@ class QueryCountGuardTest : IntegrationTestBase() {
         // 고정 상한: 목록 1쿼리 + selectedOptions 배치 1쿼리 = 실측 2 SELECT, 여유 +1 = 3
         assertThat(selects10).isLessThanOrEqualTo(3)
     }
+
+    @Test
+    fun `주문 생성은 write 경로 쿼리 수가 상한을 넘지 않는다`() {
+        QueryCountHolder.clear()
+        orderCommandService.createOrder(
+            CreateOrderCommand(
+                customerId = TestFixtures.CUSTOMER_ID,
+                shippingAddressId = TestFixtures.SHIPPING_ADDRESS_ID,
+                laundromatId = TestFixtures.LAUNDROMAT_ID,
+                laundryItemType = "NORMAL",
+                selectedOptions = listOf(SelectedOptionCommand("WASH", "COLD")),
+                desiredPickupAt = TestFixtures.desiredPickupAt(),
+                desiredDeliveryAt = TestFixtures.desiredDeliveryAt(),
+            ),
+        )
+        val qc = QueryCountHolder.getGrandTotal()
+        // 주문 생성 = 검증 SELECT + order/option INSERT + outbox INSERT.
+        // 실측 2026-06-09: total=10 (qc.total은 Long → 리터럴에 L). 상한 15 = 실측 10 + 여유 5.
+        assertThat(qc.total).isLessThanOrEqualTo(15L)
+    }
 }
