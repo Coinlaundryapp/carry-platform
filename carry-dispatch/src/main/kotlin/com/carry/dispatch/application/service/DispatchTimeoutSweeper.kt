@@ -2,6 +2,7 @@ package com.carry.dispatch.application.service
 
 import com.carry.dispatch.application.port.inbound.DispatchCommandUseCase
 import com.carry.dispatch.application.port.outbound.DispatchPersistencePort
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
@@ -13,8 +14,8 @@ import org.springframework.stereotype.Component
  * 만료 배차를 주기적으로 TIMEOUT 처리하면 [DispatchTimeoutEvent] 가 발행돼 Order 사가가
  * 후속(재배차/취소)을 이어갈 수 있고, `carry.dispatch.timeout` 메트릭으로 운영 가시성이 생긴다.
  *
- * 멀티 인스턴스 환경에서 중복 실행돼도 [DispatchCommandUseCase.timeoutDispatch] 의 도메인 상태
- * 가드로 멱등하다(이미 종결된 배차는 예외 → 건너뜀). ShedLock 분산 락은 후속 하드닝 대상.
+ * 멀티 인스턴스 환경에선 @SchedulerLock 으로 매 주기 한 노드만 실행한다(ShedLock).
+ * 락이 풀려 중복 실행되더라도 [DispatchCommandUseCase.timeoutDispatch] 의 도메인 상태 가드로 멱등하다.
  */
 @Component
 class DispatchTimeoutSweeper(
@@ -24,6 +25,7 @@ class DispatchTimeoutSweeper(
     private val log = LoggerFactory.getLogger(javaClass)
 
     @Scheduled(fixedRateString = "\${carry.dispatch.timeout-sweep-interval-ms:300000}")
+    @SchedulerLock(name = "dispatchTimeoutSweep", lockAtMostFor = "PT4M", lockAtLeastFor = "PT0S")
     fun sweepExpiredDispatches() {
         val expired = dispatchPersistencePort.findExpiredPendingDispatches()
         if (expired.isEmpty()) return
