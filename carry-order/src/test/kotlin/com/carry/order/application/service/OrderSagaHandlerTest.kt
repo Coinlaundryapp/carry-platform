@@ -10,6 +10,7 @@ import com.carry.event.payment.InvoiceIssuedEvent
 import com.carry.event.payment.PaymentCompletedEvent
 import com.carry.event.payment.PaymentFailedEvent
 import com.carry.event.payment.RefundCompletedEvent
+import com.carry.common.metrics.MetricsPort
 import com.carry.order.application.port.outbound.OrderPersistencePort
 import com.carry.order.domain.model.Order
 import com.carry.order.domain.vo.CancelledBy
@@ -24,6 +25,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 import java.time.Clock
+import java.time.Duration
 import java.time.Instant
 import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
@@ -33,7 +35,8 @@ class OrderSagaHandlerTest {
     private val orderPersistencePort = mockk<OrderPersistencePort>(relaxed = true)
     private val now = Instant.parse("2026-06-07T00:00:00Z")
     private val clock = Clock.fixed(now, ZoneOffset.UTC)
-    private val sut = OrderSagaHandler(orderPersistencePort, clock)
+    private val metrics = mockk<MetricsPort>(relaxed = true)
+    private val sut = OrderSagaHandler(orderPersistencePort, clock, metrics)
     private val address = OrderShippingAddress(
         "서울특별시 강남구 역삼로 1", "101호", null, 37.5, 127.0, "홍길동", "01012345678", null, "GANGNAM",
     )
@@ -155,5 +158,25 @@ class OrderSagaHandlerTest {
         sut.onDeliveryCompleted(DeliveryCompletedEvent(10L, 1L, 100L))
 
         assertThat(saved.captured.status).isEqualTo(OrderStatus.COMPLETED)
+    }
+
+    @Test
+    fun `DeliveryCompletedEvent 수신 시 carry_saga_duration 을 주문 생성부터의 소요시간으로 기록한다`() {
+        // 사가 시작(주문 생성) 3시간 전 → 완료 시각(고정 clock=now)까지 = 3시간.
+        val createdAt = now.minus(3, ChronoUnit.HOURS)
+        val order = Order.reconstitute(
+            id = 1L, customerId = 1L, status = OrderStatus.IN_PROGRESS, laundromatId = 10L,
+            laundryItemType = "REGULAR", selectedOptions = listOf(SelectedOption("WASH", "STANDARD")),
+            shippingAddress = address, desiredPickupAt = createdAt, desiredDeliveryAt = now,
+            carrierId = 100L, invoiceId = null, totalAmount = null, actualWeight = null,
+            cancelReason = null, cancelledBy = null, cancelledAt = null, completedAt = null,
+            createdAt = createdAt, updatedAt = createdAt,
+        )
+        every { orderPersistencePort.findById(1L) } returns order
+        every { orderPersistencePort.save(any()) } answers { firstArg() }
+
+        sut.onDeliveryCompleted(DeliveryCompletedEvent(10L, 1L, 100L))
+
+        verify { metrics.recordTimer("carry.saga.duration", Duration.ofHours(3)) }
     }
 }
