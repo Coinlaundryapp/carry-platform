@@ -8,6 +8,7 @@ import com.carry.common.metrics.MetricsPort
 import com.carry.event.port.EventPublisherPort
 import com.carry.order.application.port.inbound.CreateOrderCommand
 import com.carry.order.application.port.inbound.SelectedOptionCommand
+import com.carry.order.application.port.outbound.IdempotencyPort
 import com.carry.order.application.port.outbound.OrderPersistencePort
 import com.carry.order.application.port.outbound.contract.FakeLaundromatQueryPort
 import com.carry.order.application.port.outbound.contract.FakeServiceAvailabilityQueryPort
@@ -40,13 +41,14 @@ class OrderCommandServiceTest {
     private val eventPublisher = mockk<EventPublisherPort>(relaxed = true)
     private val metrics = mockk<MetricsPort>(relaxed = true)
     private val auditPort = mockk<AuditPort>(relaxed = true)
+    private val idempotencyPort = mockk<IdempotencyPort>(relaxed = true)
 
     private val now = Instant.parse("2026-06-07T00:00:00Z")
     private val clock = Clock.fixed(now, ZoneOffset.UTC)
 
     private val sut = OrderCommandService(
         orderPersistencePort, userQueryPort, laundromatQueryPort, serviceAvailabilityQueryPort,
-        eventPublisher, metrics, auditPort, clock,
+        eventPublisher, metrics, auditPort, idempotencyPort, clock,
     )
 
     private val address = OrderShippingAddress(
@@ -105,6 +107,73 @@ class OrderCommandServiceTest {
                 .isInstanceOf(BusinessException::class.java)
                 .hasMessageContaining("세탁소")
                 .extracting("errorCode").isEqualTo(ErrorCode.LAUNDROMAT_NOT_FOUND)
+        }
+    }
+
+    @Nested
+    inner class Idempotency {
+
+        private fun keyedCommand(key: String) = aCommand().copy(idempotencyKey = key)
+
+        private fun existingOrder(id: Long) = Order.reconstitute(
+            id = id, customerId = 1L, status = OrderStatus.CREATED, laundromatId = 100L,
+            laundryItemType = "REGULAR", selectedOptions = listOf(SelectedOption("WASH", "STANDARD")),
+            shippingAddress = address, desiredPickupAt = now.plus(2, ChronoUnit.HOURS),
+            desiredDeliveryAt = now.plus(6, ChronoUnit.HOURS),
+            carrierId = null, invoiceId = null, totalAmount = null, actualWeight = null,
+            cancelReason = null, cancelledBy = null, cancelledAt = null, completedAt = null,
+            createdAt = now, updatedAt = now,
+        )
+
+        @Test
+        fun `완료된 키로 재요청하면 새로 만들지 않고 기존 주문을 재생한다`() {
+            every { idempotencyPort.findCompletedOrderId("k1") } returns 42L
+            every { orderPersistencePort.findById(42L) } returns existingOrder(42L)
+
+            val result = sut.createOrder(keyedCommand("k1"))
+
+            assertThat(result.id).isEqualTo(42L)
+            verify(exactly = 0) { orderPersistencePort.save(any()) }
+            verify(exactly = 0) { eventPublisher.publish(any(), any(), any(), any(), any()) }
+            verify(exactly = 0) { idempotencyPort.reserve(any()) }
+        }
+
+        @Test
+        fun `진행 중인 키(선점 실패)는 409 IDEMPOTENT_REQUEST_IN_PROGRESS 를 던진다`() {
+            every { idempotencyPort.findCompletedOrderId("k2") } returns null
+            every { idempotencyPort.reserve("k2") } returns false
+
+            assertThatThrownBy { sut.createOrder(keyedCommand("k2")) }
+                .isInstanceOf(BusinessException::class.java)
+                .extracting("errorCode").isEqualTo(ErrorCode.IDEMPOTENT_REQUEST_IN_PROGRESS)
+
+            verify(exactly = 0) { orderPersistencePort.save(any()) }
+        }
+
+        @Test
+        fun `신규 키는 선점 후 주문을 생성하고 결과를 complete 로 저장한다`() {
+            userQueryPort.put(1L, 10L, address)
+            laundromatQueryPort.add(100L)
+            serviceAvailabilityQueryPort.markAvailable("GANGNAM")
+            every { idempotencyPort.findCompletedOrderId("k3") } returns null
+            every { idempotencyPort.reserve("k3") } returns true
+            val saved = slot<Order>()
+            every { orderPersistencePort.save(capture(saved)) } answers {
+                Order.reconstitute(
+                    id = 42L, customerId = saved.captured.customerId, status = saved.captured.status,
+                    laundromatId = saved.captured.laundromatId, laundryItemType = saved.captured.laundryItemType,
+                    selectedOptions = saved.captured.selectedOptions, shippingAddress = saved.captured.shippingAddress,
+                    desiredPickupAt = saved.captured.desiredPickupAt, desiredDeliveryAt = saved.captured.desiredDeliveryAt,
+                    carrierId = null, invoiceId = null, totalAmount = null, actualWeight = null,
+                    cancelReason = null, cancelledBy = null, cancelledAt = null, completedAt = null,
+                    createdAt = now, updatedAt = now,
+                )
+            }
+
+            val result = sut.createOrder(keyedCommand("k3"))
+
+            assertThat(result.id).isEqualTo(42L)
+            verify { idempotencyPort.complete("k3", 42L) }
         }
     }
 
