@@ -1,6 +1,7 @@
 package com.carry.order.application.service
 
 import com.carry.common.logging.SagaLogContext
+import com.carry.common.metrics.MetricsPort
 import com.carry.event.delivery.DeliveryCompletedEvent
 import com.carry.event.delivery.LaundryStartedEvent
 import com.carry.event.delivery.PickupCompletedEvent
@@ -21,11 +22,13 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Clock
+import java.time.Duration
 
 @Service
 class OrderSagaHandler(
     private val orderPersistencePort: OrderPersistencePort,
     private val clock: Clock,
+    private val metrics: MetricsPort,
 ) : OrderSagaEventHandler {
 
     private val log = LoggerFactory.getLogger(javaClass)
@@ -122,8 +125,12 @@ class OrderSagaHandler(
         SagaLogContext.withOrderId(event.orderId) {
             log.info("Order saga: onDeliveryCompleted deliveryId={}", event.deliveryId)
             val order = findOrder(event.orderId)
-            order.markCompleted(clock.instant())
+            val now = clock.instant()
+            order.markCompleted(now)
             orderPersistencePort.save(order)
+            // 사가 전체 소요시간 = 주문 생성(사가 시작)부터 배달 완료(사가 종료)까지 wall-clock.
+            // 이벤트 스키마를 키우지 않고 애그리거트의 createdAt 을 활용한다(ADR-0005).
+            metrics.recordTimer("carry.saga.duration", Duration.between(order.createdAt, now))
         }
     }
 
