@@ -17,6 +17,7 @@ ADR(Architecture Decision Record)은 **중요한 아키텍처 결정**을 그 *�
 | [0002](0002-outbox-cdc-over-dual-write.md) | Outbox + CDC(Debezium) 채택 — dual-write 회피 | Accepted | 2026-06-09 |
 | [0003](0003-module-decomposition-criteria.md) | 모듈 분리 기준 | Accepted | 2026-06-09 |
 | [0004](0004-choreography-saga.md) | Choreography Saga 채택 | Accepted | 2026-06-09 |
+| [0005](0005-event-schema-evolution.md) | 이벤트 스키마 진화 전략 | Accepted | 2026-06-10 |
 
 ## 상태 정의
 
@@ -35,9 +36,10 @@ ADR-0003 (모듈 분리 기준)
   │     └─ ADR-0001 (도메인/JPA 분리) — 어댑터-포트로 영속성 경계
   └─ 이벤트 전파 인프라
         └─ ADR-0002 (Outbox + CDC) — 신뢰성·순서 보장하는 이벤트 발행
+              └─ ADR-0005 (이벤트 스키마 진화) — 그 이벤트의 모양을 무중단으로 바꾸는 규칙
 ```
 
-네 결정은 "모듈러 모놀리스 + 신뢰성 있는 이벤트 기반 분산 워크플로우"라는 하나의 일관된
+이 결정들은 "모듈러 모놀리스 + 신뢰성 있는 이벤트 기반 분산 워크플로우"라는 하나의 일관된
 아키텍처를 이룬다.
 
 ## 새 ADR 작성 시
