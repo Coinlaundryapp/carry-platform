@@ -1,0 +1,26 @@
+version: 2
+updates:
+  # Gradle 의존성(전 모듈 — 루트에서 버전 카탈로그/BOM 관리) 주간 점검.
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "build"
+    groups:
+      # minor/patch는 한 PR로 묶어 노이즈를 줄인다. major는 개별 PR로 분리해 영향 검토.
+      gradle-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # GitHub Actions 워크플로 액션 버전 주간 점검.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    commit-message:
+      prefix: "ci"

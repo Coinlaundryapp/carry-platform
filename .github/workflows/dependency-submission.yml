@@ -1,0 +1,27 @@
+name: Dependency Submission
+
+# Gradle 의존성 그래프를 GitHub 에 제출 → 네이티브 Dependabot 보안 경보(취약 의존성 탐지)가
+# 활성화된다. NVD API 키·대용량 DB 다운로드가 필요한 OWASP dependency-check 와 달리
+# GitHub 어드바이저리 DB를 사용하므로 키리스·무플레이키하다.
+#
+# 기본 브랜치에서만 실행해 그래프 기준선을 갱신한다(PR 게이트 아님).
+
+on:
+  push:
+    branches: [develop, main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  dependency-submission:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      - name: Submit dependency graph
+        uses: gradle/actions/dependency-submission@v4
