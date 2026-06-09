@@ -45,11 +45,11 @@
 
 ### 2.4 대상 시나리오와 단언
 
-1. **커서 목록 조회 (핵심)**: K건(예: 20건)의 주문/배차를 조회할 때 실행 SELECT 수가 K에 비례하지 않음을 단언. 고정 상한(예: `<= 3`)으로 N+1 부재를 보장. 데이터를 10건/20건으로 늘려도 쿼리 수가 동일함을 검증하는 형태가 가장 강력.
-2. **주문 생성**: 단일 주문 생성 시 write 경로의 INSERT/SELECT 횟수 상한 단언.
-3. **배차 수락**: 단일 수락 시 쿼리 횟수 상한 단언.
+1. **커서 목록 조회 (핵심)**: `GET /api/v2/orders/my`(주문) / `GET /api/v2/dispatches/available`(배차) 경로. K건(예: 20건)을 조회할 때 실행 SELECT 수가 K에 비례하지 않음을 단언. 고정 상한(예: `<= 3`)으로 N+1 부재를 보장. 데이터를 10건/20건으로 늘려도 쿼리 수가 동일함을 검증하는 형태가 가장 강력.
+2. **주문 생성**: `OrderController.createOrder`(`POST /api/v2/orders`, 일반 고객 경로 — `OrderCoordinatorController` 아님) 단일 실행 시 write 경로의 INSERT/SELECT 횟수 상한 단언.
+3. **배차 수락**: `DispatchCarrierController.accept`(`POST /api/v2/dispatches/{id}/accept`) 단일 실행 시 쿼리 횟수 상한 단언.
 
-상한값은 "현재 측정값 + 작은 여유"로 설정해 의도적 증가는 통과시키되 우발적 폭증을 차단한다. 각 상한의 근거(현재 실측치)를 테스트 주석 또는 spec에 기록.
+상한값은 "현재 측정값 + 작은 여유"로 설정해 의도적 증가는 통과시키되 우발적 폭증을 차단한다. **각 상한의 근거가 되는 실측치를 측정해 테스트 주석 + 이 spec(또는 README)에 기록하는 것을 명시적 산출물로 둔다** — assertion 임계값을 근거 없는 매직 넘버로 남기지 않는다.
 
 ### 2.5 teeth (뮤테이션 검증)
 
@@ -64,9 +64,9 @@
 
 ### 3.2 대상 환경
 
-기존 "라이브 풀스택 스모크" 워크플로우를 재사용한다.
+기존 "라이브 풀스택 스모크" **수동 절차**(자동 CI 워크플로우가 아니라 백로그 운영 메모에 기록된 절차)를 재사용한다.
 
-- docker: postgres(5442) + redis + kafka
+- docker: `docker-compose.yml`의 postgres(`5432:5432`) + redis + kafka. (백로그 메모의 "5442"는 실제 compose와 불일치하는 오기 — 실제 매핑은 5432)
 - `bootRun` 기동, `MANAGEMENT_TRACING_ENABLED=false` (otel exporter가 요청을 블록하는 기존 함정 회피)
 - Gatling이 `localhost:8080`을 외부에서 부하
 
@@ -74,10 +74,13 @@ Testcontainers in-process 부하가 아닌 **실부팅 외부 부하**를 택한
 
 ### 3.3 시나리오
 
-1. 인증: 로그인 → access 토큰 확보 (이후 요청 헤더에 사용)
-2. 주문 생성: `POST /api/v2/orders` (실 엔드포인트 경로는 구현 시 확인)
-3. 커서 목록 조회: 주문/배차 목록 cursor 페이지네이션
-4. 배차 수락: carrier 토큰으로 수락
+1. **인증 (토큰 확보)**: 로그인은 Kakao OAuth 기반 — `POST /api/v2/auth/login`이 `kakaoAccessToken`을 받아 `loginWithKakao`로 처리한다. 따라서 Gatling이 단순 id/pw로 토큰을 얻을 수 없다. 부하 실행 전 토큰 확보 방법을 다음 중 하나로 둔다(plan에서 확정):
+   - **(권장) loadtest 전용 토큰 발급**: 비프로덕션 profile에서 JWT를 직접 발급(`JwtProvider` 재사용)하거나 미리 시드한 사용자에 대해 토큰을 생성하는 경로/유틸을 둔다. 백로그 #11 "비프로덕션 dev-login(`@Profile("!prod")`)"과 동일선상 — 이 작업에서 최소 형태로 도입할 수 있다.
+   - **(대안) Kakao 클라이언트 stub**: loadtest profile에서 `KakaoOAuthClient`를 stub으로 교체해 임의 `kakaoAccessToken`을 통과시킨다.
+   - 토큰은 CUSTOMER(주문생성·목록) 1종 + CARRIER(배차수락) 1종 필요.
+2. 주문 생성: `POST /api/v2/orders`
+3. 커서 목록 조회: `GET /api/v2/orders/my` / `GET /api/v2/dispatches/available` (cursor 페이지네이션)
+4. 배차 수락: CARRIER 토큰으로 `POST /api/v2/dispatches/{id}/accept`
 
 각 시나리오에 ramp-up 사용자 부하를 주고 p50/p95/p99 + 처리량을 측정.
 
@@ -113,6 +116,7 @@ Testcontainers in-process 부하가 아닌 **실부팅 외부 부하**를 택한
 | Tier1 쿼리 상한이 너무 빡빡해 정당한 변경에도 RED | 상한 = 실측 + 여유, 근거 기록. 실패 시 의도성 검토 후 조정 |
 | Tier2 Gatling이 빌드를 무겁게 | 전용 소스셋/모듈로 격리, 일반 빌드 의존성에서 제외 |
 | Gatling Kotlin 미지원 마찰 | Java DSL 사용(공식 지원), 시나리오는 Java로 작성 가능 |
+| 도구 버전 비호환 (version catalog 없음, 인라인 의존성·Gradle 8.12.1·JDK 21) | plan 단계에서 `datasource-proxy`·`gatling-gradle-plugin` 버전을 명시 핀하고 Gradle 8.12.1/JDK 21 toolchain 호환을 사전 검증 |
 | 부하 시 otel exporter 블록(기존 함정) | `MANAGEMENT_TRACING_ENABLED=false`, 필요시 `-Dotel.sdk.disabled=true` |
 | datasource-proxy가 프로덕션 경로 오염 | test profile/소스셋 한정 래핑, 프로덕션 DataSource 무변경 |
 
