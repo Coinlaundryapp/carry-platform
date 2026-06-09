@@ -143,3 +143,18 @@ groups:
           summary: '주문 생성률이 전일 대비 50% 이하로 떨어졌습니다'
           description: 'today/yesterday={{ $value | humanizePercentage }} (<50%, 1h 비교)'
           runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/order-volume-drop.md'
+
+      # Rule #9 — 정체 사가 (StuckSagaDetector가 6h+ 비종결 중간 상태 정체 감지, 30분 증분 > 0)
+      # carry_saga_stuck_total{status}은 StuckSagaDetector(@Scheduled)가 정체 주문 1건당 증가시킨다.
+      - alert: SagaStuck
+        expr: sum by(status) (increase(carry_saga_stuck_total[30m])) > 0
+        for: 5m
+        labels:
+          severity: warning
+          route: business
+          team: carry
+          service: carry-platform
+        annotations:
+          summary: '정체된 주문 사가가 감지됐습니다 (status={{ $labels.status }})'
+          description: '비종결 중간 상태 status={{ $labels.status }} 에 6h+ 정체된 주문이 있습니다 (최근 30분 내 감지, StuckSagaDetector 기준)'
+          runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/saga-stuck.md'
