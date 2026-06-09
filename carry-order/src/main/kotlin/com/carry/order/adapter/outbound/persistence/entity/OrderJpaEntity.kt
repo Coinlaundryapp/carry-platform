@@ -3,6 +3,7 @@ package com.carry.order.adapter.outbound.persistence.entity
 import com.carry.infra.persistence.BaseEntity
 import com.carry.order.domain.model.Order
 import com.carry.order.domain.vo.CancelledBy
+import com.carry.order.domain.vo.OrderCancellation
 import com.carry.order.domain.vo.OrderShippingAddress
 import com.carry.order.domain.vo.OrderStatus
 import com.carry.order.domain.vo.SelectedOption
@@ -99,9 +100,8 @@ class OrderJpaEntity(
         invoiceId = invoiceId,
         totalAmount = totalAmount,
         actualWeight = actualWeight,
-        cancelReason = cancelReason,
-        cancelledBy = cancelledBy,
-        cancelledAt = cancelledAt,
+        // 취소 컬럼은 cancel() 에서 항상 함께 채워지므로 셋 중 하나(사유)로 존재 여부를 판정한다.
+        cancellation = cancelReason?.let { OrderCancellation(it, cancelledBy!!, cancelledAt!!) },
         completedAt = completedAt,
         createdAt = createdAt!!,
         updatedAt = updatedAt!!,
@@ -113,9 +113,9 @@ class OrderJpaEntity(
         invoiceId = order.invoiceId
         totalAmount = order.totalAmount
         actualWeight = order.actualWeight
-        cancelReason = order.cancelReason
-        cancelledBy = order.cancelledBy
-        cancelledAt = order.cancelledAt
+        cancelReason = order.cancellation?.reason
+        cancelledBy = order.cancellation?.by
+        cancelledAt = order.cancellation?.at
         completedAt = order.completedAt
     }
 
@@ -141,9 +141,9 @@ class OrderJpaEntity(
                 invoiceId = order.invoiceId,
                 totalAmount = order.totalAmount,
                 actualWeight = order.actualWeight,
-                cancelReason = order.cancelReason,
-                cancelledBy = order.cancelledBy,
-                cancelledAt = order.cancelledAt,
+                cancelReason = order.cancellation?.reason,
+                cancelledBy = order.cancellation?.by,
+                cancelledAt = order.cancellation?.at,
                 completedAt = order.completedAt,
             )
             order.selectedOptions.forEach { opt ->

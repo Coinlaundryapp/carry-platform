@@ -194,7 +194,7 @@ class PaymentSagaIntegrationTest : IntegrationTestBase() {
 
         val order = orderPersistencePort.findById(orderId)!!
         assertThat(order.status).isEqualTo(OrderStatus.CANCELLED)
-        assertThat(order.cancelledBy).isEqualTo(CancelledBy.SYSTEM)
+        assertThat(order.cancellation?.by).isEqualTo(CancelledBy.SYSTEM)
         outbox.assertOutboxContains("Order", "OrderCancelledEvent", orderId.toString())
 
         // 실패한 결제만 있으므로 자동 환불은 일어나지 않는다(throw 없이 skip)

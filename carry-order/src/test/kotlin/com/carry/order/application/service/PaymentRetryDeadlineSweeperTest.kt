@@ -37,7 +37,7 @@ class PaymentRetryDeadlineSweeperTest {
         selectedOptions = listOf(SelectedOption("WASH", "STANDARD")),
         shippingAddress = address, desiredPickupAt = now, desiredDeliveryAt = now.plus(4, ChronoUnit.HOURS),
         carrierId = 100L, invoiceId = 200L, totalAmount = 18000L, actualWeight = java.math.BigDecimal("5.0"),
-        cancelReason = null, cancelledBy = null, cancelledAt = null, completedAt = null,
+        cancellation = null, completedAt = null,
         createdAt = now, updatedAt = now,
     )
 
