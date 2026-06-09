@@ -12,6 +12,7 @@ import com.carry.event.order.ShippingAddressDto
 import com.carry.event.port.EventPublisherPort
 import com.carry.order.application.port.inbound.CreateOrderCommand
 import com.carry.order.application.port.inbound.OrderCommandUseCase
+import com.carry.order.application.port.outbound.IdempotencyPort
 import com.carry.order.application.port.outbound.LaundromatQueryPort
 import com.carry.order.application.port.outbound.OrderPersistencePort
 import com.carry.order.application.port.outbound.ServiceAvailabilityQueryPort
@@ -35,11 +36,25 @@ class OrderCommandService(
     private val eventPublisher: EventPublisherPort,
     private val metrics: MetricsPort,
     private val auditPort: AuditPort,
+    private val idempotencyPort: IdempotencyPort,
     private val clock: Clock,
 ) : OrderCommandUseCase {
 
     @Transactional
     override fun createOrder(command: CreateOrderCommand): Order {
+        val key = command.idempotencyKey
+        if (key != null) {
+            // 이미 완료된 동일 키 → 새로 만들지 않고 기존 주문을 재생.
+            idempotencyPort.findCompletedOrderId(key)?.let { return findOrder(it) }
+            // 선점 실패 = 같은 키가 진행 중(또는 동시 요청 레이스의 패자) → 409.
+            if (!idempotencyPort.reserve(key)) {
+                throw BusinessException(
+                    ErrorCode.IDEMPOTENT_REQUEST_IN_PROGRESS,
+                    "동일한 Idempotency-Key 요청이 이미 진행 중입니다: $key",
+                )
+            }
+        }
+
         val address = userQueryPort.getShippingAddress(command.customerId, command.shippingAddressId)
         if (!laundromatQueryPort.existsById(command.laundromatId)) {
             throw BusinessException(ErrorCode.LAUNDROMAT_NOT_FOUND, "세탁소를 찾을 수 없습니다: ${command.laundromatId}")
@@ -83,9 +98,17 @@ class OrderCommandService(
             ),
         )
 
+        // 결과를 긴 TTL로 저장 → 이후 동일 키 요청은 위 findCompletedOrderId 분기로 재생된다.
+        if (key != null) {
+            idempotencyPort.complete(key, saved.id!!)
+        }
+
         metrics.incrementCounter("carry.order.created")
         return saved
     }
+
+    private fun findOrder(orderId: Long): Order =
+        orderPersistencePort.findById(orderId) ?: throw OrderNotFoundException(orderId)
 
     // 내부/코디네이터/시스템 등 다중 액터용 (cancelledBy 명시).
     @Transactional

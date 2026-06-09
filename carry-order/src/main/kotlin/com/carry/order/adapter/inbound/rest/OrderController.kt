@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
@@ -37,6 +38,8 @@ class OrderController(
     @PostMapping
     fun createOrder(
         @Parameter(hidden = true) @AuthenticationPrincipal userId: Long,
+        @Parameter(description = "중복 생성 방지용 멱등성 키(재시도 시 동일 값 전송)")
+        @RequestHeader(value = "Idempotency-Key", required = false) idempotencyKey: String?,
         @Valid @RequestBody request: CreateOrderRequest,
     ): ResponseEntity<ApiResponse<OrderResponse>> {
         val command = CreateOrderCommand(
@@ -47,6 +50,7 @@ class OrderController(
             selectedOptions = request.selectedOptions.map { SelectedOptionCommand(it.optionType, it.subOptionType) },
             desiredPickupAt = request.desiredPickupAt,
             desiredDeliveryAt = request.desiredDeliveryAt,
+            idempotencyKey = idempotencyKey,
         )
         val order = orderCommandUseCase.createOrder(command)
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(OrderResponse.from(order)))
