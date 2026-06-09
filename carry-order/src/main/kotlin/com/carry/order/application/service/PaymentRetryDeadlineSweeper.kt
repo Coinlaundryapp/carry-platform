@@ -4,6 +4,7 @@ import com.carry.order.application.port.inbound.OrderCommandUseCase
 import com.carry.order.application.port.outbound.OrderPersistencePort
 import com.carry.order.domain.vo.CancelledBy
 import com.carry.order.domain.vo.OrderStatus
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.scheduling.annotation.Scheduled
@@ -17,8 +18,8 @@ import java.time.temporal.ChronoUnit
  * 결제 실패 시 주문을 즉시 버리지 않고 재결제 창을 주지만(코인세탁은 결제가 픽업 이후),
  * 무한정 PAYMENT_FAILED 로 방치하면 좀비 주문이 된다. 시한 초과 시 SYSTEM 취소로 종결한다.
  *
- * 멀티 인스턴스 환경에서 중복 실행돼도 cancelOrder 의 상태 가드로 멱등하다.
- * ShedLock 분산 락은 후속 하드닝 대상(기존 갭 B2).
+ * 멀티 인스턴스 환경에선 @SchedulerLock 으로 매 주기 한 노드만 실행한다(ShedLock).
+ * 락이 풀려 중복 실행되더라도 cancelOrder 의 상태 가드로 멱등하다.
  */
 @Component
 class PaymentRetryDeadlineSweeper(
@@ -30,6 +31,7 @@ class PaymentRetryDeadlineSweeper(
     private val log = LoggerFactory.getLogger(javaClass)
 
     @Scheduled(fixedRateString = "\${carry.order.payment-retry-sweep-interval-ms:3600000}")
+    @SchedulerLock(name = "paymentRetryDeadlineSweep", lockAtMostFor = "PT30M", lockAtLeastFor = "PT0S")
     fun sweepExpiredPaymentFailedOrders() {
         val cutoff = clock.instant().minus(deadlineHours, ChronoUnit.HOURS)
         val expired = orderPersistencePort.findByStatusAndUpdatedAtBefore(OrderStatus.PAYMENT_FAILED, cutoff)

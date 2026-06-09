@@ -3,6 +3,7 @@ package com.carry.order.application.service
 import com.carry.common.metrics.MetricsPort
 import com.carry.order.application.port.outbound.OrderPersistencePort
 import com.carry.order.domain.vo.OrderStatus
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.scheduling.annotation.Scheduled
@@ -31,6 +32,7 @@ class StuckSagaDetector(
     private val log = LoggerFactory.getLogger(javaClass)
 
     @Scheduled(fixedRateString = "\${carry.order.stuck-saga-scan-interval-ms:600000}")
+    @SchedulerLock(name = "stuckSagaScan", lockAtMostFor = "PT9M", lockAtLeastFor = "PT0S")
     fun detectStuckSagas() {
         val cutoff = clock.instant().minus(thresholdHours, ChronoUnit.HOURS)
         WATCHED_STATUSES.forEach { status ->
