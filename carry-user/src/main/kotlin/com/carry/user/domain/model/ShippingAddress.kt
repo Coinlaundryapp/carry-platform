@@ -4,6 +4,7 @@ import com.carry.common.exception.requireInput
 import com.carry.common.exception.checkState
 import com.carry.user.domain.vo.Address
 import com.carry.user.domain.vo.Coordinates
+import com.carry.user.domain.vo.Recipient
 import java.time.Instant
 
 class ShippingAddress private constructor(
@@ -12,8 +13,7 @@ class ShippingAddress private constructor(
     private var _alias: String,
     private var _address: Address,
     private var _coordinates: Coordinates,
-    private var _recipientName: String,
-    private var _recipientPhone: String,
+    private var _recipient: Recipient,
     private var _entranceInfo: String?,
     private var _areaCode: String,
     private var _default: Boolean,
@@ -23,8 +23,9 @@ class ShippingAddress private constructor(
     val alias: String get() = _alias
     val address: Address get() = _address
     val coordinates: Coordinates get() = _coordinates
-    val recipientName: String get() = _recipientName
-    val recipientPhone: String get() = _recipientPhone
+    val recipient: Recipient get() = _recipient
+    val recipientName: String get() = _recipient.name
+    val recipientPhone: String get() = _recipient.phone
     val entranceInfo: String? get() = _entranceInfo
     val areaCode: String get() = _areaCode
     val isDefault: Boolean get() = _default
@@ -33,20 +34,16 @@ class ShippingAddress private constructor(
         alias: String,
         address: Address,
         coordinates: Coordinates,
-        recipientName: String,
-        recipientPhone: String,
+        recipient: Recipient,
         entranceInfo: String?,
         areaCode: String,
     ) {
         requireInput(alias.isNotBlank()) { "배송지 별칭은 비어있을 수 없습니다" }
-        requireInput(recipientName.isNotBlank()) { "수령인 이름은 비어있을 수 없습니다" }
-        requireInput(recipientPhone.isNotBlank()) { "수령인 전화번호는 비어있을 수 없습니다" }
         requireInput(areaCode.isNotBlank()) { "지역 코드는 비어있을 수 없습니다" }
         _alias = alias
         _address = address
         _coordinates = coordinates
-        _recipientName = recipientName
-        _recipientPhone = recipientPhone
+        _recipient = recipient
         _entranceInfo = entranceInfo
         _areaCode = areaCode
     }
@@ -68,15 +65,12 @@ class ShippingAddress private constructor(
             alias: String,
             address: Address,
             coordinates: Coordinates,
-            recipientName: String,
-            recipientPhone: String,
+            recipient: Recipient,
             entranceInfo: String? = null,
             areaCode: String,
             isDefault: Boolean = false,
         ): ShippingAddress {
             requireInput(alias.isNotBlank()) { "배송지 별칭은 비어있을 수 없습니다" }
-            requireInput(recipientName.isNotBlank()) { "수령인 이름은 비어있을 수 없습니다" }
-            requireInput(recipientPhone.isNotBlank()) { "수령인 전화번호는 비어있을 수 없습니다" }
             requireInput(areaCode.isNotBlank()) { "지역 코드는 비어있을 수 없습니다" }
             return ShippingAddress(
                 id = null,
@@ -84,8 +78,7 @@ class ShippingAddress private constructor(
                 _alias = alias,
                 _address = address,
                 _coordinates = coordinates,
-                _recipientName = recipientName,
-                _recipientPhone = recipientPhone,
+                _recipient = recipient,
                 _entranceInfo = entranceInfo,
                 _areaCode = areaCode,
                 _default = isDefault,
@@ -100,8 +93,7 @@ class ShippingAddress private constructor(
             alias: String,
             address: Address,
             coordinates: Coordinates,
-            recipientName: String,
-            recipientPhone: String,
+            recipient: Recipient,
             entranceInfo: String?,
             areaCode: String,
             isDefault: Boolean,
@@ -113,8 +105,7 @@ class ShippingAddress private constructor(
             _alias = alias,
             _address = address,
             _coordinates = coordinates,
-            _recipientName = recipientName,
-            _recipientPhone = recipientPhone,
+            _recipient = recipient,
             _entranceInfo = entranceInfo,
             _areaCode = areaCode,
             _default = isDefault,
