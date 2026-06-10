@@ -3,6 +3,8 @@ package com.carry.notification.adapter.outbound.persistence.entity
 import com.carry.infra.persistence.BaseEntity
 import com.carry.notification.domain.model.Notification
 import com.carry.notification.domain.vo.NotificationChannel
+import com.carry.notification.domain.vo.NotificationMessage
+import com.carry.notification.domain.vo.NotificationReference
 import com.carry.notification.domain.vo.NotificationStatus
 import com.carry.notification.domain.vo.NotificationType
 import jakarta.persistence.Column
@@ -56,11 +58,9 @@ class NotificationJpaEntity(
         recipientContact = recipientContact,
         type = type,
         channel = channel,
-        title = title,
-        content = content,
+        message = NotificationMessage(title, content),
         status = status,
-        referenceType = referenceType,
-        referenceId = referenceId,
+        reference = referenceType?.let { NotificationReference(it, referenceId!!) },
         sentAt = sentAt,
         failReason = failReason,
         createdAt = createdAt,

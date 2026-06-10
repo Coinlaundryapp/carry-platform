@@ -1,6 +1,7 @@
 package com.carry.serviceavailability.adapter.outbound.persistence.entity
 
 import com.carry.infra.persistence.BaseEntity
+import com.carry.infra.persistence.replaceAllFrom
 import com.carry.serviceavailability.domain.model.ServiceArea
 import com.carry.serviceavailability.domain.vo.AreaStatus
 import jakarta.persistence.CascadeType
@@ -48,10 +49,8 @@ class ServiceAreaJpaEntity(
 
     fun updateFrom(area: ServiceArea) {
         status = area.status
-        schedules.clear()
-        schedules.addAll(area.schedules.map { OperatingScheduleJpaEntity.fromDomain(it) })
-        holidays.clear()
-        holidays.addAll(area.holidays.map { HolidayOverrideJpaEntity.fromDomain(it) })
+        schedules.replaceAllFrom(area.schedules) { OperatingScheduleJpaEntity.fromDomain(it) }
+        holidays.replaceAllFrom(area.holidays) { HolidayOverrideJpaEntity.fromDomain(it) }
     }
 
     companion object {

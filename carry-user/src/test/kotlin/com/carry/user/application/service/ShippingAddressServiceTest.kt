@@ -8,6 +8,7 @@ import com.carry.user.domain.exception.ShippingAddressNotOwnedException
 import com.carry.user.domain.model.ShippingAddress
 import com.carry.user.domain.vo.Address
 import com.carry.user.domain.vo.Coordinates
+import com.carry.user.domain.vo.Recipient
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -36,8 +37,7 @@ class ShippingAddressServiceTest {
         alias = "집",
         address = address,
         coordinates = coords,
-        recipientName = "홍길동",
-        recipientPhone = "01012345678",
+        recipient = Recipient("홍길동", "01012345678"),
         entranceInfo = null,
         areaCode = "GANGNAM",
         isDefault = isDefault,

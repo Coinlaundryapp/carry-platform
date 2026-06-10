@@ -9,6 +9,7 @@ import com.carry.user.application.service.ShippingAddressService
 import com.carry.user.domain.model.ShippingAddress
 import com.carry.user.domain.vo.Address
 import com.carry.user.domain.vo.Coordinates
+import com.carry.user.domain.vo.Recipient
 import java.time.Instant
 
 class UserQueryPortAdapterContractTest : UserQueryPortContract() {
@@ -31,8 +32,7 @@ class UserQueryPortAdapterContractTest : UserQueryPortContract() {
                     zipCode = requireNotNull(expected.zipCode) { "계약상 zipCode는 non-null" },
                 ),
                 coordinates = Coordinates(expected.latitude, expected.longitude),
-                recipientName = expected.recipientName,
-                recipientPhone = expected.recipientPhone,
+                recipient = Recipient(expected.recipientName, expected.recipientPhone),
                 entranceInfo = expected.entranceInfo,
                 areaCode = expected.areaCode,
                 isDefault = false,
