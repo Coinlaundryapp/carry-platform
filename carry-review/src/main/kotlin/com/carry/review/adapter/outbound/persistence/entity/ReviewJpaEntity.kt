@@ -9,6 +9,7 @@ import jakarta.persistence.Entity
 import jakarta.persistence.FetchType
 import jakarta.persistence.OneToMany
 import jakarta.persistence.Table
+import jakarta.persistence.Version
 
 @Entity
 @Table(name = "review_reviews")
@@ -28,6 +29,15 @@ class ReviewJpaEntity(
     @OneToMany(mappedBy = "review", cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.LAZY)
     val mediaList: MutableList<ReviewMediaJpaEntity> = mutableListOf(),
 ) : BaseEntity() {
+
+    /**
+     * JPA optimistic locking 카운터. 두 트랜잭션이 동일 애그리거트를 동시 변경하면
+     * 두 번째 commit에서 OptimisticLockingFailureException이 발생한다.
+     */
+    @Version
+    @Column(nullable = false)
+    var version: Long = 0
+        protected set
 
     fun toDomain(): Review = Review.reconstitute(
         id = id,
