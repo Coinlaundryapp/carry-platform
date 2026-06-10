@@ -1,6 +1,7 @@
 package com.carry.review.adapter.outbound.persistence.entity
 
 import com.carry.infra.persistence.BaseEntity
+import com.carry.infra.persistence.replaceAllFrom
 import com.carry.review.domain.model.Review
 import com.carry.review.domain.vo.ReviewRating
 import jakarta.persistence.CascadeType
@@ -54,9 +55,8 @@ class ReviewJpaEntity(
         comment = review.comment
         rating = review.rating.value
 
-        mediaList.clear()
-        review.mediaUrls.forEach { url ->
-            mediaList.add(ReviewMediaJpaEntity(review = this, mediaUrl = url))
+        mediaList.replaceAllFrom(review.mediaUrls) { url ->
+            ReviewMediaJpaEntity(review = this, mediaUrl = url)
         }
     }
 

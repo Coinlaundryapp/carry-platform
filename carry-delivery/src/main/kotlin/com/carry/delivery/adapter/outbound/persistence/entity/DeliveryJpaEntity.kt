@@ -66,7 +66,9 @@ class DeliveryJpaEntity(
         status = delivery.status
         actualWeight = delivery.actualWeight
 
-        // Update existing steps
+        // steps는 stepType 기준 in-place 갱신(행 식별자·@Version 보존)으로 동기화한다.
+        // 자식을 삭제/재삽입하는 "전체 교체"(replaceAllFrom)와 의미가 다르므로 의도적으로
+        // 다른 패턴을 유지한다.
         delivery.steps.forEach { domainStep ->
             val existingStep = steps.find { it.stepType == domainStep.stepType }
             existingStep?.updateFrom(domainStep)
