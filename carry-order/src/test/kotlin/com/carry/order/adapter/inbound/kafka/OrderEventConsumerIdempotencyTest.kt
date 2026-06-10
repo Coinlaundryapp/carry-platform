@@ -3,7 +3,6 @@ package com.carry.order.adapter.inbound.kafka
 import com.carry.event.dispatch.DispatchAcceptedEvent
 import com.carry.infra.kafka.consumer.EventConsumerSupport
 import com.carry.infra.kafka.consumer.OutboxEventEnvelope
-import com.carry.infra.kafka.consumer.ProcessedEvent
 import com.carry.infra.kafka.consumer.ProcessedEventRepository
 import com.carry.order.application.port.inbound.OrderSagaEventHandler
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
@@ -11,6 +10,7 @@ import io.micrometer.tracing.Tracer
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import java.time.Instant
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.junit.jupiter.api.Test
 
@@ -29,15 +29,13 @@ class OrderEventConsumerIdempotencyTest {
     private val objectMapper = jacksonObjectMapper()
     private val sagaHandler = mockk<OrderSagaEventHandler>(relaxed = true)
 
-    /** existsById/save가 실제로 동작하는 in-memory fake (키 = ProcessedEvent.id). */
+    /** claim()이 실제로 동작하는 in-memory fake (키 = eventId). 최초 1, 이후 0. */
     private fun inMemoryEventConsumerSupport(): EventConsumerSupport {
         val processedIds = mutableSetOf<String>()
         val repo = mockk<ProcessedEventRepository>()
-        every { repo.existsById(any<String>()) } answers { processedIds.contains(firstArg()) }
-        every { repo.save(any<ProcessedEvent>()) } answers {
-            val event = firstArg<ProcessedEvent>()
-            processedIds.add(event.id)
-            event
+        // processedAt(타임스탬프)은 dedup 키 라우팅 검증과 무관하므로 매칭만 하고 무시한다.
+        every { repo.claim(any<String>(), any<Instant>()) } answers {
+            if (processedIds.add(firstArg<String>())) 1 else 0
         }
         return EventConsumerSupport(repo, mockk<Tracer>(relaxed = true))
     }
