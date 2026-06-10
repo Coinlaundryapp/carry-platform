@@ -2,6 +2,8 @@ package com.carry.payment.application.service
 
 import com.carry.audit.domain.AuditAction
 import com.carry.audit.port.AuditPort
+import com.carry.common.exception.BusinessException
+import com.carry.common.exception.ErrorCode
 import com.carry.common.metrics.MetricsPort
 import com.carry.event.payment.PaymentCompletedEvent
 import com.carry.event.payment.PaymentFailedEvent
@@ -10,6 +12,7 @@ import com.carry.event.port.EventPublisherPort
 import com.carry.payment.application.port.inbound.PaymentCommandUseCase
 import com.carry.payment.application.port.inbound.RequestPaymentCommand
 import com.carry.payment.application.port.outbound.InvoicePersistencePort
+import com.carry.payment.application.port.outbound.PaymentIdempotencyPort
 import com.carry.payment.application.port.outbound.PaymentPersistencePort
 import com.carry.payment.application.port.outbound.PaymentGatewayResolver
 import com.carry.payment.application.port.outbound.PgPaymentRequest
@@ -32,11 +35,25 @@ class PaymentCommandService(
     private val eventPublisher: EventPublisherPort,
     private val metrics: MetricsPort,
     private val auditPort: AuditPort,
+    private val idempotencyPort: PaymentIdempotencyPort,
     private val clock: Clock,
 ) : PaymentCommandUseCase {
 
     @Transactional
     override fun requestPayment(command: RequestPaymentCommand): Payment {
+        val key = command.idempotencyKey
+        if (key != null) {
+            // 이미 완료된 동일 키 → PG 재호출 없이 기존 결제(성공·실패 무관)를 재생.
+            idempotencyPort.findCompletedPaymentId(key)?.let { return findPayment(it) }
+            // 선점 실패 = 같은 키가 진행 중(또는 동시 요청 레이스의 패자) → 409.
+            if (!idempotencyPort.reserve(key)) {
+                throw BusinessException(
+                    ErrorCode.IDEMPOTENT_REQUEST_IN_PROGRESS,
+                    "동일한 Idempotency-Key 요청이 이미 진행 중입니다: $key",
+                )
+            }
+        }
+
         val invoice = invoicePersistencePort.findByOrderId(command.orderId)
             ?: throw InvoiceNotFoundException("orderId=${command.orderId}")
 
@@ -83,6 +100,7 @@ class PaymentCommandService(
                 ),
             )
 
+            key?.let { idempotencyPort.complete(it, saved.id!!) }
             metrics.incrementCounter("carry.payment.success", "pg" to command.pgProvider.name)
             return saved
         } else {
@@ -100,10 +118,16 @@ class PaymentCommandService(
                 ),
             )
 
+            // 정상 반환하는 FAILED 결과도 complete — 동일 키 재시도는 이 결과를 재생(같은 키=같은 작업).
+            // 진짜 재시도는 새 키를 쓴다. PG '예외'(CB OPEN 등)는 트랜잭션 롤백 + complete 미호출 → pendingTtl 만료 후 재시도.
+            key?.let { idempotencyPort.complete(it, saved.id!!) }
             metrics.incrementCounter("carry.payment.failure", "pg" to command.pgProvider.name)
             return saved
         }
     }
+
+    private fun findPayment(id: Long): Payment =
+        paymentPersistencePort.findById(id) ?: throw PaymentNotFoundException("id=$id")
 
     @Transactional
     override fun markRefundPending(orderId: Long) {
