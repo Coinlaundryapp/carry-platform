@@ -5,6 +5,8 @@ import com.carry.notification.application.port.outbound.NotificationPersistenceP
 import com.carry.notification.application.port.outbound.NotificationSenderPort
 import com.carry.notification.domain.model.Notification
 import com.carry.notification.domain.vo.NotificationChannel
+import com.carry.notification.domain.vo.NotificationMessage
+import com.carry.notification.domain.vo.NotificationReference
 import com.carry.notification.domain.vo.NotificationStatus
 import com.carry.notification.domain.vo.NotificationType
 import io.mockk.every
@@ -52,11 +54,9 @@ class NotificationCommandServiceTest {
                     recipientContact = saved.captured.recipientContact,
                     type = saved.captured.type,
                     channel = saved.captured.channel,
-                    title = saved.captured.title,
-                    content = saved.captured.content,
+                    message = NotificationMessage(saved.captured.title, saved.captured.content),
                     status = saved.captured.status,
-                    referenceType = saved.captured.referenceType,
-                    referenceId = saved.captured.referenceId,
+                    reference = saved.captured.referenceType?.let { NotificationReference(it, saved.captured.referenceId!!) },
                     sentAt = saved.captured.sentAt,
                     failReason = saved.captured.failReason,
                     createdAt = now,
@@ -81,11 +81,9 @@ class NotificationCommandServiceTest {
                     recipientContact = saved.captured.recipientContact,
                     type = saved.captured.type,
                     channel = saved.captured.channel,
-                    title = saved.captured.title,
-                    content = saved.captured.content,
+                    message = NotificationMessage(saved.captured.title, saved.captured.content),
                     status = saved.captured.status,
-                    referenceType = saved.captured.referenceType,
-                    referenceId = saved.captured.referenceId,
+                    reference = saved.captured.referenceType?.let { NotificationReference(it, saved.captured.referenceId!!) },
                     sentAt = saved.captured.sentAt,
                     failReason = saved.captured.failReason,
                     createdAt = now,
@@ -112,11 +110,9 @@ class NotificationCommandServiceTest {
                     recipientContact = saved.captured.recipientContact,
                     type = saved.captured.type,
                     channel = saved.captured.channel,
-                    title = saved.captured.title,
-                    content = saved.captured.content,
+                    message = NotificationMessage(saved.captured.title, saved.captured.content),
                     status = saved.captured.status,
-                    referenceType = saved.captured.referenceType,
-                    referenceId = saved.captured.referenceId,
+                    reference = saved.captured.referenceType?.let { NotificationReference(it, saved.captured.referenceId!!) },
                     sentAt = saved.captured.sentAt,
                     failReason = saved.captured.failReason,
                     createdAt = now,

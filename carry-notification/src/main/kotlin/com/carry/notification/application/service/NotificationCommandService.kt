@@ -5,6 +5,8 @@ import com.carry.notification.application.port.inbound.SendNotificationCommand
 import com.carry.notification.application.port.outbound.NotificationPersistencePort
 import com.carry.notification.application.port.outbound.NotificationSenderPort
 import com.carry.notification.domain.model.Notification
+import com.carry.notification.domain.vo.NotificationMessage
+import com.carry.notification.domain.vo.NotificationReference
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -26,10 +28,8 @@ class NotificationCommandService(
             recipientContact = command.recipientContact,
             type = command.type,
             channel = command.channel,
-            title = command.title,
-            content = command.content,
-            referenceType = command.referenceType,
-            referenceId = command.referenceId,
+            message = NotificationMessage(command.title, command.content),
+            reference = command.referenceType?.let { NotificationReference(it, command.referenceId!!) },
             now = clock.instant(),
         )
 
