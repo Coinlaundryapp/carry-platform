@@ -26,4 +26,5 @@ data class RequestPaymentCommand(
     val customerId: Long,
     val pgProvider: PgProvider,
     val paymentKey: String,
+    val idempotencyKey: String? = null,
 )

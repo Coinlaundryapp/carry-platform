@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
@@ -36,16 +37,20 @@ class ReviewController(
     private val reviewQueryUseCase: ReviewQueryUseCase,
 ) {
 
-    @Operation(summary = "리뷰 작성")
+    @Operation(
+        summary = "리뷰 작성",
+        description = "리뷰를 작성합니다. Idempotency-Key 헤더 제공 시 동일 키 재요청은 기존 리뷰를 재생합니다(중복 작성 방지).",
+    )
     @ApiResponses(
         value = [
             SwaggerApiResponse(responseCode = "201", description = "리뷰 작성 성공"),
-            SwaggerApiResponse(responseCode = "409", description = "이미 작성한 리뷰"),
+            SwaggerApiResponse(responseCode = "409", description = "이미 작성한 리뷰 / 동일 Idempotency-Key 요청 진행 중"),
         ],
     )
     @PostMapping
     fun createReview(
         @Parameter(hidden = true) @AuthenticationPrincipal userId: Long,
+        @RequestHeader(value = "Idempotency-Key", required = false) idempotencyKey: String?,
         @Valid @RequestBody request: CreateReviewRequest,
     ): ResponseEntity<ApiResponse<ReviewResponse>> {
         val command = CreateReviewCommand(
@@ -54,6 +59,7 @@ class ReviewController(
             comment = request.comment,
             rating = request.rating,
             mediaUrls = request.mediaUrls,
+            idempotencyKey = idempotencyKey,
         )
         val review = reviewCommandUseCase.createReview(command)
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(ReviewResponse.from(review)))

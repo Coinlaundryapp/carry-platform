@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
@@ -35,12 +36,16 @@ class PaymentController(
     private val invoiceQueryUseCase: InvoiceQueryUseCase,
 ) {
 
-    @Operation(summary = "결제 요청", description = "주문에 대한 결제를 요청합니다")
-    @ApiResponses(value = [SwaggerApiResponse(responseCode = "201", description = "결제 요청 성공"), SwaggerApiResponse(responseCode = "400", description = "잘못된 요청"), SwaggerApiResponse(responseCode = "404", description = "주문을 찾을 수 없음")])
+    @Operation(
+        summary = "결제 요청",
+        description = "주문에 대한 결제를 요청합니다. Idempotency-Key 헤더 제공 시 동일 키 재요청은 기존 결과를 재생하며(이중 청구 방지), 진짜 재시도는 새 키를 사용합니다.",
+    )
+    @ApiResponses(value = [SwaggerApiResponse(responseCode = "201", description = "결제 요청 성공"), SwaggerApiResponse(responseCode = "400", description = "잘못된 요청"), SwaggerApiResponse(responseCode = "404", description = "주문을 찾을 수 없음"), SwaggerApiResponse(responseCode = "409", description = "동일 Idempotency-Key 요청 진행 중")])
     @PostMapping("/pay")
     fun requestPayment(
         @Parameter(hidden = true) @AuthenticationPrincipal userId: Long,
         @RequestParam orderId: Long,
+        @RequestHeader(value = "Idempotency-Key", required = false) idempotencyKey: String?,
         @Valid @RequestBody request: PaymentRequest,
     ): ResponseEntity<ApiResponse<PaymentResponse>> {
         val command = RequestPaymentCommand(
@@ -48,6 +53,7 @@ class PaymentController(
             customerId = userId,
             pgProvider = PgProvider.valueOf(request.pgProvider),
             paymentKey = request.paymentKey,
+            idempotencyKey = idempotencyKey,
         )
         val payment = paymentCommandUseCase.requestPayment(command)
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(PaymentResponse.from(payment)))

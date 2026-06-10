@@ -1,8 +1,10 @@
 package com.carry.review.application.service
 
+import com.carry.common.exception.BusinessException
 import com.carry.event.port.EventPublisherPort
 import com.carry.review.application.port.inbound.CreateReviewCommand
 import com.carry.review.application.port.inbound.UpdateReviewCommand
+import com.carry.review.application.port.outbound.ReviewIdempotencyPort
 import com.carry.review.application.port.outbound.ReviewPersistencePort
 import com.carry.review.domain.exception.ReviewNotFoundException
 import com.carry.review.domain.exception.ReviewNotOwnedException
@@ -24,11 +26,12 @@ class ReviewCommandServiceTest {
 
     private val reviewPersistencePort = mockk<ReviewPersistencePort>(relaxed = true)
     private val eventPublisher = mockk<EventPublisherPort>(relaxed = true)
+    private val idempotencyPort = mockk<ReviewIdempotencyPort>(relaxed = true)
 
     private val now = Instant.parse("2026-06-07T00:00:00Z")
     private val clock = Clock.fixed(now, ZoneOffset.UTC)
 
-    private val sut = ReviewCommandService(reviewPersistencePort, eventPublisher, clock)
+    private val sut = ReviewCommandService(reviewPersistencePort, eventPublisher, idempotencyPort, clock)
 
     private fun aCreateCommand() = CreateReviewCommand(
         laundromatId = 10L,
@@ -78,6 +81,56 @@ class ReviewCommandServiceTest {
             assertThat(result.rating).isEqualTo(ReviewRating.FIVE)
             assertThat(result.mediaUrls).hasSize(1)
             verify { eventPublisher.publish("Review", "42", "ReviewCreatedEvent", any(), any()) }
+        }
+    }
+
+    @Nested
+    inner class Idempotency {
+
+        @Test
+        fun `완료된 키는 저장 없이 기존 리뷰를 재생한다`() {
+            every { idempotencyPort.findCompletedReviewId("k") } returns 42L
+            every { reviewPersistencePort.findById(42L) } returns aReview(id = 42L)
+
+            val result = sut.createReview(aCreateCommand().copy(idempotencyKey = "k"))
+
+            assertThat(result.id).isEqualTo(42L)
+            verify(exactly = 0) { idempotencyPort.reserve(any()) }
+            verify(exactly = 0) { reviewPersistencePort.save(any()) }
+        }
+
+        @Test
+        fun `진행 중 키(선점 실패)는 409`() {
+            every { idempotencyPort.findCompletedReviewId("k") } returns null
+            every { idempotencyPort.reserve("k") } returns false
+
+            assertThatThrownBy { sut.createReview(aCreateCommand().copy(idempotencyKey = "k")) }
+                .isInstanceOf(BusinessException::class.java)
+
+            verify(exactly = 0) { reviewPersistencePort.save(any()) }
+        }
+
+        @Test
+        fun `신규 키는 reserve 후 저장하고 reviewId로 complete 한다`() {
+            every { idempotencyPort.findCompletedReviewId("k") } returns null
+            every { idempotencyPort.reserve("k") } returns true
+            val saved = slot<Review>()
+            every { reviewPersistencePort.save(capture(saved)) } answers {
+                Review.reconstitute(
+                    id = 77L,
+                    laundromatId = saved.captured.laundromatId,
+                    customerId = saved.captured.customerId,
+                    comment = saved.captured.comment,
+                    rating = saved.captured.rating,
+                    mediaUrls = saved.captured.mediaUrls,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            }
+
+            sut.createReview(aCreateCommand().copy(idempotencyKey = "k"))
+
+            verify { idempotencyPort.complete("k", 77L) }
         }
     }
 

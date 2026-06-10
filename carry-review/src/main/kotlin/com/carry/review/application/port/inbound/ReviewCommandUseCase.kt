@@ -8,6 +8,7 @@ data class CreateReviewCommand(
     val comment: String?,
     val rating: Int,
     val mediaUrls: List<String> = emptyList(),
+    val idempotencyKey: String? = null,
 )
 
 data class UpdateReviewCommand(
