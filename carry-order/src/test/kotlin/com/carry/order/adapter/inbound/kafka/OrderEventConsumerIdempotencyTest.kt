@@ -33,6 +33,7 @@ class OrderEventConsumerIdempotencyTest {
     private fun inMemoryEventConsumerSupport(): EventConsumerSupport {
         val processedIds = mutableSetOf<String>()
         val repo = mockk<ProcessedEventRepository>()
+        // processedAt(타임스탬프)은 dedup 키 라우팅 검증과 무관하므로 매칭만 하고 무시한다.
         every { repo.claim(any<String>(), any<Instant>()) } answers {
             if (processedIds.add(firstArg<String>())) 1 else 0
         }

@@ -96,7 +96,7 @@ class ConsumerIdempotencyIntegrationTest : IntegrationTestBase() {
      * 실패 롤백·순차 dedup은 위 두 테스트가 보장한다.
      */
     @Test
-    fun `같은 이벤트를 8개 스레드가 동시에 처리해도 처리 마킹은 정확히 한 번만 영속된다`() {
+    fun `같은 이벤트를 8개 스레드가 동시에 처리해도 부수효과와 처리 마킹이 각각 정확히 한 번만 커밋된다`() {
         val eventId = "evt-concurrent-1"
         val threads = 8
         val ready = CountDownLatch(threads)
@@ -131,7 +131,7 @@ class ConsumerIdempotencyIntegrationTest : IntegrationTestBase() {
         // 처리 마킹도 정확히 1행(DB PK + ON CONFLICT가 강제).
         assertThat(processed).isEqualTo(1)
         // 패자 스레드도 예외 없이 깨끗이 skip(0행 claim) → 전부 성공.
-        assertThat(ok).isEqualTo(threads)
-        assertThat(failed).isEqualTo(0)
+        assertThat(ok).`as`("ok=%d (expected all %d threads succeed) marker=%d processed=%d", ok, threads, marker, processed).isEqualTo(threads)
+        assertThat(failed).`as`("failed=%d (expected 0) marker=%d processed=%d", failed, marker, processed).isEqualTo(0)
     }
 }
