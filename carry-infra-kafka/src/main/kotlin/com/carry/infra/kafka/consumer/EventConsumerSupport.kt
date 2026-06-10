@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory
 import org.slf4j.MDC
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
+import java.time.Instant
 
 @Component
 class EventConsumerSupport(
@@ -15,7 +16,9 @@ class EventConsumerSupport(
 
     @Transactional
     fun processIfNotDuplicate(eventId: String, traceId: String? = null, eventType: String? = null, block: () -> Unit) {
-        if (processedEventRepository.existsById(eventId)) {
+        // claim-first: 처리 시작 전에 원자적으로 선점한다. 0행이면 이미 처리됨(중복) → skip.
+        // 동시 중복에서도 ON CONFLICT가 한 트랜잭션만 통과시켜 block은 최대 1회 실행된다.
+        if (processedEventRepository.claim(eventId, Instant.now()) == 0) {
             log.debug("Skipping duplicate event: {}", eventId)
             return
         }
@@ -29,13 +32,12 @@ class EventConsumerSupport(
                 block()
             }
         } catch (e: Exception) {
+            // block 실패 → 예외 전파 → @Transactional 롤백 → claim 행도 롤백 → 재처리 가능(at-least-once)
             span.error(e)
             throw e
         } finally {
             MDC.remove("saga.traceId")
             span.end()
         }
-
-        processedEventRepository.save(ProcessedEvent(id = eventId))
     }
 }
