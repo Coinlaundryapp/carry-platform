@@ -41,6 +41,7 @@ class EventConsumerSupportTest {
         support.processIfNotDuplicate("evt-1", eventType = "OrderCreatedEvent") { executed++ }
 
         assertThat(executed).isEqualTo(0)
+        verify(exactly = 1) { processedEventRepository.claim(eq("evt-1"), any<Instant>()) }
     }
 
     @Test
@@ -68,5 +69,6 @@ class EventConsumerSupportTest {
                 throw IllegalStateException("downstream failure")
             }
         }.isInstanceOf(IllegalStateException::class.java)
+        verify(exactly = 1) { processedEventRepository.claim(eq("evt-1"), any<Instant>()) }
     }
 }
