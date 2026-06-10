@@ -56,11 +56,8 @@ carry-platform은 ADR-0001(도메인/JPA 분리)에 따라 각 애그리거트�
 신규 VO (`carry-notification/.../domain/vo/`):
 
 ```kotlin
-@JvmInline
-value class NotificationMessage private constructor(...)  // 또는 data class
-// 결정: data class. title/content 두 필드라 value class 불가.
+// 둘 다 두 필드 묶음이라 value class 불가 → data class.
 data class NotificationMessage(val title: String, val content: String)
-
 data class NotificationReference(val type: String, val id: Long)
 ```
 
@@ -69,15 +66,21 @@ data class NotificationReference(val type: String, val id: Long)
   - **불변 강화**: 현재 `referenceType: String?` + `referenceId: Long?`가 독립 nullable이라
     한쪽만 채워진 부정합 상태가 표현 가능하다. `reference: NotificationReference?`는 "둘 다 또는 없음"을
     타입으로 강제한다.
-  - 노출 프로퍼티 하위호환: 필요한 호출부가 `notification.title` 등을 쓰면
-    `val title get() = message.title` 위임 프로퍼티로 보존(호출부 변경 최소화). 실제 사용처 확인 후 결정.
+  - 노출 프로퍼티 하위호환(필수): 개별 필드를 참조하는 소비자 보존을 위해 위임 게터를 **반드시** 제공한다.
+    - `val title get() = message.title`, `val content get() = message.content`
+    - `val referenceType get() = reference?.type`, `val referenceId get() = reference?.id`
 - `create`/`reconstitute` 시그니처: 평면 4개 → VO 2개.
 - `NotificationJpaEntity`: **컬럼은 평면 유지**(`title`,`content`,`referenceType`,`referenceId`).
   - `toDomain`: `message = NotificationMessage(title, content)`,
     `reference = referenceType?.let { NotificationReference(it, referenceId!!) }`.
   - `fromDomain`: VO 분해해 컬럼 채움.
   - `updateFrom`: 해당 필드는 불변(생성 후 변경 없음)이라 **무관** — 기존대로 status/sentAt/failReason만.
-- 호출부: `NotificationCommandService`(`create` 호출), `NotificationTest`(`reconstitute`/`create`).
+- 호출부(전수):
+  - `NotificationCommandService` — `Notification.create`
+  - `NotificationTest` — `create`/`reconstitute`
+  - `NotificationCommandServiceTest` — `reconstitute` 3곳
+  - **`NotificationWebDto`** (`adapter/inbound/rest/dto/`) — `notification.referenceType`/`referenceId`를
+    직접 읽어 REST 응답 구성. 위 위임 게터로 보존(시그니처 무변경). 미보존 시 컴파일 실패하므로 반드시 확인.
 
 #### A-2. carry-user
 
@@ -102,7 +105,12 @@ data class Recipient(val name: String, val phone: String) {
   `updateFrom`/`fromDomain`에서 `address.recipient.name`/`.phone` 분해.
   - 주의: `recipientName`/`recipientPhone`은 **가변**(update() 경로) → `updateFrom`이 실제로 분해 대입한다.
 - `areaCode` 검증(`isNotBlank`)은 `ShippingAddress`에 그대로 둔다(수령인 VO 책임 아님).
-- 호출부: `ShippingAddressService`, `ShippingAddressTest`.
+- 호출부(전수):
+  - `ShippingAddressService` — `create`/`update`
+  - `ShippingAddressTest` — `create`/`update`/`reconstitute`
+  - `ShippingAddressServiceTest` — `reconstitute`
+  - **`carry-app` `UserQueryPortAdapterContractTest`** — `reconstitute`(크로스모듈, `recipientName`/`recipientPhone`
+    명명 인자). `:carry-app:test`가 빌드 게이트라 누락 시 즉시 적발. 시그니처 변경 반영 필요.
 
 ### Part B — updateFrom 컬렉션 통일
 
@@ -112,23 +120,25 @@ data class Recipient(val name: String, val phone: String) {
 /**
  * 자식 컬렉션을 도메인 소스로 "전체 교체"한다(clear 후 transform 결과 추가).
  * orphanRemoval=true 자식의 기존 관용구(clear+add)와 동작이 동일하다.
+ * MutableCollection 수신자라 List·Set 모두 적용 가능(예: Laundromat.options는 MutableSet).
  * 식별자 보존이 필요한 경우(예: Delivery.steps)에는 사용하지 말 것.
  */
-fun <E, S> MutableList<E>.replaceAllFrom(source: Iterable<S>, transform: (S) -> E) {
+fun <E, S> MutableCollection<E>.replaceAllFrom(source: Iterable<S>, transform: (S) -> E) {
     clear()
     source.forEach { add(transform(it)) }
 }
 ```
 
-적용 대상(동작 불변 치환):
+적용 대상(동작 불변 치환). 자식 백참조가 필요한 경우 `transform` 람다가 `this`(부모)를 캡처:
 
-| 엔티티 | 컬렉션 | 현재 | file |
-|---|---|---|---|
-| ReviewJpaEntity | mediaList | clear()+forEach add | `ReviewJpaEntity.kt:53` |
-| LaundromatJpaEntity | options, mediaResources | clear()+addAll | `LaundromatJpaEntity.kt:72` |
-| ServiceAreaJpaEntity | schedules, holidays | clear()+addAll(map) | `ServiceAreaJpaEntity.kt:49` |
-| PricePolicyJpaEntity | optionPrices | clear()+addAll(map) | `PricePolicyJpaEntity.kt:59` |
-| DeliveryStepJpaEntity | media | clear()+forEach add | `DeliveryStepJpaEntity.kt:52` |
+| 엔티티 | 컬렉션 | 타입 | 현재 | file |
+|---|---|---|---|---|
+| ReviewJpaEntity | mediaList | MutableList | clear()+forEach add (`review=this`) | `ReviewJpaEntity.kt:53` |
+| LaundromatJpaEntity | options | **MutableSet** | clear()+addAll | `LaundromatJpaEntity.kt:72` |
+| LaundromatJpaEntity | mediaResources | MutableList | clear()+addAll | `LaundromatJpaEntity.kt:72` |
+| ServiceAreaJpaEntity | schedules, holidays | MutableList | clear()+addAll(map) | `ServiceAreaJpaEntity.kt:49` |
+| PricePolicyJpaEntity | optionPrices | MutableList | clear()+addAll(map) | `PricePolicyJpaEntity.kt:59` |
+| DeliveryStepJpaEntity | media | MutableList | clear()+forEach add (`deliveryStep=this`) | `DeliveryStepJpaEntity.kt:52` |
 
 - 자식 생성 시 부모 역참조가 필요한 경우 `transform` 람다가 `this`(부모 엔티티)를 캡처한다.
 - `DeliveryJpaEntity.updateFrom`은 **변경하지 않으며**, 식별자 보존 이유를 주석으로 명시한다.
