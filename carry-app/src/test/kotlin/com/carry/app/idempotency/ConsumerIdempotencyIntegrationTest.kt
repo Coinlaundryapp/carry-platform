@@ -81,21 +81,19 @@ class ConsumerIdempotencyIntegrationTest : IntegrationTestBase() {
 
         // 트랜잭션 롤백으로 marker·마킹 모두 사라져야 한다 → at-least-once 재처리 가능.
         assertThat(markerCount(eventId)).isEqualTo(0)
+        // claim-first: claim INSERT가 block 이전에 일어나므로, 이 0 단언은 claim 행 자체가
+        // tx 롤백으로 사라짐을 증명한다(재처리 가능).
         assertThat(processedCount(eventId)).isEqualTo(0)
     }
 
     /**
-     * 진짜 동시 중복 배달에서 **DB 레벨 dedup**(`processed_events` PK)이 유지됨을 증명한다.
+     * 진짜 동시 중복 배달에서도 **block(부수효과)이 정확히 1회**만 커밋됨을 증명한다(block-at-most-once).
      *
-     * ⚠️ 단언 범위 주의: 여기서 보장되는 불변식은 "`processed_events`에 정확히 1행"이다.
-     * "block(부수효과)이 정확히 1회"는 **진짜 동시성에선 보장되지 않는다** —
-     * `ProcessedEventRepository.save()`는 ProcessedEvent가 할당식 @Id·non-Persistable이라
-     * `merge()`(SELECT 선행)로 동작하므로, 패자 스레드의 merge-SELECT가 승자 커밋 이후에
-     * 실행되면 INSERT 대신 no-op UPDATE가 되어 PK 위반 없이 커밋된다(이미 실행한 block의
-     * 부수효과 잔존). 이는 현실 위협모델에서 문제되지 않는다: Kafka는 같은 키(aggregateId)
-     * 이벤트를 같은 파티션→단일 컨슈머 스레드로 **순차** 처리하므로 동일 이벤트의 진짜 동시
-     * 소비가 발생하지 않고, 재배달도 순차다(순차 dedup·실패 롤백은 위 두 테스트가 보장).
-     * 따라서 동시성에서 신뢰하는 안전망은 "처리 마킹 1행 유지"이며 그것을 단언한다.
+     * claim-first(`processIfNotDuplicate`가 block 이전에 `ProcessedEventRepository.claim()` =
+     * `INSERT ... ON CONFLICT (id) DO NOTHING`으로 선점)이므로, 8스레드가 동시에 같은 eventId를
+     * 밀어넣어도 Postgres가 한 트랜잭션만 1행 삽입을 통과시키고 나머지는 0행(skip)을 받는다.
+     * 따라서 marker(부수효과)·processed(마킹) 모두 정확히 1, 패자도 예외 없이 종료한다.
+     * 실패 롤백·순차 dedup은 위 두 테스트가 보장한다.
      */
     @Test
     fun `같은 이벤트를 8개 스레드가 동시에 처리해도 처리 마킹은 정확히 한 번만 영속된다`() {
@@ -126,11 +124,14 @@ class ConsumerIdempotencyIntegrationTest : IntegrationTestBase() {
         val marker = markerCount(eventId)
         val processed = processedCount(eventId)
 
-        // 핵심 불변식: 동시 중복에서도 처리 마킹은 정확히 1행(DB PK가 강제) → 안전망 유지.
-        assertThat(processed)
-            .`as`("processed=%d marker=%d ok=%d failed=%d", processed, marker, ok, failed)
+        // claim-first: 동시 중복에서도 부수효과(block)는 정확히 1회만 커밋된다(block-at-most-once).
+        assertThat(marker)
+            .`as`("marker=%d processed=%d ok=%d failed=%d", marker, processed, ok, failed)
             .isEqualTo(1)
-        // 부수효과는 최소 1회(승자)는 커밋, 스레드 수를 넘지 않는다(타이밍 의존 → 정확값 단언 금지).
-        assertThat(marker).isBetween(1, threads)
+        // 처리 마킹도 정확히 1행(DB PK + ON CONFLICT가 강제).
+        assertThat(processed).isEqualTo(1)
+        // 패자 스레드도 예외 없이 깨끗이 skip(0행 claim) → 전부 성공.
+        assertThat(ok).isEqualTo(threads)
+        assertThat(failed).isEqualTo(0)
     }
 }
