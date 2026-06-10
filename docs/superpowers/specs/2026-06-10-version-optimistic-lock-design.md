@@ -86,29 +86,50 @@ Testcontainers PostgreSQL)에 애그리거트별 1건씩, 총 3건 추가.
 saga/CRUD 구동이라 그런 명령이 없고, 이 작업은 일관성 하드닝이므로 도메인 race를 인위로 만들기보다
 **`@Version` 락 메커니즘 자체가 각 엔티티에서 동작함**을 증명하는 게 적합하다.
 
-**결정적 방식(스레드/타이밍 비의존)** — 각 엔티티 `JpaRepository`를 직접 사용:
+### 4.1 필요한 테스트 인프라 (기존 클래스에 추가)
+현재 `ConcurrencyIntegrationTest`는 서비스/포트/`JdbcTemplate`만 주입한다. 다음을 `@Autowired`로 추가:
+- `PaymentJpaRepository`, `DeliveryJpaRepository`, `ReviewJpaRepository` (각 모듈 `@Repository`, carry-app 컨텍스트가 스캔 — 직접 주입 가능)
+- `org.springframework.transaction.support.TransactionTemplate` (Spring Boot 자동 등록 빈)
+
+### 4.2 결정적 방식 (스레드/타이밍 비의존)
 1. 애그리거트 1건 저장(version=0), id 확보.
-2. `TransactionTemplate`(별도 tx)로 사본 `stale`을 로드 → 트랜잭션 종료로 **detached**(version=0).
-3. 다른 tx에서 같은 id 로드·수정·저장 → DB version 0→1 커밋.
-4. `stale`(version=0)을 저장(merge) → **`OptimisticLockingFailureException`**.
+2. `TransactionTemplate`(별도 tx)로 사본 `stale` 로드 → tx 종료로 **detached**(version=0).
+3. 다른 tx에서 같은 id 로드·**스칼라 필드** 수정·저장 → DB version 0→1 커밋.
+4. detached `stale`의 **스칼라 필드** 수정 후 저장 → `save()`가 `merge()`를 호출, Hibernate가 stale
+   version(0) vs DB version(1) 불일치를 감지 → **`OptimisticLockingFailureException`**.
 
 ```kotlin
 @Test
 fun `같은 Payment를 stale 버전으로 저장하면 OptimisticLockingFailureException`() {
-    val id = tx.execute { paymentJpaRepository.save(newPaymentEntity()).id!! }!!
-    val stale = tx.execute { paymentJpaRepository.findById(id).get() }!!   // detached, v0
-    tx.execute { val fresh = paymentJpaRepository.findById(id).get(); fresh.markXxx(); paymentJpaRepository.save(fresh) }  // v0→v1
-    stale.markXxx()
+    val invoiceId = seedInvoice()                       // FK: payment_payments.invoice_id → payment_invoices(id)
+    val id = tx.execute { paymentJpaRepository.save(newPaymentEntity(invoiceId)).id!! }!!
+    val stale = tx.execute { paymentJpaRepository.findById(id).get() }!!          // detached, v0
+    tx.execute { paymentJpaRepository.findById(id).get().apply { failReason = "first" } } // v0→v1 (flush on commit)
+    stale.failReason = "second"
     assertThatThrownBy { tx.execute { paymentJpaRepository.save(stale) } }
         .isInstanceOf(OptimisticLockingFailureException::class.java)
 }
 ```
-(Delivery·Review 동형. 변경 메서드는 각 엔티티의 기존 가변 필드 setter/상태전이를 사용.)
 
-> `protected set`인 version은 테스트가 직접 못 건드린다(의도) — 충돌은 Hibernate가 두 detached/fresh
-> 인스턴스의 version 불일치로 감지한다. seed 헬퍼는 각 엔티티의 필수 필드를 채우는 최소 팩토리.
+**엔티티별 변경 스칼라(자식 컬렉션 금지)** — `version`은 `protected set`이라 직접 못 바꾼다. UPDATE를
+유발할 **공개 가변 스칼라**를 쓴다:
+- Payment → `failReason`(String?) 또는 `status`
+- Delivery → `actualWeight`(BigDecimal?) 또는 `status`. ⚠️ `steps` **`@OneToMany(orphanRemoval=true)` 컬렉션은 건드리지 말 것**(빈 리스트 merge 시 자식 삭제 위험).
+- Review → `comment`(String?) 또는 `rating`(Int)
 
-### 4.1 teeth 확인
+**seed 부담(FK 차이):**
+- Payment: `payment_payments.invoice_id`가 `payment_invoices(id)` FK → 테스트가 invoice 1건 선seed
+  (jdbc insert into `payment_invoices` 또는 `InvoiceJpaRepository.save`) 후 그 id로 Payment 생성.
+- Delivery·Review: 모듈 간 참조가 평범한 BIGINT(**FK 없음**) → 임의 Long id로 엔티티만 저장(선행 seed 불요).
+- seed 헬퍼는 각 엔티티 필수 필드를 채우는 최소 팩토리(테스트 내 private fun).
+
+### 4.3 테스트 격리 — `TestFixtures.truncateAll` 보강
+현재 `truncateAll`은 `review_reviews`를 지우지 않는다(누락). Review 테스트 seed가 다음 테스트로 새지
+않도록 자식-부모 순서로 추가: `DELETE FROM review_media;`(자식, 정확 테이블명은 구현 시 확인) →
+`DELETE FROM review_reviews;`. (`review_media`는 `ON DELETE CASCADE`라 부모만 지워도 되지만 기존
+명시-DELETE 스타일과 일관성 유지.)
+
+### 4.4 teeth 확인
 구현 후, 한 엔티티에서 `@Version`을 임시 제거하면 해당 테스트가 RED(예외 미발생)가 됨을 확인 후 원복.
 
 ## 5. 검증
@@ -123,5 +144,6 @@ fun `같은 Payment를 stale 버전으로 저장하면 OptimisticLockingFailureE
 |---|---|
 | `PaymentJpaEntity.kt` / `DeliveryJpaEntity.kt` / `ReviewJpaEntity.kt` | `@Version var version` 추가(+import) |
 | `V20__add_version_to_payments.sql` 등 3개(각 모듈 migration 디렉터리) | 신규 |
-| `ConcurrencyIntegrationTest.kt` | 낙관락 충돌 테스트 3건 추가 |
+| `ConcurrencyIntegrationTest.kt` | JpaRepository·TransactionTemplate 주입 + 낙관락 충돌 테스트 3건 추가 |
+| `carry-app/.../test/TestFixtures.kt` | `truncateAll`에 `review_media`/`review_reviews` DELETE 추가 |
 | 도메인 모델·매퍼·`GlobalExceptionHandler` | 무변경 |
