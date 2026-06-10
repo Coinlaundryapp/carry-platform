@@ -87,7 +87,9 @@ class InMemoryIdempotencyStore : IdempotencyStore {
 ```
 
 - 추출 원칙: **순수 메커니즘**, 모듈/도메인 무관. 키 프리픽스로 모듈 간 키공간 분리.
-- `StringRedisTemplate`은 Spring Boot `RedisAutoConfiguration` 자동 빈(test 프로파일은 제외→null→InMemory). carry-infra-redis는 이미 모든 모듈의 redis 인프라 위치.
+- `StringRedisTemplate`은 Spring Boot `RedisAutoConfiguration` 자동 빈. carry-infra-redis는 이미 모든 모듈의 redis 인프라 위치이며 `spring-boot-starter-data-redis`를 `api`로 노출하므로, carry-infra-redis 의존만 추가하면 `StringRedisTemplate`이 전이된다.
+- **와이어링 사실**: `RedisAutoConfiguration` 제외는 `carry-app/src/test/resources/application-test.yml`에만 있다. carry-order/payment/review의 자체 테스트는 `@SpringBootTest`가 아니라 순수 mockk 단위 테스트라 nullable→InMemory 분기는 **carry-app 통합 컨텍스트에서만** 실행된다. 모듈별 추가 test 프로파일 설정은 불요.
+- ⚠️ **carry-infra-redis는 현재 `src/test` 디렉터리·test 의존성이 전무**(build.gradle.kts에 `api(starter-data-redis)`만). 공유 store 테스트를 옮기려면 `testImplementation`으로 junit-jupiter·assertj·mockk를 추가해야 한다(아래 §4).
 
 ### 3.2 각 모듈 — 헥사고날 포트 유지 + 공유 store 위임
 
@@ -108,13 +110,15 @@ class InMemoryIdempotencyStore : IdempotencyStore {
   - **reserve는 PG 호출·저장 이전**(이중 청구 방지 핵심).
   - 성공/실패 양 분기의 `save` 직후 `key?.let { idempotencyPort.complete(it, saved.id!!) }`. 실패(FAILED) 결과도 complete — 동일 키 재시도는 그 결과를 재생(정상 멱등 의미). 진짜 재시도는 새 키 사용.
   - PG 예외(CB OPEN 등) 전파 시 트랜잭션 롤백·complete 미호출 → pendingTtl 만료 후 재시도 가능(#101과 동일).
-  - replay용 `findPayment(id)` = `paymentPersistencePort.findById(id)`(존재 확인 필요; 없으면 보강).
+  - replay용 `findPayment(id)` = `paymentPersistencePort.findById(id): Payment?`(이미 존재, 보강 불요).
 - carry-payment build.gradle.kts에 `implementation(project(":carry-infra-redis"))` 추가.
 
 **carry-review (신규 적용)**:
 - 동일 패턴. 포트 `ReviewIdempotencyPort`(`findCompletedReviewId`), prefix `idem:review:create:`.
-- `CreateReviewCommand`에 `idempotencyKey` 추가, `ReviewController` POST `/api/v2/reviews` 헤더, `ReviewCommandService.createReview` 3단계, replay `findReview(id)`.
+- `CreateReviewCommand`에 `idempotencyKey` 추가, `ReviewController` POST `/api/v2/reviews` 헤더, `ReviewCommandService.createReview` 3단계, replay `findReview(id)` = `reviewPersistencePort.findById(id): Review?`(이미 존재).
 - build.gradle.kts에 carry-infra-redis 의존 추가.
+
+> **서비스 생성자 변경(테스트 영향)**: `PaymentCommandService`는 8번째 인자로 `PaymentIdempotencyPort`, `ReviewCommandService`는 신규 `ReviewIdempotencyPort` 인자를 받는다. 기존 `PaymentCommandServiceTest`·`ReviewCommandServiceTest`는 SUT를 직접 생성하므로 `mockk<...IdempotencyPort>(relaxed=true)`를 추가해야 한다(키 미제공 기존 테스트는 멱등 경로 미진입). OrderCommandServiceTest의 Idempotency `@Nested`(완료키 재생 / reserve 실패→409 / 신규키→complete) 3케이스가 정확한 템플릿.
 
 ### 3.3 충돌/에러
 - 진행 중 키: `BusinessException(ErrorCode.IDEMPOTENT_REQUEST_IN_PROGRESS, ...)` (기존 ErrorCode·전역 핸들러 409 재사용, 신규 코드 불요).
@@ -122,7 +126,8 @@ class InMemoryIdempotencyStore : IdempotencyStore {
 
 ## 4. 테스트 계획 (TDD)
 
-- **공유 store 단위**(carry-infra-redis): `InMemoryIdempotencyStore`(reserve 1회·complete 후 재생·complete 후 reserve 불가) + `RedisIdempotencyStore`(StringRedisTemplate mock으로 SETNX/get/set·prefix 결합). #101 order 어댑터 테스트 이전·일반화.
+- **공유 store 단위**(carry-infra-redis): `InMemoryIdempotencyStore`(reserve 1회·complete 후 재생·complete 후 reserve 불가) + `RedisIdempotencyStore`(StringRedisTemplate mock으로 SETNX/get/set·**prefix 결합 검증** — 일반화 후 테스트가 keyPrefix를 명시 전달해 `"$keyPrefix$key"` 커버리지 유지). #101 order 어댑터 테스트 이전·일반화.
+  - ⚠️ **carry-infra-redis/build.gradle.kts에 test 의존성 추가 필수**: `testImplementation`으로 junit-jupiter(platform)·`org.assertj:assertj-core`·`io.mockk:mockk`(버전은 타 모듈 build.gradle.kts 관용구 따름). `src/test/kotlin` 신규 생성.
 - **PaymentCommandService 멱등 3케이스**(OrderCommandServiceTest 미러): 완료 키 재생(PG·save 0회), 진행 중(reserve 실패)→409, 신규 키→reserve 후 처리·complete. mockk 기반.
 - **ReviewCommandService 멱등 3케이스**: 동일.
 - **carry-order 회귀**: 기존 `OrderCommandServiceTest` 멱등 3건 GREEN 유지(무변경 확인).
