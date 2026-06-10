@@ -66,6 +66,25 @@ fun claim(@Param("id") id: String, @Param("processedAt") processedAt: Instant): 
   배제했다.
 - Postgres 전용 구문. 영속 계층 테스트는 Testcontainers PostgreSQL(통합) 또는 mockk(단위)라 제약 없음.
 
+**테이블/컬럼 진실 출처.** 네이티브 SQL은 컬럼명 `(id, processed_at)`과 `ON CONFLICT (id)`(PK)에
+의존한다. 이는 `carry-app/src/main/resources/db/migration/V1__init_outbox_tables.sql`이 정의한
+`processed_events (id VARCHAR(100) PRIMARY KEY, processed_at TIMESTAMPTZ NOT NULL DEFAULT now())`와
+일치한다(테스트 프로파일 = `ddl-auto: validate` + Flyway). **신규 마이그레이션 불필요.**
+
+**`@Modifying` 플래그.** `clearAutomatically`/`flushAutomatically`는 **기본값(false) 유지**.
+claim은 트랜잭션의 첫 DB 연산이라 사전 flush가 필요 없고(`flushAutomatically=false` OK),
+이후 `block()`이 같은 영속성 컨텍스트에서 ORM 쓰기를 수행하므로 컨텍스트를 비우면 안 된다
+(`clearAutomatically=true` **금지** — 엔티티 detach 유발). 즉 두 플래그를 추가하지 않는다.
+
+**격리수준 가정.** 프로젝트 기본인 **READ COMMITTED**를 전제한다. 이 수준에서 `ON CONFLICT DO NOTHING`은
+동시 *미커밋* 동일 키 INSERT를 만나면 그 tx 종료까지 **대기**하고, 상대가 커밋이면 0행·롤백이면 1행을
+돌려준다(3.3 표). REPEATABLE READ/SERIALIZABLE에서는 상대 커밋 후 직렬화 실패를 던질 수 있으나
+프로젝트 기본이 아니므로 범위 밖.
+
+**`processed_at` 파라미터.** 컬럼에 `DEFAULT now()`가 있어 생략도 가능하나, 앱 시계 권위를 유지하려고
+`Instant.now()`를 명시 전달한다(기존 엔티티도 앱에서 설정). `Instant` → `TIMESTAMPTZ` 바인딩은
+기존 엔티티가 이미 쓰는 경로라 타입 불일치 위험 없음.
+
 ### 3.2 claim-first 재배치 — `EventConsumerSupport.processIfNotDuplicate`
 
 ```kotlin
@@ -121,24 +140,37 @@ at-least-once 재배달 시 재처리된다. 기존 동작과 동일.
 - block이 예외를 던지면 전파된다. (롤백 불변식은 트랜잭션 관심사 → 통합으로 이전; 여기선 전파만.)
 - **순서 검증**: claim()이 block보다 먼저 호출된다(mockk `verifyOrder` 또는 호출 기록).
 
-### 4.2 통합 — `ConsumerIdempotencyIntegrationTest` (Testcontainers PostgreSQL)
+### 4.2 컨슈머 배선 단위 — `OrderEventConsumerIdempotencyTest` (mockk fake, DB 없음)
+
+⚠️ **이 테스트는 실제 `EventConsumerSupport`를 구동하므로 fake 저장소를 반드시 함께 고쳐야 한다.**
+현재 fake(`inMemoryEventConsumerSupport`)는 `existsById`/`save`를 in-memory set으로 스텁한다.
+claim-first 전환 후 `processIfNotDuplicate`는 `claim()`을 호출하므로, 스텁을 `claim()` 기반으로
+재작성한다: 최초 키면 set에 추가하고 **1 반환**, 이미 있으면 **0 반환**(`existsById`/`save` 스텁 제거).
+단언("동일 envelope.id 2회 → 핸들러 1회")은 그대로 통과해야 한다. 미수정 시 unstubbed `claim()`로
+mockk가 던져 기존 GREEN 테스트가 깨진다.
+
+### 4.3 통합 — `ConsumerIdempotencyIntegrationTest` (Testcontainers PostgreSQL)
 
 - **순차 dedup** 테스트: 변경 없음 — `marker == 1`, `processed == 1` 유지.
-- **실패 롤백** 테스트: 변경 없음 — `marker == 0`, `processed == 0` 유지.
+- **실패 롤백** 테스트: 단언은 변경 없음(`marker == 0`, `processed == 0`)이나, claim-first 하에선
+  claim INSERT가 block 실패 *이전*에 일어나므로 이 테스트가 이제 **더 강한 경로**(claim 행 자체가
+  tx와 함께 롤백됨)를 증명한다. 의미가 강화됐음을 주석에 한 줄 명시.
 - **동시 8스레드** 테스트 **강화**(이 변경의 핵심 teeth):
   - 기존: `processed == 1`, `marker ∈ [1, threads]`
   - 강화: **`marker == 1`**, `processed == 1`, **`ok == threads`**(패자도 예외 없이 깨끗이 skip).
   - 클래스/메서드 주석의 "block 1회는 동시성에서 미보장" 경고를 "claim-first로 보장됨"으로 갱신.
 
-### 4.3 뮤테이션(teeth) 검증
+### 4.4 뮤테이션(teeth) 검증
 
 강화된 동시 테스트가 다음에서 RED 되는지 확인 후 원복:
-- claim 재배치를 원복(process-then-mark)하면 `marker == 1` 단언이 깨진다.
-- claim을 `merge()` 기반 save로 되돌리면 동시성에서 `marker > 1`이 관측된다.
+- **주 teeth = claim-first 순서.** claim/마킹을 다시 block *뒤*로 옮기면(process-then-mark)
+  동시성에서 `marker > 1`이 관측되어 `marker == 1` 단언이 깨진다.
+- (보조) claim을 `merge()` 기반 `save()`로 되돌리면서 *순서까지 뒤로* 옮기면 같은 RED. 순서를 claim-first로
+  유지한 채 메커니즘만 바꾸는 변형은 teeth가 약하므로 회귀의 핵심은 **순서**임을 명시.
 
 ## 5. 검증 흐름
 
-1. JDK21로 `:carry-infra-kafka:test` + `:carry-app:test`(Testcontainers) GREEN — JUnit XML로 카운트 확인.
+1. JDK21로 `:carry-infra-kafka:test` + `:carry-order:test` + `:carry-app:test`(Testcontainers) GREEN — JUnit XML로 카운트 확인.
 2. 강화된 동시 테스트 단독 반복 실행(`--rerun-tasks`)으로 flaky 0 확인.
 3. PR(base develop) → 자율 머지.
 
@@ -149,6 +181,7 @@ at-least-once 재배달 시 재처리된다. 기존 동작과 동일.
 | `carry-infra-kafka/.../ProcessedEventRepository.kt` | `claim()` 네이티브 메서드 추가 |
 | `carry-infra-kafka/.../EventConsumerSupport.kt` | claim-first 재배치, existsById/save 제거 |
 | `carry-infra-kafka/.../EventConsumerSupportTest.kt` | claim 기반 재작성 + 순서 검증 |
-| `carry-app/.../ConsumerIdempotencyIntegrationTest.kt` | 동시 테스트 강화 + 주석 갱신 |
+| `carry-order/.../OrderEventConsumerIdempotencyTest.kt` | fake 저장소를 `claim()` 기반으로 재작성(존재 단언 불변) |
+| `carry-app/.../ConsumerIdempotencyIntegrationTest.kt` | 동시 테스트 강화 + 롤백/동시 주석 갱신 |
 | `ProcessedEvent.kt` | 무변경 |
-| 소비자 6종 | 무변경 |
+| 소비자 6종(프로덕션) | 무변경 |
