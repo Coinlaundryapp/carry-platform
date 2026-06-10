@@ -43,7 +43,7 @@ override fun doFilterInternal(request, response, filterChain) {
         if (principal != null) {
             SecurityContextHolder.getContext().authentication =
                 UsernamePasswordAuthenticationToken(principal.userId, null, listOf(SimpleGrantedAuthority("ROLE_${principal.role}")))
-            MDC.put(MDC_USER_ID, principal.userId.toString())
+            MDC.put(MDC_USER_ID, principal.userId.toString())   // ★ 반드시 if(principal != null) 내부 — 비인증 요청에 "null" 넣지 않도록
         }
     }
     try {
