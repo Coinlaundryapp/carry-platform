@@ -285,11 +285,14 @@ class PaymentIdempotencyConfig {
 // 예시 골격(기존 fixture/mock 명에 맞춰 조정)
 @Nested
 inner class Idempotency {
-    @Test fun `완료된 키는 PG 재호출 없이 기존 결제를 재생한다`() {
+    @Test fun `완료된 키는 PG·청구서 조회 없이 기존 결제를 재생한다`() {
         every { idempotencyPort.findCompletedPaymentId("k") } returns 7L
         every { paymentPersistencePort.findById(7L) } returns existingPayment
         val result = sut.requestPayment(command.copy(idempotencyKey = "k"))
         assertThat(result.id).isEqualTo(7L)
+        // 최상단 재생 = 본문 진입 0(reserve-before-PG 보장의 대칭 검증)
+        verify(exactly = 0) { idempotencyPort.reserve(any()) }
+        verify(exactly = 0) { invoicePersistencePort.findByOrderId(any()) }
         verify(exactly = 0) { paymentGatewayResolver.resolve(any()) }
     }
     @Test fun `진행 중 키는 409`() {
@@ -297,16 +300,27 @@ inner class Idempotency {
         every { idempotencyPort.reserve("k") } returns false
         assertThatThrownBy { sut.requestPayment(command.copy(idempotencyKey = "k")) }
             .isInstanceOf(BusinessException::class.java)
+        verify(exactly = 0) { paymentGatewayResolver.resolve(any()) }  // reserve 실패 시 PG 미호출
     }
-    @Test fun `신규 키는 reserve 후 처리하고 complete 한다`() {
+    @Test fun `신규 키 성공 시 reserve 후 처리하고 complete 한다`() {
         every { idempotencyPort.findCompletedPaymentId("k") } returns null
         every { idempotencyPort.reserve("k") } returns true
-        // ... 기존 성공 경로 stub ...
+        // ... 기존 성공 경로 stub(PG success) ...
         sut.requestPayment(command.copy(idempotencyKey = "k"))
+        verify { idempotencyPort.complete("k", any()) }
+    }
+    @Test fun `PG 실패(정상 반환)도 결과를 complete 한다`() {
+        // 동일 키 재시도는 그 FAILED 결과를 재생(정상 멱등 의미). 진짜 재시도는 새 키.
+        every { idempotencyPort.findCompletedPaymentId("k") } returns null
+        every { idempotencyPort.reserve("k") } returns true
+        // ... PG가 success=false 반환하도록 stub(예외 아님) ...
+        val result = sut.requestPayment(command.copy(idempotencyKey = "k"))
+        assertThat(result.status).isEqualTo(PaymentStatus.FAILED)
         verify { idempotencyPort.complete("k", any()) }
     }
 }
 ```
+> **complete 의미 결정(명시)**: `complete`는 정상 반환하는 **두 분기(성공·PG실패)** 모두에서 호출한다 — 같은 키 = 같은 작업 결과(FAILED 포함) 재생. 반면 PG **예외**(CB OPEN 등) 전파 시엔 `@Transactional` 롤백 + `complete` 미호출 → `pendingTtl` 만료 후 재시도 허용. 이 둘은 서로 다른 실패 모드이며 의도된 동작이다.
 - [ ] **Step 2:** `RequestPaymentCommand`에 `val idempotencyKey: String? = null` 추가(`PaymentCommandUseCase.kt`).
 - [ ] **Step 3:** `./gradlew :carry-payment:test --tests "*PaymentCommandServiceTest*"` → RED(컴파일/단언 실패).
 - [ ] **Step 4: 구현** — `PaymentCommandService`:
