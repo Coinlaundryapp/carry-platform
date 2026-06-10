@@ -109,7 +109,7 @@ class InMemoryIdempotencyStore : IdempotencyStore {
   - 맨 앞: `key?.let { idempotencyPort.findCompletedPaymentId(it)?.let { id -> return findPayment(id) }; if (!reserve(it)) throw 409 }`
   - **reserve는 PG 호출·저장 이전**(이중 청구 방지 핵심).
   - 성공/실패 양 분기의 `save` 직후 `key?.let { idempotencyPort.complete(it, saved.id!!) }`. 실패(FAILED) 결과도 complete — 동일 키 재시도는 그 결과를 재생(정상 멱등 의미). 진짜 재시도는 새 키 사용.
-  - PG 예외(CB OPEN 등) 전파 시 트랜잭션 롤백·complete 미호출 → pendingTtl 만료 후 재시도 가능(#101과 동일).
+  - PG 예외(CB OPEN 등) 전파 시 DB 트랜잭션은 롤백되지만 `reserve`로 쓴 Redis PENDING 마커는 **트랜잭션 밖**이라 롤백되지 않는다. 따라서 complete 미호출 + **pendingTtl(120s) 만료로만** 해소 → 그 윈도우 동안 같은 키 재시도는 409(진짜 재시도는 새 키). #101 order 동작과 동일(회귀 아님). 향후 catch에서 `release(key)`로 즉시 해소하는 개선은 범위 밖.
   - replay용 `findPayment(id)` = `paymentPersistencePort.findById(id): Payment?`(이미 존재, 보강 불요).
 - carry-payment build.gradle.kts에 `implementation(project(":carry-infra-redis"))` 추가.
 
