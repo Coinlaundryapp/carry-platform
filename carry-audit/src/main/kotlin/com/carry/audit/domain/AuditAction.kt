@@ -8,4 +8,5 @@ enum class AuditAction {
     PAYMENT_REFUND,
     DISPATCH_ASSIGN,
     DISPATCH_REJECT_PENALTY,
+    DLQ_REDRIVE,
 }
