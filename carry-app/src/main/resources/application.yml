@@ -88,6 +88,15 @@ management:
   observations:
     key-values:
       application: carry-platform
+  metrics:
+    distribution:
+      # histogram_quantile 기반 패널/알럿(p50·p95·p99)의 전제 — _bucket 시리즈 노출.
+      # 라이브 검증(2026-06-12)에서 미설정으로 API 응답시간·배달 소요시간 패널이
+      # 항상 No data였던 미스매치 발견 → 활성화.
+      percentiles-histogram:
+        http.server.requests: true
+        carry.delivery.duration: true
+        carry.saga.duration: true
 
 # Resilience4j Circuit Breaker — 외부 PG 장애 시 fast-fail로 스레드 블로킹·연쇄 장애 방지.
 # 슬라이딩 윈도우(최근 10건) 중 50% 실패 시 30초간 OPEN.
