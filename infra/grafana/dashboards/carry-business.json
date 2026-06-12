@@ -703,7 +703,7 @@
       },
       "targets": [
         {
-          "expr": "count(ALERTS{alertstate=\"firing\"})",
+          "expr": "count(ALERTS{alertstate=\"firing\"}) or on() vector(0)",
           "refId": "A"
         }
       ],
@@ -834,7 +834,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(carry_geo_cache_total{result=\"hit\"}[5m])) / clamp_min(sum(rate(carry_geo_cache_total[5m])), 1e-9)",
+          "expr": "(sum(rate(carry_geo_cache_total{result=\"hit\"}[5m])) or on() vector(0)) / clamp_min(sum(rate(carry_geo_cache_total[5m])), 1e-9)",
           "legendFormat": "hit ratio",
           "refId": "A"
         }
@@ -875,6 +875,6 @@
   "timezone": "browser",
   "title": "Carry — Business & Resilience",
   "uid": "carry-business",
-  "version": 2,
+  "version": 3,
   "weekStart": ""
 }
