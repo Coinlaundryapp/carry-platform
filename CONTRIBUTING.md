@@ -71,4 +71,6 @@ MANAGEMENT_TRACING_ENABLED=false ./gradlew :carry-app:bootRun
 - 브랜치: `git checkout -b <type>/<name> origin/develop` (PR base 는 항상 `develop`).
 - Conventional Commit 접두사(feat/fix/refactor/docs/ci/perf/test/build/chore) + **한국어 본문**.
 - PR 템플릿을 채우고, 변경의 *무엇/왜/검증* 을 적는다.
+- 대응 이슈가 있으면 PR 본문에 **`Closes #N`** 을 포함한다 — 머지 시 이슈가 자동으로 닫힌다.
+  (누락하면 완료된 이슈가 열린 채 남는다 — #74~#94 9건이 실제 사례.)
 - 머지 전 영향 모듈 `:test` + `:carry-app:test`(Testcontainers) 통과 확인.
