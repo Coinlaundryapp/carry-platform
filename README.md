@@ -300,6 +300,7 @@ carry-{module}/
   0003 모듈 분리 기준 · 0004 Choreography Saga · 0005 이벤트 스키마 진화 · 0006 모듈 과분해 재평가 ·
   0007 모듈러 모놀리스 유지
 - **기여 가이드**: [`CONTRIBUTING.md`](CONTRIBUTING.md) — 아키텍처 규칙·3-Method 패턴·테스트 기준·커밋/PR 규약
+- **클라이언트 재시도 가이드**: [`docs/14-client-retry-guide.md`](docs/14-client-retry-guide.md) — 에러 코드별 재시도 가능 여부 · `Idempotency-Key` 사용법 · 백오프 정책
 
 ### 마이크로서비스 전환 — 보류 (ADR-0007)
 

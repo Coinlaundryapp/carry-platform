@@ -1,6 +1,6 @@
 # 13. 로깅 정책 — 상관관계와 레벨 분류
 
-> 최종 수정일: 2026-05-29
+> 최종 수정일: 2026-06-12
 > 상태: Phase 3.3 — Active
 
 ROADMAP Phase 3.3 산출물. 사가 라이프사이클을 한 줄씩 따라갈 수 있게 만들고, 로그 레벨이 운영 알럿 신호와 일치하도록 정리한다.
@@ -14,7 +14,7 @@ ROADMAP Phase 3.3 산출물. 사가 라이프사이클을 한 줄씩 따라갈 �
 | `traceId`, `spanId` | Micrometer Tracing 자동 | OpenTelemetry 트레이스 식별자. HTTP 요청·Kafka consume 범위. |
 | `saga.traceId` | `EventConsumerSupport.processIfNotDuplicate` | 사가 시작 시 발급되어 이벤트 페이로드에 포함되는 식별자. 동일 사가의 모든 이벤트 처리에 같은 값. |
 | `orderId` | `SagaLogContext.withOrderId` (handler 진입) | 처리 중인 사가의 핵심 도메인 키. order, dispatch, delivery, payment 등 어느 모듈에서 로그를 찍든 같은 주문이면 같은 값. |
-| `userId` | (예약) | 인증 필터에서 채울 예정 — Phase 4 보안 작업. |
+| `userId` | `JwtAuthenticationFilter` (PR #117) | 인증 성공 시 채워지고 요청 종료 시 try/finally로 정리. 콘솔 패턴 `user=`, JSON 필드 포함. |
 
 ### 로컬 콘솔 패턴
 
@@ -66,6 +66,11 @@ class XxxSagaHandler(...) : XxxEventHandler {
 
 > **운영 알럿은 `error` 레벨만 보면 된다**는 규칙을 유지하는 것이 목적. `BusinessException` 4xx를 `warn`/`error`로 두면 정상 동작이 알럿을 만든다.
 
+> **재검토 (2026-06-12): 위 분류 유지 확정.** 검증 4xx·낙관락 409를 `info`로 내리는 안을 검토했으나,
+> ①알럿은 `error`만 보므로 `warn`이어도 거짓 알럿이 없고 ②검증 실패 급증은 클라이언트 배포 버그,
+> 낙관락 충돌 급증은 핫스팟 신호라서 `info` 소음과 구분되는 추적 가치가 있다 — `warn` 유지.
+> 클라이언트가 이 응답들에 어떻게 대응해야 하는지는 [14-client-retry-guide.md](14-client-retry-guide.md) 참조.
+
 ### 도메인 서비스·핸들러에서 직접 잡는 경우
 
 - 예상되는 비즈니스 조건 분기는 `info` 또는 `warn`.
@@ -74,8 +79,8 @@ class XxxSagaHandler(...) : XxxEventHandler {
 
 ---
 
-## 다음 단계
+## 후속 이력
 
-- **Phase 3.4 알럿 기준선** — `error` 레벨 로그의 5분 증가량을 Prometheus alert로 잡는 등의 룰. `docs/11-business-metrics.md` 표를 alert rules YAML로 구체화.
-- **Phase 3.5 운영 런북** — 각 알럿이 어느 로그 패턴과 매칭되는지 매핑.
-- **`userId` MDC 활성화** — Phase 4 보안 작업에서 인증 필터가 `MDC.put("userId", ...)` 수행.
+- **Phase 3.4 알럿 기준선** — 완료(PR #66, 이후 #97·#112로 룰 확장). `infra/prometheus/rules/`.
+- **Phase 3.5 운영 런북** — 완료(PR #66). `docs/operations/`.
+- **`userId` MDC** — 완료(PR #117). `JwtAuthenticationFilter`가 채우고 정리.
