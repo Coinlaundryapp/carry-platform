@@ -61,21 +61,33 @@
   sum by(topic) (increase(carry_kafka_dlq_total[5m]))
   ```
 
-## DLQ 수동 재처리 (참고)
+## DLQ 재처리 (redrive)
 
-후속 PR로 자동화 예정. 임시 절차:
+원인 해소를 확인한 후(위 절차 선행), ADMIN 토큰으로 재처리 엔드포인트를 호출한다:
+
 ```bash
-# DLQ 토픽 메시지 dump
+# 검토: DLQ 토픽 메시지 dump
 kafka-console-consumer.sh --bootstrap-server localhost:9092 \
   --topic <원본>.DLQ --from-beginning --max-messages 10 \
   --property print.headers=true --property print.key=true
 
-# 검토 후 원본 토픽으로 재발행 (관리자 스크립트로)
+# 재처리: 최대 maxRecords건을 원본 토픽으로 재발행 (감사 로그 기록됨)
+curl -X POST http://localhost:8080/api/v2/admin/dlq/redrive \
+  -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" \
+  -d '{"topic": "<원본 토픽명>", "maxRecords": 100}'
+# → {"data": {"redriven": N, "parked": M}}
 ```
+
+동작 규칙(`DlqRedriveService`):
+- 재발행마다 `carry_dlq-redrive-count` 헤더 증가. **3회 도달 메시지는 보류(parked)** —
+  재발행되지 않고 DLQ에 남는다(poison 메시지 무한 순환 차단). `parked > 0`이면 해당
+  메시지를 수동 검토 후 폐기 또는 보상 트랜잭션을 직접 실행한다.
+- 오프셋은 처리 성공분까지만 커밋 — 중간 실패 시 미처리분은 다음 호출에서 이어진다.
+- 메트릭: `carry_kafka_dlq_redriven_total`, `carry_kafka_dlq_parked_total` (topic 라벨).
 
 ## 관련 ROADMAP/known-debts
 
 - ROADMAP Phase 2.1 Kafka DLQ + retry 전략 (PR #56, #57)
-- known-debts: **DLQ 메시지 재처리 메커니즘** (Phase 2.1 후속) — 수동/자동 큐 drain 필요
-- known-debts: Outbox 발행 영역 e2e 검증
+- DLQ 재처리 메커니즘 — 해소됨 (`POST /api/v2/admin/dlq/redrive`, 위 절 참조)
+- Outbox 발행 e2e 검증 — 해소됨 (`OutboxAtomicityIntegrationTest`, PR #123)
 - ROADMAP Phase 6.2 이벤트 스키마 진화 전략
