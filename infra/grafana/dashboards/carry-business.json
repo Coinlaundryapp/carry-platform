@@ -1,5 +1,7 @@
 {
-  "annotations": { "list": [] },
+  "annotations": {
+    "list": []
+  },
   "editable": false,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -10,7 +12,12 @@
     {
       "type": "row",
       "title": "주문 라이프사이클 퍼널",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "id": 100,
       "collapsed": false,
       "panels": []
@@ -18,61 +25,159 @@
     {
       "type": "stat",
       "title": "주문 생성 (5m rate)",
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 1
+      },
       "id": 1,
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
-        { "expr": "sum(rate(carry_order_created_total[5m]))", "refId": "A" }
+        {
+          "expr": "sum(rate(carry_order_created_total[5m]))",
+          "refId": "A"
+        }
       ],
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" },
-      "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] }
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "area"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      }
     },
     {
       "type": "stat",
       "title": "배차 수락 (5m rate, by via)",
-      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 1
+      },
       "id": 2,
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
-        { "expr": "sum by(via) (rate(carry_dispatch_accepted_total[5m]))", "legendFormat": "{{via}}", "refId": "A" }
+        {
+          "expr": "sum by(via) (rate(carry_dispatch_accepted_total[5m]))",
+          "legendFormat": "{{via}}",
+          "refId": "A"
+        }
       ],
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" },
-      "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] }
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "area"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      }
     },
     {
       "type": "stat",
       "title": "배달 완료 (5m rate)",
-      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 1
+      },
       "id": 3,
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
-        { "expr": "sum(rate(carry_delivery_completed_total[5m]))", "refId": "A" }
+        {
+          "expr": "sum(rate(carry_delivery_completed_total[5m]))",
+          "refId": "A"
+        }
       ],
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" },
-      "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] }
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "area"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      }
     },
     {
       "type": "stat",
       "title": "결제 성공률 (5m)",
-      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 1
+      },
       "id": 4,
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "sum(rate(carry_payment_success_total[5m])) / clamp_min(sum(rate(carry_payment_success_total[5m])) + sum(rate(carry_payment_failure_total[5m])), 0.0001)",
           "refId": "A"
         }
       ],
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "area"
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "percentunit",
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
-              { "color": "yellow", "value": 0.95 },
-              { "color": "green", "value": 0.99 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.95
+              },
+              {
+                "color": "green",
+                "value": 0.99
+              }
             ]
           }
         },
@@ -82,22 +187,68 @@
     {
       "type": "timeseries",
       "title": "퍼널 흐름 (created → accepted → completed → paid)",
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 5 },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
       "id": 5,
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
-        { "expr": "sum(rate(carry_order_created_total[5m]))", "legendFormat": "order.created", "refId": "A" },
-        { "expr": "sum(rate(carry_dispatch_accepted_total[5m]))", "legendFormat": "dispatch.accepted", "refId": "B" },
-        { "expr": "sum(rate(carry_delivery_completed_total[5m]))", "legendFormat": "delivery.completed", "refId": "C" },
-        { "expr": "sum(rate(carry_payment_success_total[5m]))", "legendFormat": "payment.success", "refId": "D" }
+        {
+          "expr": "sum(rate(carry_order_created_total[5m]))",
+          "legendFormat": "order.created",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(carry_dispatch_accepted_total[5m]))",
+          "legendFormat": "dispatch.accepted",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(rate(carry_delivery_completed_total[5m]))",
+          "legendFormat": "delivery.completed",
+          "refId": "C"
+        },
+        {
+          "expr": "sum(rate(carry_payment_success_total[5m]))",
+          "legendFormat": "payment.success",
+          "refId": "D"
+        }
       ],
-      "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] },
-      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean", "lastNotNull"] } }
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "lastNotNull"
+          ]
+        }
+      }
     },
     {
       "type": "row",
       "title": "장애 신호",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 13 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 13
+      },
       "id": 101,
       "collapsed": false,
       "panels": []
@@ -105,21 +256,54 @@
     {
       "type": "timeseries",
       "title": "결제 실패 (by pg)",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 14
+      },
       "id": 6,
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
-        { "expr": "sum by(pg) (rate(carry_payment_failure_total[5m]))", "legendFormat": "{{pg}}", "refId": "A" }
+        {
+          "expr": "sum by(pg) (rate(carry_payment_failure_total[5m]))",
+          "legendFormat": "{{pg}}",
+          "refId": "A"
+        }
       ],
-      "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] },
-      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "list", "placement": "bottom" } }
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
     },
     {
       "type": "timeseries",
       "title": "배차 거부율",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 14
+      },
       "id": 7,
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "sum(rate(carry_dispatch_rejected_total[5m])) / clamp_min(sum(rate(carry_dispatch_accepted_total[5m])) + sum(rate(carry_dispatch_rejected_total[5m])), 0.0001)",
@@ -133,36 +317,100 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 0.1 },
-              { "color": "red", "value": 0.2 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.1
+              },
+              {
+                "color": "red",
+                "value": 0.2
+              }
             ]
           }
         },
         "overrides": []
       },
-      "options": { "tooltip": { "mode": "single" }, "legend": { "displayMode": "list", "placement": "bottom" } }
+      "options": {
+        "tooltip": {
+          "mode": "single"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
     },
     {
       "type": "timeseries",
-      "title": "Kafka DLQ 적재 (5m 증분, by topic)",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 22 },
+      "title": "Kafka DLQ 적재 / 재처리 (5m 증분, by topic)",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 22
+      },
       "id": 8,
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
-        { "expr": "sum by(topic) (increase(carry_kafka_dlq_total[5m]))", "legendFormat": "{{topic}}", "refId": "A" }
+        {
+          "expr": "sum by(topic) (increase(carry_kafka_dlq_total[5m]))",
+          "legendFormat": "{{topic}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum by(topic) (increase(carry_kafka_dlq_redriven_total[5m]))",
+          "legendFormat": "redriven {{topic}}",
+          "refId": "B"
+        },
+        {
+          "expr": "sum by(topic) (increase(carry_kafka_dlq_parked_total[5m]))",
+          "legendFormat": "parked {{topic}}",
+          "refId": "C"
+        }
       ],
-      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
-      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "list", "placement": "bottom" } }
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
     },
     {
       "type": "timeseries",
       "title": "Outbox 적재 (gauge)",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 22 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 22
+      },
       "id": 9,
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
-        { "expr": "carry_outbox_pending", "legendFormat": "pending", "refId": "A" }
+        {
+          "expr": "carry_outbox_pending",
+          "legendFormat": "pending",
+          "refId": "A"
+        }
       ],
       "fieldConfig": {
         "defaults": {
@@ -170,20 +418,42 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 100 },
-              { "color": "red", "value": 1000 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 100
+              },
+              {
+                "color": "red",
+                "value": 1000
+              }
             ]
           }
         },
         "overrides": []
       },
-      "options": { "tooltip": { "mode": "single" }, "legend": { "displayMode": "list", "placement": "bottom" } }
+      "options": {
+        "tooltip": {
+          "mode": "single"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
     },
     {
       "type": "row",
       "title": "Circuit Breaker & 인프라",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 30 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 30
+      },
       "id": 102,
       "collapsed": false,
       "panels": []
@@ -192,9 +462,17 @@
       "type": "stat",
       "title": "Circuit Breaker 상태",
       "description": "0=CLOSED, 1=OPEN, 2=HALF_OPEN, 3=DISABLED, 4=METRICS_ONLY, 5=FORCED_OPEN",
-      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 31 },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 31
+      },
       "id": 10,
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "resilience4j_circuitbreaker_state{name=~\"pg-gateway.*|geocoding.*\", state=\"open\"} > 0 or on() vector(0)",
@@ -202,14 +480,29 @@
           "refId": "A"
         }
       ],
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name"
+      },
       "fieldConfig": {
         "defaults": {
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "red", "value": 1 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
             ]
           }
         },
@@ -219,68 +512,207 @@
     {
       "type": "timeseries",
       "title": "API 응답 시간 p50 / p95 / p99",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 31 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 31
+      },
       "id": 11,
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
-        { "expr": "histogram_quantile(0.50, sum by(le) (rate(http_server_requests_seconds_bucket[5m])))", "legendFormat": "p50", "refId": "A" },
-        { "expr": "histogram_quantile(0.95, sum by(le) (rate(http_server_requests_seconds_bucket[5m])))", "legendFormat": "p95", "refId": "B" },
-        { "expr": "histogram_quantile(0.99, sum by(le) (rate(http_server_requests_seconds_bucket[5m])))", "legendFormat": "p99", "refId": "C" }
+        {
+          "expr": "histogram_quantile(0.50, sum by(le) (rate(http_server_requests_seconds_bucket[5m])))",
+          "legendFormat": "p50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by(le) (rate(http_server_requests_seconds_bucket[5m])))",
+          "legendFormat": "p95",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by(le) (rate(http_server_requests_seconds_bucket[5m])))",
+          "legendFormat": "p99",
+          "refId": "C"
+        }
       ],
-      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
-      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "list", "placement": "bottom" } }
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
     },
     {
       "type": "timeseries",
       "title": "HikariCP 커넥션 풀 사용률",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 37 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 37
+      },
       "id": 12,
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
-        { "expr": "hikaricp_connections_active{pool=\"CarryHikariPool\"}", "legendFormat": "active", "refId": "A" },
-        { "expr": "hikaricp_connections_idle{pool=\"CarryHikariPool\"}", "legendFormat": "idle", "refId": "B" },
-        { "expr": "hikaricp_connections_max{pool=\"CarryHikariPool\"}", "legendFormat": "max", "refId": "C" },
-        { "expr": "hikaricp_connections_pending{pool=\"CarryHikariPool\"}", "legendFormat": "pending", "refId": "D" }
+        {
+          "expr": "hikaricp_connections_active{pool=\"CarryHikariPool\"}",
+          "legendFormat": "active",
+          "refId": "A"
+        },
+        {
+          "expr": "hikaricp_connections_idle{pool=\"CarryHikariPool\"}",
+          "legendFormat": "idle",
+          "refId": "B"
+        },
+        {
+          "expr": "hikaricp_connections_max{pool=\"CarryHikariPool\"}",
+          "legendFormat": "max",
+          "refId": "C"
+        },
+        {
+          "expr": "hikaricp_connections_pending{pool=\"CarryHikariPool\"}",
+          "legendFormat": "pending",
+          "refId": "D"
+        }
       ],
-      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
-      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "list", "placement": "bottom" } }
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
     },
     {
       "type": "timeseries",
       "title": "Kafka Consumer Lag",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 39 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 39
+      },
       "id": 13,
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
-        { "expr": "sum by(topic) (kafka_consumer_fetch_manager_records_lag)", "legendFormat": "{{topic}}", "refId": "A" }
+        {
+          "expr": "sum by(topic) (kafka_consumer_fetch_manager_records_lag)",
+          "legendFormat": "{{topic}}",
+          "refId": "A"
+        }
       ],
-      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
-      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "list", "placement": "bottom" } }
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
     },
     {
       "type": "timeseries",
       "title": "배달 소요 시간 p50 / p95",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 45 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 45
+      },
       "id": 14,
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
-        { "expr": "histogram_quantile(0.50, sum by(le) (rate(carry_delivery_duration_seconds_bucket[1h])))", "legendFormat": "p50", "refId": "A" },
-        { "expr": "histogram_quantile(0.95, sum by(le) (rate(carry_delivery_duration_seconds_bucket[1h])))", "legendFormat": "p95", "refId": "B" }
+        {
+          "expr": "histogram_quantile(0.50, sum by(le) (rate(carry_delivery_duration_seconds_bucket[1h])))",
+          "legendFormat": "p50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by(le) (rate(carry_delivery_duration_seconds_bucket[1h])))",
+          "legendFormat": "p95",
+          "refId": "B"
+        }
       ],
-      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
-      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "list", "placement": "bottom" } }
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
     },
     {
       "type": "stat",
       "title": "Active firing alerts",
-      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 53 },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 53
+      },
       "id": 15,
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
-        { "expr": "count(ALERTS{alertstate=\"firing\"})", "refId": "A" }
+        {
+          "expr": "count(ALERTS{alertstate=\"firing\"})",
+          "refId": "A"
+        }
       ],
       "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
         "colorMode": "background",
         "graphMode": "none",
         "textMode": "value"
@@ -291,25 +723,158 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 1 },
-              { "color": "red", "value": 5 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
             ]
           }
         },
         "overrides": []
       }
+    },
+    {
+      "type": "timeseries",
+      "title": "Circuit Breaker open 추이 (by name)",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 59
+      },
+      "id": 16,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "1 = OPEN. 전이 시점 식별용 — 현재 상태는 위의 stat 패널.",
+      "targets": [
+        {
+          "expr": "max by(name) (resilience4j_circuitbreaker_state{name=~\"pg-gateway.*|geocoding.*\", state=\"open\"})",
+          "legendFormat": "{{name}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "max": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Geo 캐시 hit/miss (5m rate, by direction)",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 59
+      },
+      "id": 17,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum by(direction, result) (rate(carry_geo_cache_total[5m]))",
+          "legendFormat": "{{direction}} {{result}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Geo 캐시 적중률 (5m)",
+      "gridPos": {
+        "h": 5,
+        "w": 12,
+        "x": 0,
+        "y": 67
+      },
+      "id": 18,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(carry_geo_cache_total{result=\"hit\"}[5m])) / clamp_min(sum(rate(carry_geo_cache_total[5m])), 1e-9)",
+          "legendFormat": "hit ratio",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
     }
   ],
   "refresh": "30s",
   "schemaVersion": 39,
-  "tags": ["carry", "business"],
-  "templating": { "list": [] },
-  "time": { "from": "now-1h", "to": "now" },
+  "tags": [
+    "carry",
+    "business"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
   "timepicker": {},
   "timezone": "browser",
   "title": "Carry — Business & Resilience",
   "uid": "carry-business",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }

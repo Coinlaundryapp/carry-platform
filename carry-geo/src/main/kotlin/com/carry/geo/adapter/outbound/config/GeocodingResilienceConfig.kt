@@ -1,5 +1,6 @@
 package com.carry.geo.adapter.outbound.config
 
+import com.carry.common.metrics.MetricsPort
 import com.carry.geo.adapter.outbound.cache.RedisCachingGeocodingAdapter
 import com.carry.geo.adapter.outbound.cache.RedisCachingReverseGeocodingAdapter
 import com.carry.geo.adapter.outbound.external.naver.NaverApiProperties
@@ -38,6 +39,7 @@ import org.springframework.data.redis.core.RedisTemplate
 class GeocodingResilienceConfig(
     private val naverProperties: NaverApiProperties,
     private val circuitBreakerRegistry: CircuitBreakerRegistry,
+    private val metrics: MetricsPort,
 ) {
 
     private val log = LoggerFactory.getLogger(javaClass)
@@ -50,7 +52,7 @@ class GeocodingResilienceConfig(
         val cb = circuitBreakerRegistry.circuitBreaker("geocoding-forward", "geocoding")
         val protected_ = CircuitBreakerGeocodingAdapter(raw, cb)
         return if (redisTemplate != null) {
-            RedisCachingGeocodingAdapter(protected_, redisTemplate)
+            RedisCachingGeocodingAdapter(protected_, redisTemplate, metrics)
         } else {
             log.warn("RedisTemplate not available — GeocodingPort runs without cache layer (CB only)")
             protected_
@@ -65,7 +67,7 @@ class GeocodingResilienceConfig(
         val cb = circuitBreakerRegistry.circuitBreaker("geocoding-reverse", "geocoding")
         val protected_ = CircuitBreakerReverseGeocodingAdapter(raw, cb)
         return if (redisTemplate != null) {
-            RedisCachingReverseGeocodingAdapter(protected_, redisTemplate)
+            RedisCachingReverseGeocodingAdapter(protected_, redisTemplate, metrics)
         } else {
             log.warn("RedisTemplate not available — ReverseGeocodingPort runs without cache layer (CB only)")
             protected_

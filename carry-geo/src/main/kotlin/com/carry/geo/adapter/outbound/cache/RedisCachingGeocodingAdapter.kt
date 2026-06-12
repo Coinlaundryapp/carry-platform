@@ -1,5 +1,6 @@
 package com.carry.geo.adapter.outbound.cache
 
+import com.carry.common.metrics.MetricsPort
 import com.carry.geo.application.port.outbound.GeocodingPort
 import com.carry.geo.domain.model.GeocodingResult
 import org.springframework.data.redis.core.RedisTemplate
@@ -17,6 +18,7 @@ import java.time.Duration
 class RedisCachingGeocodingAdapter(
     private val delegate: GeocodingPort,
     private val redisTemplate: RedisTemplate<String, Any>,
+    private val metrics: MetricsPort,
     private val ttl: Duration = Duration.ofHours(24),
 ) : GeocodingPort {
 
@@ -24,9 +26,11 @@ class RedisCachingGeocodingAdapter(
         val key = cacheKey(address)
         val cached = redisTemplate.opsForValue().get(key)
         if (cached != null) {
+            metrics.incrementCounter(CACHE_METRIC, "direction" to "fwd", "result" to "hit")
             @Suppress("UNCHECKED_CAST")
             return cached as List<GeocodingResult>
         }
+        metrics.incrementCounter(CACHE_METRIC, "direction" to "fwd", "result" to "miss")
         val fresh = delegate.geocode(address)
         if (fresh.isNotEmpty()) {
             redisTemplate.opsForValue().set(key, fresh, ttl)
@@ -38,5 +42,8 @@ class RedisCachingGeocodingAdapter(
 
     companion object {
         private const val KEY_PREFIX = "geo:fwd:"
+
+        /** 캐시 적중률 카운터 — Grafana "Geo 캐시 적중률" 패널이 소비한다. 태그: direction(fwd/rev), result(hit/miss). */
+        const val CACHE_METRIC = "carry.geo.cache"
     }
 }
