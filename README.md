@@ -223,6 +223,17 @@ http://localhost:8080/swagger-ui.html
 
 모든 API는 JWT Bearer 토큰 인증이 필요합니다. Swagger UI 상단의 **Authorize** 버튼으로 토큰을 설정하세요.
 
+### OpenAPI 스키마 산출물
+
+프론트엔드(`carry-app`)의 TS 타입 자동 생성이 소비하는 OpenAPI v2 스키마를 [`docs/api/openapi-v2.json`](docs/api/openapi-v2.json)으로 고정해 둡니다. 백엔드 API 변경 시 앱을 띄운 상태에서 갱신합니다:
+
+```bash
+SPRING_PROFILES_ACTIVE=local ./gradlew :carry-app:bootRun   # 별도 터미널
+./scripts/export-openapi.sh                                  # docs/api/openapi-v2.json 갱신
+```
+
+> 비프로덕션 로컬 인증은 `POST /api/v2/auth/dev-login {"role":"CUSTOMER|CARRIER|COORDINATOR|ADMIN"}`로 Kakao 없이 토큰을 발급받을 수 있습니다(local/dev 프로파일 전용).
+
 ### API 그룹
 
 | 태그 | 설명 |
