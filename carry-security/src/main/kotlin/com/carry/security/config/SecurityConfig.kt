@@ -36,6 +36,9 @@ class SecurityConfig(
                         "/api/v2/auth/**",
                         "/actuator/**",
                         "/swagger-ui/**",
+                        // springdoc.api-docs.path=/api-docs 로 커스터마이즈돼 있어 기본 `/v3/api-docs/**`만으로는
+                        // OpenAPI 스펙(JSON)·swagger-config가 401이 된다(Swagger UI 스펙 로딩·스키마 export 차단).
+                        "/api-docs/**",
                         "/v3/api-docs/**"
                     ).permitAll()
                     .anyRequest().authenticated()
