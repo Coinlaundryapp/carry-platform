@@ -24,6 +24,12 @@ data class RefreshRequest(
     @Schema(description = "refresh token") @field:NotBlank val refreshToken: String,
 )
 
+@Schema(description = "dev-login 요청 (비프로덕션)")
+data class DevLoginRequest(
+    @Schema(description = "역할", example = "CUSTOMER", allowableValues = ["CUSTOMER", "CARRIER", "COORDINATOR", "ADMIN"])
+    @field:NotBlank val role: String,
+)
+
 @Schema(description = "가입 폼 prefill")
 data class PrefillResponse(
     val email: String?,
