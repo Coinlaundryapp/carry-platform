@@ -1,7 +1,7 @@
 # 11. 비즈니스 메트릭 카탈로그
 
-> 최종 수정일: 2026-05-29
-> 상태: Phase 3.1 — Active
+> 최종 수정일: 2026-06-13
+> 상태: Active — #97·#99·#100/#112·#124·#125 반영
 
 ROADMAP Phase 3.1 ("비즈니스 메트릭 활성화")의 산출물. 도메인 서비스가 `MetricsPort`(`carry-common`)를 통해 발행하는 모든 비즈니스 메트릭의 단일 사실원(single source of truth).
 
@@ -38,6 +38,7 @@ ROADMAP Phase 3.1 ("비즈니스 메트릭 활성화")의 산출물. 도메인 �
 |---|---|---|---|
 | `carry.dispatch.accepted` | Counter | `via={claim\|assignment}` | `DispatchCommandService.claimDispatch` / `acceptAssignment` |
 | `carry.dispatch.rejected` | Counter | — | `DispatchCommandService.rejectAssignment` |
+| `carry.dispatch.timeout` | Counter | — | `DispatchCommandService.timeoutDispatch` (DispatchTimeoutSweeper #97) |
 
 > **`via` 태그 해석**: `claim`은 캐리어가 PENDING 배차를 직접 잡은 경로(self-service), `assignment`는 코디네이터가 지정한 ASSIGNED 배차를 캐리어가 수락한 경로(orchestrated). 두 경로의 비율을 추적해 자동 배차 vs 수동 배차의 상대 빈도를 본다.
 
@@ -48,7 +49,17 @@ ROADMAP Phase 3.1 ("비즈니스 메트릭 활성화")의 산출물. 도메인 �
 | `carry.delivery.completed` | Counter | — | `DeliveryCommandService.completeDelivery` |
 | `carry.delivery.duration` | Timer | — | `DeliveryCommandService.completeDelivery` |
 
-> **`carry.delivery.duration` 정의**: `Delivery` aggregate가 생성된 시각(=`DispatchAcceptedEvent` 사가 처리 시점)부터 배달이 완료된 시각까지의 wall-clock duration. 주문 생성부터 배달 완료까지의 전체 사가 길이는 아니며, 그것은 `carry.saga.duration`(아직 미구현, [known-debts] 참조)에서 다룬다.
+> **`carry.delivery.duration` 정의**: `Delivery` aggregate가 생성된 시각(=`DispatchAcceptedEvent` 사가 처리 시점)부터 배달이 완료된 시각까지의 wall-clock duration. 주문 생성부터 배달 완료까지의 전체 사가 길이는 아니며, 그것은 아래 `carry.saga.duration`에서 다룬다.
+
+### 사가 (Saga)
+
+| 메트릭 | 타입 | 태그 | 호출 위치 |
+|---|---|---|---|
+| `carry.saga.duration` | Timer | — | `OrderSagaHandler` (order.createdAt 기준 wall-clock, #99) |
+| `carry.saga.stuck` | Counter | `status` | `StuckSagaDetector` (비종결 중간상태 정체 감지, #100/#112) |
+
+> **`carry.saga.duration`**: 주문 생성(`order.createdAt`)부터 사가 종결까지의 전체 길이. `carry.delivery.duration`(배달 구간만)과 구분된다.
+> **`carry.saga.stuck`**: 일정 시간 이상 중간 상태(PENDING 등 7종)에 머문 사가 수. `status` 태그로 어느 단계에서 막혔는지 분해. 알럿 룰 #9(SagaStuck)가 소비.
 
 ### 결제 (Payment)
 
@@ -65,8 +76,19 @@ ROADMAP Phase 3.1 ("비즈니스 메트릭 활성화")의 산출물. 도메인 �
 |---|---|---|---|
 | `carry.outbox.pending` | Gauge | — | `OutboxMetricsScheduler` (30초 주기) |
 | `carry.kafka.dlq` | Counter | `topic`, `exception` | `KafkaConfig.wrapWithMetrics` |
+| `carry.kafka.dlq.redriven` | Counter | `topic` | `DlqRedriveService` (원본 토픽 재발행, #124) |
+| `carry.kafka.dlq.parked` | Counter | `topic` | `DlqRedriveService` (재발행 한도 도달 보류, #124) |
 
 > **`carry.outbox.pending`**: CDC가 아직 발행하지 않은 outbox 이벤트 수. 지속적으로 증가하면 Debezium 정체 신호.
+> **`carry.kafka.dlq.redriven` / `.parked`**: 운영자 트리거 DLQ 재처리(`POST /api/v2/admin/dlq/redrive`)의 결과. redriven=원본 토픽 재발행, parked=재발행 3회 한도 도달로 DLQ 잔류(수동 검토 대상).
+
+### 위치 (Geo)
+
+| 메트릭 | 타입 | 태그 | 호출 위치 |
+|---|---|---|---|
+| `carry.geo.cache` | Counter | `direction={fwd\|rev}`, `result={hit\|miss}` | `RedisCachingGeocodingAdapter` / `…ReverseGeocodingAdapter` (#125) |
+
+> **`carry.geo.cache`**: Redis 지오코딩 캐시 적중률. 적중률 = `hit / (hit+miss)`. 외부 Naver API 호출 절감과 24h TTL fallback 효과 측정.
 
 ---
 
@@ -84,15 +106,16 @@ ROADMAP Phase 3.4의 알럿 기준선이 참조할 카운터/게이지를 미리
 
 ---
 
-## 미구현 항목 (의도적 보류)
+## Timer/Histogram 노출 주의 (percentile-histogram)
 
-ROADMAP 3.1 메트릭 목록 중 본 PR에서 미구현된 항목:
+`histogram_quantile`로 p50/p95/p99를 그리는 패널·알럿은 `_bucket` 시리즈를 전제한다. Micrometer는
+`management.metrics.distribution.percentiles-histogram.<name>=true`를 켜야 `_bucket`을 노출한다 — 미설정 시
+Timer가 `_count`/`_sum`만 내보내 quantile 패널이 **트래픽이 있어도 No data**가 된다(2026-06-12 라이브 검증 발견, #125).
+현재 활성: `http.server.requests`, `carry.delivery.duration`, `carry.saga.duration` (`application.yml`).
+새 Timer에 quantile 패널을 붙이려면 이 목록에 등록할 것.
 
-| 메트릭 | 사유 |
-|---|---|
-| `carry.dispatch.timeout` | 배차 만료를 트리거할 스케줄러가 아직 없음. `DispatchPersistencePort.findExpiredPendingDispatches`만 존재하고 호출자 없음. 스케줄러 도입 시 동반 추가. |
-| `carry.saga.duration` | 주문 생성 시각을 배달 완료 컨텍스트로 전파하는 메커니즘이 필요(이벤트 페이로드 확장 or stateful collector). 별도 PR. |
+## 이력
 
-자세한 후속 작업은 [의도적 빚 추적][known-debts]에서 관리.
-
-[known-debts]: ../README.md
+ROADMAP 3.1 초기 카탈로그에서 미구현이던 `carry.dispatch.timeout`(#97)·`carry.saga.duration`(#99)은 구현 완료.
+이후 `carry.saga.stuck`(#100/#112)·`carry.kafka.dlq.redriven`/`.parked`(#124)·`carry.geo.cache`(#125)가 추가됐다.
+의도적 후속은 루트 `ROADMAP.md` 진행 노트 + [`docs/adr/`](adr/) 참조.
