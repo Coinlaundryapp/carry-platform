@@ -17,6 +17,7 @@ import com.carry.user.domain.vo.Email
 import com.carry.user.domain.vo.OAuthInfo
 import com.carry.user.domain.vo.OAuthProvider
 import com.carry.user.domain.vo.Phone
+import com.carry.user.domain.vo.UserRole
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -31,6 +32,25 @@ class AuthService(
 ) : AuthUseCase {
 
     private val log = LoggerFactory.getLogger(javaClass)
+
+    override fun devLogin(role: UserRole): TokenPair {
+        // 역할별 결정적 합성 신원 — 같은 역할 재호출 시 같은 사용자(unique idx: oauth_provider+oauth_id).
+        val slug = role.name.lowercase()
+        val oauthInfo = OAuthInfo(OAuthProvider.DEV, "dev:$slug")
+        val user = userPersistencePort.findByOAuthInfo(oauthInfo)
+            ?: userPersistencePort.save(
+                User.create(
+                    email = Email("dev-$slug@carry.local"),
+                    name = "dev-$slug",
+                    phone = Phone("01000000000"),
+                    role = role,
+                    oauthInfo = oauthInfo,
+                ),
+            )
+        if (!user.isActive) throw InactiveUserException()
+        log.info("dev-login 발급 (role={}, userId={})", role, user.id)
+        return issueTokens(user)
+    }
 
     override fun loginOrRegister(
         provider: OAuthProvider,

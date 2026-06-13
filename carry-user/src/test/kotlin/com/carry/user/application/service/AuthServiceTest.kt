@@ -55,6 +55,60 @@ class AuthServiceTest {
     )
 
     @Nested
+    inner class DevLogin {
+
+        private fun stubTokenIssuance(userId: Long) {
+            every { authTokenPort.issueRefreshToken(userId) } returns
+                IssuedRefreshToken(token = "refresh", sessionId = "sess", jti = "jti")
+            every { authTokenPort.issueAccessToken(userId, any()) } returns "access"
+        }
+
+        @Test
+        fun `신규 역할이면 DEV 신원으로 사용자를 생성하고 그 역할로 토큰을 발급한다`() {
+            val devInfo = OAuthInfo(OAuthProvider.DEV, "dev:carrier")
+            every { userPersistencePort.findByOAuthInfo(devInfo) } returns null
+            val saved = slot<User>()
+            every { userPersistencePort.save(capture(saved)) } answers {
+                User.reconstitute(
+                    id = 7L, email = saved.captured.email, name = saved.captured.name,
+                    phone = saved.captured.phone, role = saved.captured.role, oauthInfo = saved.captured.oauthInfo,
+                    isActive = true, createdAt = Instant.now(), updatedAt = Instant.now(),
+                )
+            }
+            stubTokenIssuance(7L)
+
+            val tokens = sut.devLogin(UserRole.CARRIER)
+
+            // 생성된 사용자는 요청 역할을 갖는다 — loginOrRegister가 못 하던 핵심 속성
+            assertThat(saved.captured.role).isEqualTo(UserRole.CARRIER)
+            assertThat(saved.captured.oauthInfo).isEqualTo(devInfo)
+            assertThat(tokens.accessToken).isEqualTo("access")
+            // access 토큰은 그 역할로 발급된다
+            verify(exactly = 1) { authTokenPort.issueAccessToken(7L, UserRole.CARRIER) }
+        }
+
+        @Test
+        fun `같은 역할로 다시 호출하면 기존 dev 사용자를 재사용한다 — 중복 생성 없음`() {
+            val existing = user(id = 3L, oauthId = "dev:coordinator", role = UserRole.COORDINATOR).let {
+                User.reconstitute(
+                    id = 3L, email = it.email, name = it.name, phone = it.phone, role = UserRole.COORDINATOR,
+                    oauthInfo = OAuthInfo(OAuthProvider.DEV, "dev:coordinator"), isActive = true,
+                    createdAt = Instant.now(), updatedAt = Instant.now(),
+                )
+            }
+            every {
+                userPersistencePort.findByOAuthInfo(OAuthInfo(OAuthProvider.DEV, "dev:coordinator"))
+            } returns existing
+            stubTokenIssuance(3L)
+
+            sut.devLogin(UserRole.COORDINATOR)
+
+            verify(exactly = 0) { userPersistencePort.save(any()) }
+            verify(exactly = 1) { authTokenPort.issueAccessToken(3L, UserRole.COORDINATOR) }
+        }
+    }
+
+    @Nested
     inner class LoginOrRegister {
 
         @Test

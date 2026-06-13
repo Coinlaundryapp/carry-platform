@@ -12,5 +12,8 @@ data class OAuthInfo(
 }
 
 enum class OAuthProvider {
-    KAKAO
+    KAKAO,
+
+    /** 비프로덕션 dev-login 전용 합성 신원(예: `dev:customer`). prod에서는 발급 경로가 봉인된다. */
+    DEV,
 }

@@ -2,8 +2,15 @@ package com.carry.user.application.port.inbound
 
 import com.carry.user.domain.model.User
 import com.carry.user.domain.vo.OAuthProvider
+import com.carry.user.domain.vo.UserRole
 
 interface AuthUseCase {
+
+    /**
+     * 비프로덕션 dev-login — 주어진 역할의 결정적 dev 사용자를 get-or-create하고 토큰을 발급한다.
+     * Kakao 콘솔 의존 없이 로컬/개발에서 인증을 도달 가능하게 한다. prod에서는 노출 경로가 봉인된다.
+     */
+    fun devLogin(role: UserRole): TokenPair
 
     fun loginOrRegister(
         provider: OAuthProvider,
