@@ -3083,6 +3083,182 @@
                 }
             }
         },
+        "/api/v2/coordinator/orders": {
+            "get": {
+                "tags": [
+                    "Order - Coordinator"
+                ],
+                "summary": "\u4e8c\uc1f0\u0426 \uf9cf\u2478\uc909 \u8b70\uace0\uc276 (\u8084\ubdbe\ubd52\udceb\uaf55\udcec\uc520\udced\uaf63)",
+                "description": "\u8084\ubdbe\ubd52\udceb\uaf55\udcec\uc520\udced\uaf63\u5a9b\udc80 \udcec\uc7fe\uf9e3\udcb4 \u4e8c\uc1f0\u0426\udcec\uc4e3 \udcec\uae3d\udced\uae6d\u6fe1\udc9c \udced\ube18\udced\uaf63\udced\ube50 \u8b70\uace0\uc276\udced\ube33\udceb\ub58e. \udcec\ub0fc\udcec\uc440\udcec\uc604 \u5bc3\udc80\uf9dd\udc9d \udcec\ubfbe\udcec\uc4ec.",
+                "operationId": "getOrders",
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "\u4e8c\uc1f0\u0426 \udcec\uae3d\udced\uae6d \udced\ube18\udced\uaf63(\udcec\uae6e\udceb\uc642 \udcec\ub586 \udcec\uc7fe\uf9e3\udcb4)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "CREATED",
+                                "DISPATCHED",
+                                "PICKED_UP",
+                                "INVOICED",
+                                "PAYMENT_FAILED",
+                                "PAID",
+                                "IN_PROGRESS",
+                                "COMPLETED",
+                                "REFUND_PENDING",
+                                "REFUNDED",
+                                "CANCELLED"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "cursor",
+                        "in": "query",
+                        "description": "\uf9cd\ub349\udca7\udc80\uf9cd\ub431\uc45d\u6fe1\udc9c \u8b70\uace0\uc276\udced\ube33 \u4e8c\uc1f0\u0426 ID (\uf9e3\udcab \udced\ub7f9\udcec\uc520\uf9de\udc80\udceb\ub497 \udcec\uae6e\udceb\uc642)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "description": "\udced\ub7f9\udcec\uc520\uf9de\udc80 \udced\uac95\u6e72\udcb0",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32",
+                            "default": 20
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "\u4e8c\uc1f0\u0426 \uf9cf\u2478\uc909 \u8b70\uace0\uc276 \udcec\uaf66\u6028\udcb5",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResponseListOrderResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/coordinator/orders/{orderId}": {
+            "get": {
+                "tags": [
+                    "Order - Coordinator"
+                ],
+                "summary": "\u4e8c\uc1f0\u0426 \udcec\uae3d\udcec\uaf6d \u8b70\uace0\uc276 (\u8084\ubdbe\ubd52\udceb\uaf55\udcec\uc520\udced\uaf63)",
+                "description": "\u8084\ubdbe\ubd52\udceb\uaf55\udcec\uc520\udced\uaf63\u5a9b\udc80 \udcec\ub0fc\udcec\uc440\udcec\uc604 \u5bc3\udc80\uf9dd\udc9d \udcec\ubfbe\udcec\uc520 \u4e8c\uc1f0\u0426 \udceb\ub592\u5ac4\ub301\uc4e3 \u8b70\uace0\uc276\udced\ube33\udceb\ub58e.",
+                "operationId": "getOrder_1",
+                "parameters": [
+                    {
+                        "name": "orderId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "\u4e8c\uc1f0\u0426 \u8b70\uace0\uc276 \udcec\uaf66\u6028\udcb5",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResponseOrderResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "\u4e8c\uc1f0\u0426\udcec\uc4e3 \uf9e1\uc5a0\uc4e3 \udcec\ub2d4 \udcec\ubfbe\udcec\uc4ec",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResponseOrderResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/coordinator/dispatches": {
+            "get": {
+                "tags": [
+                    "Dispatch - Coordinator"
+                ],
+                "summary": "\u8adb\uacd7\uac10 \uf9cf\u2478\uc909 \u8b70\uace0\uc276 (\u8084\ubdbe\ubd52\udceb\uaf55\udcec\uc520\udced\uaf63)",
+                "description": "\udcec\uae3d\udced\uae6d\uca0c\u6c85\ub6af\ubfed\udcec\uc45d\u6fe1\udc9c \udced\ube18\udced\uaf63\udced\ube50 \udcec\uc7fe\uf9e3\udcb4 \u8adb\uacd7\uac10\u745c\udcbc \u8b70\uace0\uc276\udced\ube40\udceb\ub572\udceb\ub58e. \u8a98\uba83\uac19\udcec\uc819(PENDING) \u8adb\uacd7\uac10 \udcec\uc2ab\udcec\uc07a\udcec\ubfc9 \udcec\uad97\udcec\uc29c\udced\ube40\udceb\ub572\udceb\ub58e.",
+                "operationId": "getDispatches",
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "PENDING",
+                                "ASSIGNED",
+                                "ACCEPTED",
+                                "CANCELLED",
+                                "TIMEOUT"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "areaCode",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "cursor",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32",
+                            "default": 20
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "\u8adb\uacd7\uac10 \uf9cf\u2478\uc909 \u8b70\uace0\uc276 \udcec\uaf66\u6028\udcb5",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResponseListDispatchResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v2/coordinator/dispatches/{dispatchId}": {
             "get": {
                 "tags": [
