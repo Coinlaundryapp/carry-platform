@@ -21,6 +21,22 @@ services:
     ports:
       - "6379:6379"
 
+  # LocalStack — 로컬 S3(미디어 업로드). 백엔드 S3Config는 cloud.aws.s3.endpoint가 설정되면
+  # endpointOverride + forcePathStyle(true)로 LocalStack에 붙는다(application-local.yml의
+  # endpoint=http://localhost:4566, creds test/test). ready 훅이 carry-media 버킷을 생성한다.
+  # 이게 없으면 배달 단계 사진 업로드(/api/v2/media/upload)가 연결 실패한다.
+  localstack:
+    image: localstack/localstack:3
+    container_name: carry-localstack
+    ports:
+      - "4566:4566"
+    environment:
+      SERVICES: s3
+      AWS_DEFAULT_REGION: ap-northeast-2
+      DEBUG: "0"
+    volumes:
+      - "./infra/localstack/ready.d:/etc/localstack/init/ready.d"
+
   # Kafka 멀티브로커 HA — 3-node 겸임 KRaft(broker+controller) 클러스터.
   # 리스너 3종 분리(advertised 오설정 = 멀티브로커 최대 footgun 차단):
   #   CONTROLLER(9093) 컨테이너 내부 전용(호스트 매핑 없음, KRaft 쿼럼)
