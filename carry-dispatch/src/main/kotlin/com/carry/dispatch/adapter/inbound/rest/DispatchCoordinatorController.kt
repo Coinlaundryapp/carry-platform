@@ -10,6 +10,7 @@ import com.carry.dispatch.application.port.inbound.CancelDispatchCommand
 import com.carry.dispatch.application.port.inbound.CarrierAreaUseCase
 import com.carry.dispatch.application.port.inbound.DispatchCommandUseCase
 import com.carry.dispatch.application.port.inbound.DispatchQueryUseCase
+import com.carry.dispatch.domain.vo.DispatchStatus
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse as SwaggerApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
@@ -72,6 +73,22 @@ class DispatchCoordinatorController(
     ): ResponseEntity<Void> {
         dispatchCommandUseCase.cancelDispatch(CancelDispatchCommand(dispatchId, request.reason))
         return ResponseEntity.noContent().build()
+    }
+
+    @Operation(
+        summary = "배차 목록 조회 (코디네이터)",
+        description = "상태·권역으로 필터해 전체 배차를 조회합니다. 미배정(PENDING) 배차 운영에 사용합니다.",
+    )
+    @ApiResponses(value = [SwaggerApiResponse(responseCode = "200", description = "배차 목록 조회 성공")])
+    @GetMapping
+    fun getDispatches(
+        @RequestParam(required = false) status: DispatchStatus?,
+        @RequestParam(required = false) areaCode: String?,
+        @RequestParam(required = false) cursor: Long?,
+        @RequestParam(defaultValue = "20") size: Int,
+    ): ResponseEntity<ApiResponse<List<DispatchResponse>>> {
+        val dispatches = dispatchQueryUseCase.getDispatchesForCoordinator(status, areaCode, cursor, size)
+        return ResponseEntity.ok(ApiResponse.success(dispatches.map { DispatchResponse.from(it) }))
     }
 
     @Operation(summary = "권역별 배달원 조회", description = "특정 권역의 배달원 목록을 조회합니다")

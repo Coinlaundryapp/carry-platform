@@ -8,5 +8,6 @@ interface OrderPersistencePort {
     fun save(order: Order): Order
     fun findById(id: Long): Order?
     fun findByCustomerId(customerId: Long, cursor: Long?, size: Int): List<Order>
+    fun findForCoordinator(status: OrderStatus?, cursor: Long?, size: Int): List<Order>
     fun findByStatusAndUpdatedAtBefore(status: OrderStatus, cutoff: Instant): List<Order>
 }
