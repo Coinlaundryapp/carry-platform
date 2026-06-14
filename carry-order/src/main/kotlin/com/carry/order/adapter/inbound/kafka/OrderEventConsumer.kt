@@ -30,7 +30,7 @@ class OrderEventConsumer(
     @KafkaListener(topics = ["carry.Dispatch.events"], groupId = "carry-order-module")
     fun consumeDispatchEvents(record: ConsumerRecord<String, String>) {
         val envelope = objectMapper.readValue(record.value(), OutboxEventEnvelope::class.java)
-        eventConsumerSupport.processIfNotDuplicate(envelope.id, envelope.traceId, envelope.eventType) {
+        eventConsumerSupport.processIfNotDuplicate("carry-order-module", envelope.id, envelope.traceId, envelope.eventType) {
             when (envelope.eventType) {
                 "DispatchAcceptedEvent" -> {
                     val event = objectMapper.readValue(envelope.payload, DispatchAcceptedEvent::class.java)
@@ -52,7 +52,7 @@ class OrderEventConsumer(
     @KafkaListener(topics = ["carry.Delivery.events"], groupId = "carry-order-module")
     fun consumeDeliveryEvents(record: ConsumerRecord<String, String>) {
         val envelope = objectMapper.readValue(record.value(), OutboxEventEnvelope::class.java)
-        eventConsumerSupport.processIfNotDuplicate(envelope.id, envelope.traceId, envelope.eventType) {
+        eventConsumerSupport.processIfNotDuplicate("carry-order-module", envelope.id, envelope.traceId, envelope.eventType) {
             when (envelope.eventType) {
                 "PickupCompletedEvent" -> {
                     val event = objectMapper.readValue(envelope.payload, PickupCompletedEvent::class.java)
@@ -74,7 +74,7 @@ class OrderEventConsumer(
     @KafkaListener(topics = ["carry.Payment.events"], groupId = "carry-order-module")
     fun consumePaymentEvents(record: ConsumerRecord<String, String>) {
         val envelope = objectMapper.readValue(record.value(), OutboxEventEnvelope::class.java)
-        eventConsumerSupport.processIfNotDuplicate(envelope.id, envelope.traceId, envelope.eventType) {
+        eventConsumerSupport.processIfNotDuplicate("carry-order-module", envelope.id, envelope.traceId, envelope.eventType) {
             when (envelope.eventType) {
                 "InvoiceIssuedEvent" -> {
                     val event = objectMapper.readValue(envelope.payload, InvoiceIssuedEvent::class.java)

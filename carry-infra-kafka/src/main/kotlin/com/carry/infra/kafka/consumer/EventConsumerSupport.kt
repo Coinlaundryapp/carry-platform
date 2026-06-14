@@ -14,12 +14,23 @@ class EventConsumerSupport(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
+    /**
+     * 이벤트를 **소비자 그룹별로** 한 번만 처리한다. [consumerGroup]은 호출 컨슈머의
+     * `@KafkaListener(groupId=...)`와 일치해야 한다 — 같은 이벤트가 여러 그룹으로 fan-out돼도
+     * 각 그룹이 독립적으로 1회 처리하도록 키에 그룹을 포함한다.
+     */
     @Transactional
-    fun processIfNotDuplicate(eventId: String, traceId: String? = null, eventType: String? = null, block: () -> Unit) {
-        // claim-first: 처리 시작 전에 원자적으로 선점한다. 0행이면 이미 처리됨(중복) → skip.
+    fun processIfNotDuplicate(
+        consumerGroup: String,
+        eventId: String,
+        traceId: String? = null,
+        eventType: String? = null,
+        block: () -> Unit,
+    ) {
+        // claim-first: 처리 시작 전에 원자적으로 선점한다. 0행이면 이 그룹이 이미 처리함(중복) → skip.
         // 동시 중복에서도 ON CONFLICT가 한 트랜잭션만 통과시켜 block은 최대 1회 실행된다.
-        if (processedEventRepository.claim(eventId, Instant.now()) == 0) {
-            log.debug("Skipping duplicate event: {}", eventId)
+        if (processedEventRepository.claim(consumerGroup, eventId, Instant.now()) == 0) {
+            log.debug("Skipping duplicate event: group={} id={}", consumerGroup, eventId)
             return
         }
 

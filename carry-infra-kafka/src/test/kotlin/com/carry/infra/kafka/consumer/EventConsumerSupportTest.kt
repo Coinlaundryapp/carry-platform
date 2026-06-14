@@ -24,35 +24,35 @@ class EventConsumerSupportTest {
 
     @Test
     fun `claim에 성공하면(1) block을 실행한다`() {
-        every { processedEventRepository.claim(eq("evt-1"), any<Instant>()) } returns 1
+        every { processedEventRepository.claim(any(), eq("evt-1"), any<Instant>()) } returns 1
 
         var executed = 0
-        support.processIfNotDuplicate("evt-1", eventType = "OrderCreatedEvent") { executed++ }
+        support.processIfNotDuplicate("grp-1", "evt-1", eventType = "OrderCreatedEvent") { executed++ }
 
         assertThat(executed).isEqualTo(1)
-        verify(exactly = 1) { processedEventRepository.claim(eq("evt-1"), any<Instant>()) }
+        verify(exactly = 1) { processedEventRepository.claim(any(), eq("evt-1"), any<Instant>()) }
     }
 
     @Test
     fun `claim이 중복이면(0) block을 실행하지 않는다`() {
-        every { processedEventRepository.claim(eq("evt-1"), any<Instant>()) } returns 0
+        every { processedEventRepository.claim(any(), eq("evt-1"), any<Instant>()) } returns 0
 
         var executed = 0
-        support.processIfNotDuplicate("evt-1", eventType = "OrderCreatedEvent") { executed++ }
+        support.processIfNotDuplicate("grp-1", "evt-1", eventType = "OrderCreatedEvent") { executed++ }
 
         assertThat(executed).isEqualTo(0)
-        verify(exactly = 1) { processedEventRepository.claim(eq("evt-1"), any<Instant>()) }
+        verify(exactly = 1) { processedEventRepository.claim(any(), eq("evt-1"), any<Instant>()) }
     }
 
     @Test
     fun `claim은 block보다 먼저 호출된다 (claim-first)`() {
         val calls = mutableListOf<String>()
         // claim의 answers에서 호출 시점을 calls에 기록 → block의 기록과 순서를 비교한다.
-        every { processedEventRepository.claim(eq("evt-1"), any<Instant>()) } answers {
+        every { processedEventRepository.claim(any(), eq("evt-1"), any<Instant>()) } answers {
             calls.add("claim"); 1
         }
 
-        support.processIfNotDuplicate("evt-1", eventType = "OrderCreatedEvent") { calls.add("block") }
+        support.processIfNotDuplicate("grp-1", "evt-1", eventType = "OrderCreatedEvent") { calls.add("block") }
 
         // 실제 실행 순서가 claim → block 임을 단언(claim-first의 핵심).
         assertThat(calls).containsExactly("claim", "block")
@@ -60,15 +60,15 @@ class EventConsumerSupportTest {
 
     @Test
     fun `block이 예외를 던지면 전파된다`() {
-        every { processedEventRepository.claim(eq("evt-1"), any<Instant>()) } returns 1
+        every { processedEventRepository.claim(any(), eq("evt-1"), any<Instant>()) } returns 1
 
         // 롤백(claim 행 제거)은 @Transactional/실DB 관심사 → 통합 테스트에서 검증.
         // 단위에서는 예외 전파만 단언한다.
         assertThatThrownBy {
-            support.processIfNotDuplicate("evt-1", eventType = "OrderCreatedEvent") {
+            support.processIfNotDuplicate("grp-1", "evt-1", eventType = "OrderCreatedEvent") {
                 throw IllegalStateException("downstream failure")
             }
         }.isInstanceOf(IllegalStateException::class.java)
-        verify(exactly = 1) { processedEventRepository.claim(eq("evt-1"), any<Instant>()) }
+        verify(exactly = 1) { processedEventRepository.claim(any(), eq("evt-1"), any<Instant>()) }
     }
 }
