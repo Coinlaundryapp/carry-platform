@@ -55,14 +55,14 @@ class ConsumerIdempotencyIntegrationTest : IntegrationTestBase() {
         jdbc.queryForObject("SELECT count(*) FROM idem_test_marker WHERE event_id = ?", Int::class.java, eventId)!!
 
     private fun processedCount(eventId: String): Int =
-        jdbc.queryForObject("SELECT count(*) FROM processed_events WHERE id = ?", Int::class.java, eventId)!!
+        jdbc.queryForObject("SELECT count(*) FROM processed_events WHERE event_id = ?", Int::class.java, eventId)!!
 
     @Test
     fun `같은 이벤트를 순차로 두 번 처리해도 부수효과는 한 번만 커밋된다`() {
         val eventId = "evt-seq-1"
 
-        eventConsumerSupport.processIfNotDuplicate(eventId, eventType = "OrderCreatedEvent") { insertMarker(eventId) }
-        eventConsumerSupport.processIfNotDuplicate(eventId, eventType = "OrderCreatedEvent") { insertMarker(eventId) }
+        eventConsumerSupport.processIfNotDuplicate("test-group", eventId, eventType = "OrderCreatedEvent") { insertMarker(eventId) }
+        eventConsumerSupport.processIfNotDuplicate("test-group", eventId, eventType = "OrderCreatedEvent") { insertMarker(eventId) }
 
         assertThat(markerCount(eventId)).isEqualTo(1)
         assertThat(processedCount(eventId)).isEqualTo(1)
@@ -73,7 +73,7 @@ class ConsumerIdempotencyIntegrationTest : IntegrationTestBase() {
         val eventId = "evt-fail-1"
 
         assertThatThrownBy {
-            eventConsumerSupport.processIfNotDuplicate(eventId, eventType = "OrderCreatedEvent") {
+            eventConsumerSupport.processIfNotDuplicate("test-group", eventId, eventType = "OrderCreatedEvent") {
                 insertMarker(eventId)                       // 부수효과 발생 후
                 throw IllegalStateException("downstream failure")  // 같은 tx 안에서 실패
             }
@@ -108,7 +108,7 @@ class ConsumerIdempotencyIntegrationTest : IntegrationTestBase() {
                 ready.countDown()
                 start.await()
                 runCatching {
-                    eventConsumerSupport.processIfNotDuplicate(eventId, eventType = "OrderCreatedEvent") {
+                    eventConsumerSupport.processIfNotDuplicate("test-group", eventId, eventType = "OrderCreatedEvent") {
                         insertMarker(eventId)
                     }
                 }
@@ -133,5 +133,27 @@ class ConsumerIdempotencyIntegrationTest : IntegrationTestBase() {
         // 패자 스레드도 예외 없이 깨끗이 skip(0행 claim) → 전부 성공.
         assertThat(ok).`as`("ok=%d (expected all %d threads succeed) marker=%d processed=%d", ok, threads, marker, processed).isEqualTo(threads)
         assertThat(failed).`as`("failed=%d (expected 0) marker=%d processed=%d", failed, marker, processed).isEqualTo(0)
+    }
+
+    /**
+     * 핵심 회귀 — **같은 이벤트가 서로 다른 consumer 그룹으로 fan-out되면 각 그룹이 독립적으로
+     * 한 번씩 처리**한다(그룹별 멱등). dedup 키가 eventId 단독이던 시절엔 먼저 claim한 그룹이
+     * 다른 그룹을 "중복"으로 굶겨, 예컨대 notification이 이기면 dispatch가 배차를 못 만드는
+     * 비결정적 사가 누락이 있었다. 키에 consumer_group을 포함해 이를 구조적으로 차단한다.
+     */
+    @Test
+    fun `같은 이벤트라도 consumer 그룹이 다르면 각 그룹이 한 번씩 처리한다`() {
+        val eventId = "evt-fanout-1"
+
+        eventConsumerSupport.processIfNotDuplicate("carry-dispatch-module", eventId, eventType = "OrderCreatedEvent") {
+            insertMarker(eventId)
+        }
+        eventConsumerSupport.processIfNotDuplicate("carry-notification-module", eventId, eventType = "OrderCreatedEvent") {
+            insertMarker(eventId)
+        }
+
+        // 두 그룹이 같은 eventId를 각자 1회씩 처리 → 부수효과 2회, 마킹 2행((group,event) 복합키).
+        assertThat(markerCount(eventId)).isEqualTo(2)
+        assertThat(processedCount(eventId)).isEqualTo(2)
     }
 }

@@ -29,13 +29,14 @@ class OrderEventConsumerIdempotencyTest {
     private val objectMapper = jacksonObjectMapper()
     private val sagaHandler = mockk<OrderSagaEventHandler>(relaxed = true)
 
-    /** claim()이 실제로 동작하는 in-memory fake (키 = eventId). 최초 1, 이후 0. */
+    /** claim()이 실제로 동작하는 in-memory fake (키 = consumerGroup + eventId). 최초 1, 이후 0. */
     private fun inMemoryEventConsumerSupport(): EventConsumerSupport {
-        val processedIds = mutableSetOf<String>()
+        val processedKeys = mutableSetOf<String>()
         val repo = mockk<ProcessedEventRepository>()
         // processedAt(타임스탬프)은 dedup 키 라우팅 검증과 무관하므로 매칭만 하고 무시한다.
-        every { repo.claim(any<String>(), any<Instant>()) } answers {
-            if (processedIds.add(firstArg<String>())) 1 else 0
+        every { repo.claim(any<String>(), any<String>(), any<Instant>()) } answers {
+            // 키 = (consumerGroup, eventId)
+            if (processedKeys.add("${firstArg<String>()}:${secondArg<String>()}")) 1 else 0
         }
         return EventConsumerSupport(repo, mockk<Tracer>(relaxed = true))
     }
