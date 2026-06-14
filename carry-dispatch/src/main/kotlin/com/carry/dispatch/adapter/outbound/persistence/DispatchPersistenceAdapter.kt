@@ -46,4 +46,9 @@ class DispatchPersistenceAdapter(
         return dispatchJpaRepository.findByCarrierIdWithCursor(carrierId, cursor, PageRequest.of(0, size))
             .map { it.toDomain() }
     }
+
+    override fun findForCoordinator(status: DispatchStatus?, areaCode: String?, cursor: Long?, size: Int): List<Dispatch> {
+        return dispatchJpaRepository.findForCoordinatorWithCursor(status, areaCode, cursor, PageRequest.of(0, size))
+            .map { it.toDomain() }
+    }
 }

@@ -33,6 +33,18 @@ interface DispatchJpaRepository : JpaRepository<DispatchJpaEntity, Long> {
     ): List<DispatchJpaEntity>
 
     @Query(
+        "SELECT d FROM DispatchJpaEntity d WHERE (:status IS NULL OR d.status = :status)" +
+            " AND (:areaCode IS NULL OR d.areaCode = :areaCode)" +
+            " AND (:cursor IS NULL OR d.id < :cursor) ORDER BY d.id DESC",
+    )
+    fun findForCoordinatorWithCursor(
+        @Param("status") status: DispatchStatus?,
+        @Param("areaCode") areaCode: String?,
+        @Param("cursor") cursor: Long?,
+        pageable: Pageable,
+    ): List<DispatchJpaEntity>
+
+    @Query(
         value = "SELECT d.* FROM dispatch_dispatches d WHERE d.status = 'PENDING' " +
             "AND d.desired_pickup_at <= CURRENT_TIMESTAMP + INTERVAL '30 minutes'",
         nativeQuery = true,
