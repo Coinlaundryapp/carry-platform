@@ -1,0 +1,3 @@
+# LocalStack ready 훅은 Linux 컨테이너 안에서 실행된다 — CRLF면 `#!/bin/sh` 해석이 깨지므로
+# 체크아웃 시 LF를 강제한다(autocrlf 환경에서도 안전).
+infra/localstack/ready.d/*.sh text eol=lf
