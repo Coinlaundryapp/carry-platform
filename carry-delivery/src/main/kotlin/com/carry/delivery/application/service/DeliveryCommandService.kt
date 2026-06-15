@@ -8,6 +8,7 @@ import com.carry.delivery.domain.exception.DeliveryNotFoundException
 import com.carry.delivery.domain.exception.DeliveryNotOwnedException
 import com.carry.delivery.domain.exception.OrderNotPaidException
 import com.carry.delivery.domain.model.Delivery
+import com.carry.delivery.domain.vo.DeliveryStatus
 import com.carry.event.delivery.DeliveryCompletedEvent
 import com.carry.event.delivery.LaundryStartedEvent
 import com.carry.event.delivery.PickupCompletedEvent
@@ -41,7 +42,8 @@ class DeliveryCommandService(
         requestingCarrierId: Long,
     ): Delivery {
         val delivery = findOwnedDelivery(deliveryId, requestingCarrierId)
-        delivery.completePickup(weight, photoIds, clock.instant())
+        val transitioned = delivery.completePickup(weight, photoIds, clock.instant())
+        if (!transitioned) return delivery // 멱등 재시도 → 현재 상태 반환, 발행 억제.
         val saved = deliveryPersistencePort.save(delivery)
 
         eventPublisher.publish(
@@ -67,7 +69,8 @@ class DeliveryCommandService(
     @Transactional
     override fun startWashing(deliveryId: Long, photoIds: List<Long>, requestingCarrierId: Long): Delivery {
         val delivery = findOwnedDelivery(deliveryId, requestingCarrierId)
-        delivery.startWashing(photoIds, clock.instant())
+        val transitioned = delivery.startWashing(photoIds, clock.instant())
+        if (!transitioned) return delivery // 멱등 재시도 → 현재 상태 반환, 발행 억제.
         val saved = deliveryPersistencePort.save(delivery)
 
         eventPublisher.publish(
@@ -86,14 +89,16 @@ class DeliveryCommandService(
     @Transactional
     override fun completeDrying(deliveryId: Long, photoIds: List<Long>, requestingCarrierId: Long): Delivery {
         val delivery = findOwnedDelivery(deliveryId, requestingCarrierId)
-        delivery.completeDrying(photoIds, clock.instant())
+        val transitioned = delivery.completeDrying(photoIds, clock.instant())
+        if (!transitioned) return delivery // 멱등 재시도 → 현재 상태 반환.
         return deliveryPersistencePort.save(delivery)
     }
 
     @Transactional
     override fun startDelivery(deliveryId: Long, requestingCarrierId: Long): Delivery {
         val delivery = findOwnedDelivery(deliveryId, requestingCarrierId)
-        delivery.startDelivery()
+        val transitioned = delivery.startDelivery()
+        if (!transitioned) return delivery // 멱등 재시도 → 현재 상태 반환.
         return deliveryPersistencePort.save(delivery)
     }
 
@@ -101,11 +106,15 @@ class DeliveryCommandService(
     override fun completeDelivery(deliveryId: Long, photoIds: List<Long>, requestingCarrierId: Long): Delivery {
         val delivery = findOwnedDelivery(deliveryId, requestingCarrierId)
 
+        // 이미 배달 완료(DELIVERED)면 멱등 no-op → 결제 재확인 없이 현재 상태 반환.
+        if (delivery.status == DeliveryStatus.DELIVERED) return delivery
+
         if (!paymentQueryPort.isOrderPaid(delivery.orderId)) {
             throw OrderNotPaidException(delivery.orderId)
         }
 
-        delivery.completeDelivery(photoIds, clock.instant())
+        val transitioned = delivery.completeDelivery(photoIds, clock.instant())
+        if (!transitioned) return delivery // 방어적(상태 레이스) — 발행·메트릭 억제.
         val saved = deliveryPersistencePort.save(delivery)
 
         eventPublisher.publish(

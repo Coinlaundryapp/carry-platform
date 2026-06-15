@@ -103,6 +103,22 @@ class DeliveryTest {
             assertThatThrownBy { delivery.completePickup(BigDecimal("5.0"), emptyList(), now) }
                 .isInstanceOf(DeliveryPhotoRequiredException::class.java)
         }
+
+        @Test
+        fun `수거가 실제 전이를 일으키면 true를 반환한다`() {
+            val delivery = deliveryAt(DeliveryStatus.PICKUP_PENDING)
+            assertThat(delivery.completePickup(BigDecimal("5.0"), listOf(1L), now)).isTrue()
+        }
+
+        @Test
+        fun `이미 PICKED_UP이면 다시 수거해도 멱등 no-op이고 false를 반환한다`() {
+            val delivery = deliveryAt(DeliveryStatus.PICKED_UP)
+
+            val second = delivery.completePickup(BigDecimal("5.0"), listOf(1L), now)
+
+            assertThat(second).isFalse()
+            assertThat(delivery.status).isEqualTo(DeliveryStatus.PICKED_UP)
+        }
     }
 
     @Nested
@@ -124,6 +140,22 @@ class DeliveryTest {
             assertThatThrownBy { delivery.startWashing(emptyList(), now) }
                 .isInstanceOf(DeliveryPhotoRequiredException::class.java)
         }
+
+        @Test
+        fun `세탁 시작이 실제 전이를 일으키면 true를 반환한다`() {
+            val delivery = deliveryAt(DeliveryStatus.PICKED_UP)
+            assertThat(delivery.startWashing(listOf(3L), now)).isTrue()
+        }
+
+        @Test
+        fun `이미 IN_LAUNDRY면 다시 세탁 시작해도 멱등 no-op이고 false를 반환한다`() {
+            val delivery = deliveryAt(DeliveryStatus.IN_LAUNDRY)
+
+            val second = delivery.startWashing(listOf(3L), now)
+
+            assertThat(second).isFalse()
+            assertThat(delivery.status).isEqualTo(DeliveryStatus.IN_LAUNDRY)
+        }
     }
 
     @Nested
@@ -136,6 +168,44 @@ class DeliveryTest {
 
             assertThat(delivery.status).isEqualTo(DeliveryStatus.LAUNDRY_COMPLETE)
             assertThat(delivery.getStep(DeliveryStepType.DRYING)?.status).isEqualTo(StepStatus.COMPLETED)
+        }
+
+        @Test
+        fun `건조 완료가 실제 전이를 일으키면 true를 반환한다`() {
+            val delivery = deliveryAt(DeliveryStatus.IN_LAUNDRY)
+            assertThat(delivery.completeDrying(listOf(4L), now)).isTrue()
+        }
+
+        @Test
+        fun `이미 LAUNDRY_COMPLETE면 다시 건조 완료해도 멱등 no-op이고 false를 반환한다`() {
+            val delivery = deliveryAt(DeliveryStatus.LAUNDRY_COMPLETE)
+
+            val second = delivery.completeDrying(listOf(4L), now)
+
+            assertThat(second).isFalse()
+            assertThat(delivery.status).isEqualTo(DeliveryStatus.LAUNDRY_COMPLETE)
+        }
+    }
+
+    @Nested
+    inner class StartDelivery {
+
+        @Test
+        fun `배달 시작이 실제 전이를 일으키면 DELIVERY_PENDING이 되고 true를 반환한다`() {
+            val delivery = deliveryAt(DeliveryStatus.LAUNDRY_COMPLETE)
+
+            assertThat(delivery.startDelivery()).isTrue()
+            assertThat(delivery.status).isEqualTo(DeliveryStatus.DELIVERY_PENDING)
+        }
+
+        @Test
+        fun `이미 DELIVERY_PENDING이면 다시 배달 시작해도 멱등 no-op이고 false를 반환한다`() {
+            val delivery = deliveryAt(DeliveryStatus.DELIVERY_PENDING)
+
+            val second = delivery.startDelivery()
+
+            assertThat(second).isFalse()
+            assertThat(delivery.status).isEqualTo(DeliveryStatus.DELIVERY_PENDING)
         }
     }
 
@@ -157,6 +227,22 @@ class DeliveryTest {
             assertThatThrownBy { delivery.completeDelivery(emptyList(), now) }
                 .isInstanceOf(DeliveryPhotoRequiredException::class.java)
         }
+
+        @Test
+        fun `배달 완료가 실제 전이를 일으키면 true를 반환한다`() {
+            val delivery = deliveryAt(DeliveryStatus.DELIVERY_PENDING)
+            assertThat(delivery.completeDelivery(listOf(5L), now)).isTrue()
+        }
+
+        @Test
+        fun `이미 DELIVERED면 다시 배달 완료해도 멱등 no-op이고 false를 반환한다`() {
+            val delivery = deliveryAt(DeliveryStatus.DELIVERED)
+
+            val second = delivery.completeDelivery(listOf(5L), now)
+
+            assertThat(second).isFalse()
+            assertThat(delivery.status).isEqualTo(DeliveryStatus.DELIVERED)
+        }
     }
 
     @Nested
@@ -165,7 +251,17 @@ class DeliveryTest {
         @Test
         fun `PICKUP_PENDING 상태에서 취소할 수 있다`() {
             val delivery = deliveryAt(DeliveryStatus.PICKUP_PENDING)
-            delivery.cancel()
+            assertThat(delivery.cancel()).isTrue()
+            assertThat(delivery.status).isEqualTo(DeliveryStatus.CANCELLED)
+        }
+
+        @Test
+        fun `이미 CANCELLED면 다시 취소해도 멱등 no-op이고 false를 반환한다`() {
+            val delivery = deliveryAt(DeliveryStatus.CANCELLED)
+
+            val second = delivery.cancel()
+
+            assertThat(second).isFalse()
             assertThat(delivery.status).isEqualTo(DeliveryStatus.CANCELLED)
         }
 

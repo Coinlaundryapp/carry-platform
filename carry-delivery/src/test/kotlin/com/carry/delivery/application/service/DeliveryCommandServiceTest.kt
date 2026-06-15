@@ -92,6 +92,21 @@ class DeliveryCommandServiceTest {
             assertThat(saved.captured.actualWeight).isEqualByComparingTo(BigDecimal("5.0"))
             verify { eventPublisher.publish("Delivery", "1", "PickupCompletedEvent", any(), any()) }
         }
+
+        @Test
+        fun `이미 수거된 배달을 다시 수거해도 이벤트를 재발행하지 않고 현재 상태를 반환한다`() {
+            // findById가 같은 인스턴스를 반환 → 첫 호출이 PICKED_UP으로 변이시켜 재호출은 멱등 no-op.
+            val delivery = deliveryAt(DeliveryStatus.PICKUP_PENDING)
+            every { deliveryPersistencePort.findById(1L) } returns delivery
+            val saved = slot<Delivery>()
+            every { deliveryPersistencePort.save(capture(saved)) } answers { saved.captured }
+
+            sut.completePickup(1L, BigDecimal("5.0"), listOf(1L), 99L, "REGULAR", "SOLO", "NEW", emptyList(), 50L)
+            val result = sut.completePickup(1L, BigDecimal("5.0"), listOf(1L), 99L, "REGULAR", "SOLO", "NEW", emptyList(), 50L)
+
+            assertThat(result.status).isEqualTo(DeliveryStatus.PICKED_UP)
+            verify(exactly = 1) { eventPublisher.publish("Delivery", "1", "PickupCompletedEvent", any(), any()) }
+        }
     }
 
     @Nested
@@ -108,6 +123,20 @@ class DeliveryCommandServiceTest {
 
             assertThat(saved.captured.status).isEqualTo(DeliveryStatus.IN_LAUNDRY)
             verify { eventPublisher.publish("Delivery", "1", "LaundryStartedEvent", any(), any()) }
+        }
+
+        @Test
+        fun `이미 세탁 중이면 다시 시작해도 이벤트를 재발행하지 않는다`() {
+            val delivery = deliveryAt(DeliveryStatus.PICKED_UP)
+            every { deliveryPersistencePort.findById(1L) } returns delivery
+            val saved = slot<Delivery>()
+            every { deliveryPersistencePort.save(capture(saved)) } answers { saved.captured }
+
+            sut.startWashing(1L, listOf(3L), 50L)
+            val result = sut.startWashing(1L, listOf(3L), 50L)
+
+            assertThat(result.status).isEqualTo(DeliveryStatus.IN_LAUNDRY)
+            verify(exactly = 1) { eventPublisher.publish("Delivery", "1", "LaundryStartedEvent", any(), any()) }
         }
     }
 
@@ -144,6 +173,22 @@ class DeliveryCommandServiceTest {
             verify { eventPublisher.publish("Delivery", "1", "DeliveryCompletedEvent", any(), any()) }
             verify { metrics.incrementCounter("carry.delivery.completed") }
             verify { metrics.recordTimer("carry.delivery.duration", any<Duration>()) }
+        }
+
+        @Test
+        fun `이미 배달 완료된 건을 다시 완료해도 이벤트도 카운터도 재발생하지 않는다`() {
+            val delivery = deliveryAt(DeliveryStatus.DELIVERY_PENDING)
+            every { deliveryPersistencePort.findById(1L) } returns delivery
+            paymentQueryPort.markPaid(100L)
+            val saved = slot<Delivery>()
+            every { deliveryPersistencePort.save(capture(saved)) } answers { saved.captured }
+
+            sut.completeDelivery(1L, listOf(5L), 50L)
+            val result = sut.completeDelivery(1L, listOf(5L), 50L)
+
+            assertThat(result.status).isEqualTo(DeliveryStatus.DELIVERED)
+            verify(exactly = 1) { eventPublisher.publish("Delivery", "1", "DeliveryCompletedEvent", any(), any()) }
+            verify(exactly = 1) { metrics.incrementCounter("carry.delivery.completed") }
         }
 
         @Test

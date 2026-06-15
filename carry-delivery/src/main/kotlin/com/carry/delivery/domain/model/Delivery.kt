@@ -78,39 +78,55 @@ class Delivery private constructor(
         )
     }
 
-    fun completePickup(weight: BigDecimal, photoIds: List<Long>, now: Instant) {
+    // 각 상태전이는 **멱등**이다: 이미 목표 상태면 no-op(false), 실제 전이면 true, 그 외 비정상 전이면
+    // transitTo가 예외(충돌). 선형 상태기계라 행위자는 항상 배정 캐리어 본인(소유 검증은 서비스).
+    // 재시도가 이벤트를 재발행하지 않도록(사가 이중 트리거 방지) 서비스가 transitioned로 발행을 가린다.
+
+    fun completePickup(weight: BigDecimal, photoIds: List<Long>, now: Instant): Boolean {
+        if (_status == DeliveryStatus.PICKED_UP) return false
         if (weight <= BigDecimal.ZERO) throw DeliveryWeightRequiredException()
         if (photoIds.isEmpty()) throw DeliveryPhotoRequiredException()
         transitTo(DeliveryStatus.PICKED_UP)
         _actualWeight = weight
         getStep(DeliveryStepType.PICKUP)?.complete(photoIds, now)
         getStep(DeliveryStepType.WEIGHING)?.complete(emptyList(), now)
+        return true
     }
 
-    fun startWashing(photoIds: List<Long>, now: Instant) {
+    fun startWashing(photoIds: List<Long>, now: Instant): Boolean {
+        if (_status == DeliveryStatus.IN_LAUNDRY) return false
         if (photoIds.isEmpty()) throw DeliveryPhotoRequiredException()
         transitTo(DeliveryStatus.IN_LAUNDRY)
         getStep(DeliveryStepType.WASHING)?.complete(photoIds, now)
+        return true
     }
 
-    fun completeDrying(photoIds: List<Long>, now: Instant) {
+    fun completeDrying(photoIds: List<Long>, now: Instant): Boolean {
+        if (_status == DeliveryStatus.LAUNDRY_COMPLETE) return false
         if (photoIds.isEmpty()) throw DeliveryPhotoRequiredException()
         transitTo(DeliveryStatus.LAUNDRY_COMPLETE)
         getStep(DeliveryStepType.DRYING)?.complete(photoIds, now)
+        return true
     }
 
-    fun startDelivery() {
+    fun startDelivery(): Boolean {
+        if (_status == DeliveryStatus.DELIVERY_PENDING) return false
         transitTo(DeliveryStatus.DELIVERY_PENDING)
+        return true
     }
 
-    fun completeDelivery(photoIds: List<Long>, now: Instant) {
+    fun completeDelivery(photoIds: List<Long>, now: Instant): Boolean {
+        if (_status == DeliveryStatus.DELIVERED) return false
         if (photoIds.isEmpty()) throw DeliveryPhotoRequiredException()
         transitTo(DeliveryStatus.DELIVERED)
         getStep(DeliveryStepType.DELIVERY)?.complete(photoIds, now)
+        return true
     }
 
-    fun cancel() {
+    fun cancel(): Boolean {
+        if (_status == DeliveryStatus.CANCELLED) return false
         transitTo(DeliveryStatus.CANCELLED)
+        return true
     }
 
     fun getStep(stepType: DeliveryStepType): DeliveryStep? {
