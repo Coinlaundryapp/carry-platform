@@ -224,6 +224,22 @@ class PaymentCommandServiceTest {
             assertThat(result.status).isEqualTo(PaymentStatus.FAILED)
             verify { idempotencyPort.complete("k", 51L) }
         }
+
+        @Test
+        fun `PG 예외 시 멱등 키를 해소(release)해 같은 키 재시도가 막히지 않는다`() {
+            every { idempotencyPort.findCompletedPaymentId("k") } returns null
+            every { idempotencyPort.reserve("k") } returns true
+            every { invoicePersistencePort.findByOrderId(10L) } returns anInvoice()
+            every { paymentGatewayResolver.resolve(PgProvider.TOSS_PAYMENTS) } returns paymentGateway
+            every { paymentGateway.requestPayment(any()) } throws PaymentGatewayException("CB OPEN")
+
+            assertThatThrownBy { sut.requestPayment(aCommand().copy(idempotencyKey = "k")) }
+                .isInstanceOf(PaymentGatewayException::class.java)
+
+            // 성공·정상실패가 아니라 예외 → complete 미호출, 대신 release로 PENDING 잔존을 없앤다.
+            verify { idempotencyPort.release("k") }
+            verify(exactly = 0) { idempotencyPort.complete(any(), any()) }
+        }
     }
 
     @Nested

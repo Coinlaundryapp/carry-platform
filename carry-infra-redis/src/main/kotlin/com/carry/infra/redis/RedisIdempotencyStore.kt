@@ -28,6 +28,11 @@ class RedisIdempotencyStore(
         redis.opsForValue().set(fullKey(key), id.toString(), resultTtl)
     }
 
+    // 예외 실패 경로에서만 호출(PENDING 마커 제거). complete된 결과 키엔 호출되지 않는다(상위 계약).
+    override fun release(key: String) {
+        redis.delete(fullKey(key))
+    }
+
     private fun fullKey(key: String): String = "$keyPrefix$key"
 
     companion object {

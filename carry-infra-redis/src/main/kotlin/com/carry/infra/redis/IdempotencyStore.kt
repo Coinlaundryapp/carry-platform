@@ -15,4 +15,10 @@ interface IdempotencyStore {
 
     /** 처리 결과 id를 저장한다(이후 동일 키는 재생). */
     fun complete(key: String, id: Long)
+
+    /**
+     * 선점(PENDING)을 해소한다. 처리가 **예외로 실패**(complete 미호출)했을 때 호출해, 같은 키 재시도가
+     * pendingTtl 만료까지 409로 막히지 않게 한다(전이성 오류=재시도 안전). complete된 키엔 호출하지 않는다.
+     */
+    fun release(key: String)
 }

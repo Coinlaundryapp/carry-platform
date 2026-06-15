@@ -62,4 +62,11 @@ class RedisIdempotencyStoreTest {
 
         verify { valueOps.set("idem:test:k", "42", Duration.ofHours(24)) }
     }
+
+    @Test
+    fun `release 는 프리픽스 키를 삭제한다`() {
+        sut.release("k")
+
+        verify { redis.delete("idem:test:k") }
+    }
 }

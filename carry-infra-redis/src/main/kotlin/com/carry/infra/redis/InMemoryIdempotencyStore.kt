@@ -23,4 +23,8 @@ class InMemoryIdempotencyStore : IdempotencyStore {
         completed[key] = id
         pending.remove(key)
     }
+
+    override fun release(key: String) {
+        pending.remove(key) // 선점만 해소, completed는 보존.
+    }
 }
