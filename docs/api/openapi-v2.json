@@ -571,6 +571,16 @@
                             }
                         }
                     },
+                    "403": {
+                        "description": "\udcec\uc2ab\udcec\uc07a \udcec\ubfed\udced\ube37(COORDINATOR\uca0cADMIN) \u6c85\ub6b0\ube33 \udcec\ubfbe\udcec\uc4ec",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResponseLaundromatResponse"
+                                }
+                            }
+                        }
+                    },
                     "404": {
                         "description": "\udcec\uaf6d\udced\uae3d\udcec\ub0fc\u745c\udcbc \uf9e1\uc5a0\uc4e3 \udcec\ub2d4 \udcec\ubfbe\udcec\uc4ec",
                         "content": {
@@ -616,6 +626,16 @@
                 "responses": {
                     "200": {
                         "description": "\udcec\uc0c3\udcec\ub021 \udcec\ub2d4\udcec\uc819 \udcec\uaf66\u6028\udcb5",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResponseLaundromatResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "\udcec\uc2ab\udcec\uc07a \udcec\ubfed\udced\ube37(COORDINATOR\uca0cADMIN) \u6c85\ub6b0\ube33 \udcec\ubfbe\udcec\uc4ec",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1398,6 +1418,16 @@
                             }
                         }
                     },
+                    "403": {
+                        "description": "\udcec\uc2ab\udcec\uc07a \udcec\ubfed\udced\ube37(COORDINATOR\uca0cADMIN) \u6c85\ub6b0\ube33 \udcec\ubfbe\udcec\uc4ec",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResponseLaundromatResponse"
+                                }
+                            }
+                        }
+                    },
                     "201": {
                         "description": "\udcec\uaf6d\udced\uae3d\udcec\ub0fc \udceb\ubc91\u6fe1\udc9d \udcec\uaf66\u6028\udcb5",
                         "content": {
@@ -1440,6 +1470,16 @@
                     "required": true
                 },
                 "responses": {
+                    "403": {
+                        "description": "\udcec\uc2ab\udcec\uc07a \udcec\ubfed\udced\ube37(COORDINATOR\uca0cADMIN) \u6c85\ub6b0\ube33 \udcec\ubfbe\udcec\uc4ec",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResponseLaundromatResponse"
+                                }
+                            }
+                        }
+                    },
                     "201": {
                         "description": "\udcec\uc520\u8a98\uba84\udca7\udc80 \u7570\ubdbd\udcb0\udc80 \udcec\uaf66\u6028\udcb5",
                         "content": {
@@ -3498,6 +3538,16 @@
                 "responses": {
                     "200": {
                         "description": "\udcec\uc520\u8a98\uba84\udca7\udc80 \udcec\uad98\udcec\uc823 \udcec\uaf66\u6028\udcb5",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResponseLaundromatResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "\udcec\uc2ab\udcec\uc07a \udcec\ubfed\udced\ube37(COORDINATOR\uca0cADMIN) \u6c85\ub6b0\ube33 \udcec\ubfbe\udcec\uc4ec",
                         "content": {
                             "application/json": {
                                 "schema": {
