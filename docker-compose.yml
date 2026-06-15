@@ -1,6 +1,8 @@
 services:
   postgres:
-    image: postgres:16-alpine
+    # PostGIS 포함 이미지. 인근 세탁소 검색(ST_Distance·ST_DWithin·::geography)과 V3 GIST 인덱스의 전제.
+    # 테스트(testcontainers)와 동일 이미지로 통일. 확장 자체는 Flyway V0가 생성한다.
+    image: postgis/postgis:16-3.4
     container_name: carry-postgres
     ports:
       - "5432:5432"
