@@ -2,8 +2,9 @@ package com.carry.app.test
 
 import org.springframework.jdbc.core.JdbcTemplate
 import java.time.Instant
+import java.time.LocalDate
 import java.time.LocalTime
-import java.time.temporal.ChronoUnit
+import java.time.ZoneId
 
 object TestFixtures {
 
@@ -93,9 +94,16 @@ object TestFixtures {
         }
     }
 
-    fun desiredPickupAt(): Instant = Instant.now().plus(2, ChronoUnit.HOURS)
+    private val KST = ZoneId.of("Asia/Seoul")
 
-    fun desiredDeliveryAt(): Instant = Instant.now().plus(24, ChronoUnit.HOURS)
+    // 희망 시각은 **고정 KST 시각**으로 둔다. now.plus(Nh) 방식은 실행 시점의 time-of-day가 그대로 남아,
+    // CI가 23:59 KST에 돌면 전일 운영(00:00~23:59) 종료 경계(23:59:00)를 넘겨 OutsideOperatingHours로
+    // 깨졌다(시각 의존 플레이크). 익일 10:00·익익일 14:00 KST는 시계와 무관하게 항상 운영시간 내·미래다.
+    fun desiredPickupAt(): Instant =
+        LocalDate.now(KST).plusDays(1).atTime(10, 0).atZone(KST).toInstant()
+
+    fun desiredDeliveryAt(): Instant =
+        LocalDate.now(KST).plusDays(2).atTime(14, 0).atZone(KST).toInstant()
 
     fun truncateAll(jdbc: JdbcTemplate) {
         jdbc.execute(
