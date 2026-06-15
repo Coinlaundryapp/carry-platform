@@ -2198,6 +2198,58 @@
                 }
             }
         },
+        "/api/v2/admin/dlq/purge": {
+            "post": {
+                "tags": [
+                    "Admin DLQ"
+                ],
+                "summary": "DLQ parked \uf9ce\ubdbf\ub586\uf9de\udc80 \udced\ub8d3\u6e72\udcb0(purge)",
+                "description": "\uf9de\udc80\udcec\uc819 \udced\ub117\udced\ubd7f DLQ\udcec\ubfc9\udcec\uaf4c redrive \u6d39\uba83\uff19\udcec\uc4fd \uf9e3\uc10e\u2501\udcec\uc17f\u7337\udc8c \uf9de\udc80\udcec\uc80f(committed offset)\u6e90\ub6af\udca7\udc80 \u81fe\uc1f0\u2501 \udcec\uc805\udceb\ub592\udced\ube50 \udcec\uc60d\u745c\udc98 \uf9ce\ubdbf\ub586\uf9de\udc80(\udcec\uc631\u8adb\uc497\ubefe\udceb\ub9c2 copy + parked poison)\u745c\udcbc \udced\uc276\udcec\ub2d4\udced\ube40\udceb\ub572\udceb\ub58e. redrive\u5a9b\udc80 \udcec\ube18\uf9de\udc81 \uf9e3\uc10e\u2501\udced\ube2f\uf9de\udc80 \udcec\ube21\udcec\udc9d\udc80 \u8a98\uba84\ucfc2\u7531\u0449\ud147\udcec\udc9d\udc80 \u8e42\ub301\u3008\udceb\ub9d7\udceb\ub572\udceb\ub58e. \u8a98\uc1e8\ucee7 \udcec\uc2ab\udcec\uc07a \udcec\uc609\udcec\ubfbd\udcec\uc45d\u6fe1\udc9c \u5a9b\uba2f\uad97 \u6fe1\uc493\ub807\udcec\ubfc9 \u6e72\uacd5\uc909\udceb\ub9d7\udceb\ub572\udceb\ub58e.",
+                "operationId": "purge",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DlqPurgeRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "400": {
+                        "description": "\udcec\uc612\uf9cf\uc0b3\ub9c2 \udced\ub117\udced\ubd7f\uf9cf\udc85(.DLQ \udcec\uc812\u8a98\uba84\uad97 \udced\ub8f7\udced\ube3f \udceb\uc089\udceb\ub497 \u6028\ub4ec\uac1a)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResponseDlqPurgeResponse"
+                                }
+                            }
+                        }
+                    },
+                    "200": {
+                        "description": "\udced\ub8d3\u6e72\udcb0 \udcec\uc17f\u7337\udc8c",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResponseDlqPurgeResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "ADMIN \u6c85\ub6b0\ube33 \udcec\ubfbe\udcec\uc4ec",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResponseDlqPurgeResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v2/terms": {
             "get": {
                 "tags": [
@@ -5952,6 +6004,68 @@
                     }
                 },
                 "description": "DLQ \udcec\uc631\uf9e3\uc10e\u2501 \u5bc3\uaccc\ub0b5"
+            },
+            "DlqPurgeRequest": {
+                "required": [
+                    "topic"
+                ],
+                "type": "object",
+                "properties": {
+                    "topic": {
+                        "type": "string",
+                        "description": "\udcec\uc35d\u8e42\udcb8 \udced\ub117\udced\ubd7f\uf9cf\udc85(.DLQ \udcec\uc812\u8a98\uba84\uad97 \udcec\uc823\udcec\uc1c5)",
+                        "example": "order.event"
+                    }
+                },
+                "description": "DLQ \udced\ub8d3\u6e72\udcb0 \udcec\uc282\uf9e3\udcad"
+            },
+            "ApiResponseDlqPurgeResponse": {
+                "required": [
+                    "code",
+                    "message",
+                    "status"
+                ],
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "type": "integer",
+                        "description": "HTTP \udcec\uae3d\udced\uae6d \u8084\ubdbe\ubc76",
+                        "format": "int32",
+                        "example": 200
+                    },
+                    "code": {
+                        "type": "string",
+                        "description": "\udcec\uc4f3\udceb\ub59f \u8084\ubdbe\ubc76",
+                        "example": "SUCCESS"
+                    },
+                    "message": {
+                        "type": "string",
+                        "description": "\udcec\uc4f3\udceb\ub59f \uf9ce\ubdbf\ub586\uf9de\udc80",
+                        "example": "Success"
+                    },
+                    "data": {
+                        "$ref": "#/components/schemas/DlqPurgeResponse"
+                    },
+                    "traceId": {
+                        "type": "string",
+                        "description": "\udced\ub4c3\udceb\uc805\udcec\uc520\udcec\ub4aa ID (\udcec\ubfc9\udceb\uc72d \udcec\uc4f3\udceb\ub59f \udcec\ub586 \udced\ub8f7\udced\ube3f)"
+                    }
+                },
+                "description": "\u6028\ub4ef\ub13b API \udcec\uc4f3\udceb\ub59f \udceb\uc612\udced\ub741"
+            },
+            "DlqPurgeResponse": {
+                "required": [
+                    "purged"
+                ],
+                "type": "object",
+                "properties": {
+                    "purged": {
+                        "type": "integer",
+                        "description": "\u81fe\uc1f0\u2501 \udcec\uc805\udceb\ub592\udcec\uc45d\u6fe1\udc9c \udced\ub8d3\u6e72\uacd5\ub9c2 \udceb\uc805\u8084\ubdbe\ubc76 \u5ac4\ub301\ub2d4",
+                        "format": "int32"
+                    }
+                },
+                "description": "DLQ \udced\ub8d3\u6e72\udcb0 \u5bc3\uaccc\ub0b5"
             },
             "ApiResponseListTermResponse": {
                 "required": [

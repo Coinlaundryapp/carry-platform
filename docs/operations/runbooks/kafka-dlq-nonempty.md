@@ -85,9 +85,33 @@ curl -X POST http://localhost:8080/api/v2/admin/dlq/redrive \
 - 오프셋은 처리 성공분까지만 커밋 — 중간 실패 시 미처리분은 다음 호출에서 이어진다.
 - 메트릭: `carry_kafka_dlq_redriven_total`, `carry_kafka_dlq_parked_total` (topic 라벨).
 
+## DLQ parked 메시지 폐기 (purge)
+
+parked poison 메시지를 수동 검토해 **불가역 영구 실패로 종결 판단**한 뒤, retention 만료를
+기다리지 않고 능동 회수하려면 purge 엔드포인트를 호출한다:
+
+```bash
+# 종결 판단 후: redrive 그룹 처리완료 지점까지 DLQ를 물리 절단 (감사 로그 기록됨)
+curl -X POST http://localhost:8080/api/v2/admin/dlq/purge \
+  -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" \
+  -d '{"topic": "<원본 토픽명>"}'
+# → {"data": {"purged": N}}
+```
+
+동작 규칙(`DlqPurgeService`):
+- **redrive 그룹(`carry-dlq-redrive`) committed offset까지만** `deleteRecords`로 prefix를 물리
+  절단한다. committed offset 이하는 ①이미 재발행된 copy(잔류물) ②parked poison 두 종류뿐이라
+  안전 폐기 대상이다.
+- committed offset **이상**(redrive가 아직 처리하지 않은 신규/미처리분)은 **건드리지 않는다** —
+  반드시 redrive를 먼저 돌려 parked로 확정한 메시지만 회수 대상이 된다.
+- redrive가 한 번도 돌지 않은 토픽은 무삭제(`purged=0`, 전량 보존).
+- ⚠️ purge는 alert를 끄지 않는다 — `KafkaDlqNonEmpty`는 도착 카운터(`increase[5m]`) 기반이라
+  토픽 적재량과 무관하며 신규 발행이 멎으면 5분 후 자동 해소된다. purge의 목적은 잔류 물리 회수다.
+
 ## 관련 ROADMAP/known-debts
 
 - ROADMAP Phase 2.1 Kafka DLQ + retry 전략 (PR #56, #57)
 - DLQ 재처리 메커니즘 — 해소됨 (`POST /api/v2/admin/dlq/redrive`, 위 절 참조)
+- DLQ parked 메시지 폐기(purge) — 해소됨 (`POST /api/v2/admin/dlq/purge`, 위 절 참조)
 - Outbox 발행 e2e 검증 — 해소됨 (`OutboxAtomicityIntegrationTest`, PR #123)
 - ROADMAP Phase 6.2 이벤트 스키마 진화 전략

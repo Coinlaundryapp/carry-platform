@@ -9,4 +9,5 @@ enum class AuditAction {
     DISPATCH_ASSIGN,
     DISPATCH_REJECT_PENALTY,
     DLQ_REDRIVE,
+    DLQ_PURGE,
 }
