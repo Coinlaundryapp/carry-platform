@@ -8,9 +8,13 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
+import org.springframework.security.config.Customizer
 import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
+import org.springframework.web.cors.CorsConfiguration
+import org.springframework.web.cors.CorsConfigurationSource
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 
 @Configuration
 @EnableWebSecurity
@@ -25,6 +29,9 @@ class SecurityConfig(
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
         return http
             .csrf { it.disable() }
+            // 프론트(customer/carrier/coordinator-web)가 브라우저에서 직접 호출하므로 CORS 허용.
+            // corsConfigurationSource 빈을 자동 사용한다(아래 빈 참조).
+            .cors(Customizer.withDefaults())
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .exceptionHandling {
                 it.authenticationEntryPoint(authenticationEntryPoint)
@@ -45,5 +52,24 @@ class SecurityConfig(
             }
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
             .build()
+    }
+
+    /**
+     * 프론트 브라우저 클라이언트용 CORS. 로컬 dev/e2e는 여러 프론트 포트(customer 3000·carrier 3001·
+     * coordinator 3002 등)를 쓰므로 포트 와일드카드(Spring 문법 ":[*]")로 localhost를 한 번에 허용한다.
+     * allowCredentials=true라 "*"(allowedOrigins) 대신 allowedOriginPatterns를 써야 한다.
+     */
+    @Bean
+    fun corsConfigurationSource(): CorsConfigurationSource {
+        val config = CorsConfiguration().apply {
+            allowedOriginPatterns = listOf("http://localhost:[*]", "https://www.carrylaundry.com")
+            allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+            allowedHeaders = listOf("*")
+            allowCredentials = true
+            maxAge = 86_400L
+        }
+        return UrlBasedCorsConfigurationSource().apply {
+            registerCorsConfiguration("/**", config)
+        }
     }
 }
