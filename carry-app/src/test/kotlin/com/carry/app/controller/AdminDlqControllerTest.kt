@@ -4,6 +4,8 @@ import com.carry.app.admin.AdminDlqController
 import com.carry.app.test.MethodSecurityTestConfig
 import com.carry.audit.domain.AuditAction
 import com.carry.audit.port.AuditPort
+import com.carry.infra.kafka.dlq.DlqPurgeResult
+import com.carry.infra.kafka.dlq.DlqPurgeService
 import com.carry.infra.kafka.dlq.DlqRedriveResult
 import com.carry.infra.kafka.dlq.DlqRedriveService
 import com.carry.security.config.SecurityConfig
@@ -42,6 +44,9 @@ class AdminDlqControllerTest {
 
     @MockkBean
     lateinit var dlqRedriveService: DlqRedriveService
+
+    @MockkBean
+    lateinit var dlqPurgeService: DlqPurgeService
 
     @MockkBean
     lateinit var auditPort: AuditPort
@@ -89,5 +94,45 @@ class AdminDlqControllerTest {
         }
 
         verify(exactly = 0) { dlqRedriveService.redrive(any(), any()) }
+    }
+
+    @Test
+    fun `ADMIN이 purge를 요청하면 결과를 반환하고 감사 로그를 남긴다`() {
+        every { dlqPurgeService.purge("order.event") } returns DlqPurgeResult(purged = 5)
+        justRun { auditPort.record(any(), any(), any(), any(), any()) }
+
+        mockMvc.post("/api/v2/admin/dlq/purge") {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"topic": "order.event"}"""
+            with(roleAuth("ADMIN"))
+            with(csrf())
+        }.andExpect {
+            status { isOk() }
+            jsonPath("$.data.purged") { value(5) }
+        }
+
+        verify {
+            auditPort.record(
+                action = AuditAction.DLQ_PURGE,
+                targetType = "KafkaTopic",
+                targetId = "order.event",
+                before = null,
+                after = DlqPurgeResult(purged = 5),
+            )
+        }
+    }
+
+    @Test
+    fun `ADMIN이 아니면 403이고 purge는 실행되지 않는다`() {
+        mockMvc.post("/api/v2/admin/dlq/purge") {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"topic": "order.event"}"""
+            with(roleAuth("COORDINATOR"))
+            with(csrf())
+        }.andExpect {
+            status { isForbidden() }
+        }
+
+        verify(exactly = 0) { dlqPurgeService.purge(any()) }
     }
 }

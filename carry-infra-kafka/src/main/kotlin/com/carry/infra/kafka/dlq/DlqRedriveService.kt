@@ -3,7 +3,6 @@ package com.carry.infra.kafka.dlq
 import com.carry.common.exception.BusinessException
 import com.carry.common.exception.ErrorCode
 import com.carry.common.metrics.MetricsPort
-import com.carry.infra.kafka.KafkaConfig
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.TopicPartition
@@ -44,23 +43,20 @@ class DlqRedriveService(
         const val REDRIVE_COUNT_HEADER = "carry_dlq-redrive-count"
         const val MAX_REDRIVES = 3
         const val MAX_RECORDS_LIMIT = 1000
-        private const val REDRIVE_GROUP = "carry-dlq-redrive"
+
+        /** redrive/purge가 공유하는 컨슈머 그룹. purge는 이 그룹의 committed offset까지 절단한다. */
+        const val REDRIVE_GROUP = "carry-dlq-redrive"
         private val POLL_TIMEOUT: Duration = Duration.ofSeconds(2)
         private const val SEND_TIMEOUT_SECONDS = 10L
     }
 
     fun redrive(originalTopic: String, maxRecords: Int): DlqRedriveResult {
-        if (originalTopic.isBlank() || originalTopic.endsWith(KafkaConfig.DLQ_SUFFIX)) {
-            throw BusinessException(
-                ErrorCode.INVALID_INPUT,
-                "topic은 원본 토픽명이어야 합니다(.DLQ 접미사 제외): $originalTopic",
-            )
-        }
+        DlqTopics.requireOriginalTopic(originalTopic)
         if (maxRecords !in 1..MAX_RECORDS_LIMIT) {
             throw BusinessException(ErrorCode.INVALID_INPUT, "maxRecords는 1..$MAX_RECORDS_LIMIT 범위여야 합니다: $maxRecords")
         }
 
-        val dlqTopic = originalTopic + KafkaConfig.DLQ_SUFFIX
+        val dlqTopic = DlqTopics.dlqTopicOf(originalTopic)
         var redriven = 0
         var parked = 0
 
