@@ -31,4 +31,19 @@ class InMemoryIdempotencyStoreTest {
     fun `미처리 키의 findCompletedId 는 null`() {
         assertThat(sut.findCompletedId("absent")).isNull()
     }
+
+    @Test
+    fun `release 후 같은 키를 다시 reserve 할 수 있다`() {
+        sut.reserve("k")
+        sut.release("k")
+        assertThat(sut.reserve("k")).isTrue()
+    }
+
+    @Test
+    fun `release 는 complete 된 결과를 지우지 않는다`() {
+        sut.reserve("k")
+        sut.complete("k", 42L)
+        sut.release("k")
+        assertThat(sut.findCompletedId("k")).isEqualTo(42L)
+    }
 }

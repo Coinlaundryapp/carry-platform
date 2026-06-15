@@ -13,4 +13,5 @@ class PaymentIdempotencyAdapter(
     override fun reserve(key: String): Boolean = store.reserve(key)
     override fun findCompletedPaymentId(key: String): Long? = store.findCompletedId(key)
     override fun complete(key: String, paymentId: Long) = store.complete(key, paymentId)
+    override fun release(key: String) = store.release(key)
 }
