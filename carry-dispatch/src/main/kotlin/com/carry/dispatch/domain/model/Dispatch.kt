@@ -54,26 +54,46 @@ class Dispatch private constructor(
         )
     }
 
-    fun claimByCarrier(carrierId: Long, now: Instant) {
+    /**
+     * 캐리어 본인이 PENDING 배차를 직접 선점한다. **멱등**: 이미 이 캐리어가 잡아 ACCEPTED면
+     * no-op(false), 실제 전이면 true. 다른 캐리어 소유/타 상태면 충돌로 예외.
+     */
+    fun claimByCarrier(carrierId: Long, now: Instant): Boolean {
+        if (_status == DispatchStatus.ACCEPTED && _carrierId == carrierId && _assignedBy == AssignedBy.CARRIER) {
+            return false
+        }
         if (_status != DispatchStatus.PENDING) throw DispatchNotPendingException()
         _status = DispatchStatus.ACCEPTED
         _carrierId = carrierId
         _assignedBy = AssignedBy.CARRIER
         _acceptedAt = now
+        return true
     }
 
-    fun assignByCoordinator(carrierId: Long, now: Instant) {
+    /**
+     * 코디네이터가 PENDING 배차를 캐리어에게 지정한다. **멱등**: 이미 같은 캐리어로 ASSIGNED면
+     * no-op(false), 실제 전이면 true. 다른 캐리어 지정/타 상태면 충돌로 예외.
+     */
+    fun assignByCoordinator(carrierId: Long, now: Instant): Boolean {
+        if (_status == DispatchStatus.ASSIGNED && _carrierId == carrierId) return false
         if (_status != DispatchStatus.PENDING) throw DispatchNotPendingException()
         _status = DispatchStatus.ASSIGNED
         _carrierId = carrierId
         _assignedBy = AssignedBy.COORDINATOR
         _assignedAt = now
+        return true
     }
 
-    fun acceptAssignment(now: Instant) {
+    /**
+     * 지정된 배차를 캐리어가 수락한다(소유 검증은 서비스). **멱등**: 이미 ACCEPTED면 no-op(false),
+     * 실제 전이면 true. ASSIGNED·ACCEPTED 외 상태면 충돌로 예외.
+     */
+    fun acceptAssignment(now: Instant): Boolean {
+        if (_status == DispatchStatus.ACCEPTED) return false
         if (_status != DispatchStatus.ASSIGNED) throw DispatchAlreadyAcceptedException()
         _status = DispatchStatus.ACCEPTED
         _acceptedAt = now
+        return true
     }
 
     fun rejectAssignment(now: Instant): PenaltyRecord {
@@ -86,17 +106,29 @@ class Dispatch private constructor(
         return PenaltyRecord.create(penalizedCarrierId, id!!, PenaltyReason.REJECTED_FORCED_ASSIGNMENT, now)
     }
 
-    fun cancel(reason: String) {
+    /**
+     * 배차를 취소한다. **멱등**: 이미 CANCELLED면 no-op(false, 기존 사유 유지), 실제 전이면 true.
+     * 취소 불가 상태(TIMEOUT 등)면 충돌로 예외.
+     */
+    fun cancel(reason: String): Boolean {
+        if (_status == DispatchStatus.CANCELLED) return false
         if (!_status.canTransitionTo(DispatchStatus.CANCELLED)) {
             throw DispatchNotCancellableException(_status)
         }
         _status = DispatchStatus.CANCELLED
         _cancelReason = reason
+        return true
     }
 
-    fun timeout() {
+    /**
+     * PENDING 배차를 시한 초과로 종결한다. **멱등**: 이미 TIMEOUT이면 no-op(false), 실제 전이면 true.
+     * 그 외 비-PENDING(ACCEPTED 등)이면 충돌로 예외(스위퍼는 건너뛴다).
+     */
+    fun timeout(): Boolean {
+        if (_status == DispatchStatus.TIMEOUT) return false
         if (_status != DispatchStatus.PENDING) throw DispatchTimeoutNotAllowedException(_status)
         _status = DispatchStatus.TIMEOUT
+        return true
     }
 
     fun isExpired(now: Instant): Boolean =

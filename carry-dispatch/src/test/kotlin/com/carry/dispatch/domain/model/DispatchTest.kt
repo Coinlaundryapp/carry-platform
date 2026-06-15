@@ -53,6 +53,36 @@ class DispatchTest {
         }
 
         @Test
+        fun `클레임이 실제 전이를 일으키면 true를 반환한다`() {
+            val dispatch = createDispatch()
+            assertThat(dispatch.claimByCarrier(100L, now)).isTrue()
+        }
+
+        @Test
+        fun `같은 캐리어가 다시 클레임하면 멱등 no-op이고 false를 반환한다`() {
+            val dispatch = createDispatch()
+            dispatch.claimByCarrier(100L, now)
+            val later = now.plus(1, ChronoUnit.HOURS)
+
+            val second = dispatch.claimByCarrier(100L, later)
+
+            assertThat(second).isFalse()
+            assertThat(dispatch.status).isEqualTo(DispatchStatus.ACCEPTED)
+            assertThat(dispatch.carrierId).isEqualTo(100L)
+            // 재시도는 타임스탬프를 갱신하지 않는다(진정한 no-op).
+            assertThat(dispatch.acceptedAt).isEqualTo(now)
+        }
+
+        @Test
+        fun `다른 캐리어가 이미 ACCEPTED된 배차를 클레임하면 예외가 발생한다`() {
+            val dispatch = createDispatch()
+            dispatch.claimByCarrier(100L, now)
+
+            assertThatThrownBy { dispatch.claimByCarrier(200L, now) }
+                .isInstanceOf(DispatchNotPendingException::class.java)
+        }
+
+        @Test
         fun `PENDING이 아닌 상태에서 클레임하면 예외가 발생한다`() {
             val dispatch = reconstitutedDispatch(DispatchStatus.ACCEPTED, 100L)
 
@@ -76,6 +106,32 @@ class DispatchTest {
         }
 
         @Test
+        fun `지정이 실제 전이를 일으키면 true를 반환한다`() {
+            val dispatch = createDispatch()
+            assertThat(dispatch.assignByCoordinator(100L, now)).isTrue()
+        }
+
+        @Test
+        fun `같은 캐리어로 다시 지정하면 멱등 no-op이고 false를 반환한다`() {
+            val dispatch = reconstitutedDispatch(DispatchStatus.ASSIGNED, 100L)
+
+            val second = dispatch.assignByCoordinator(100L, now.plus(1, ChronoUnit.HOURS))
+
+            assertThat(second).isFalse()
+            assertThat(dispatch.status).isEqualTo(DispatchStatus.ASSIGNED)
+            assertThat(dispatch.carrierId).isEqualTo(100L)
+            assertThat(dispatch.assignedAt).isEqualTo(now)
+        }
+
+        @Test
+        fun `다른 캐리어로 이미 ASSIGNED된 배차를 지정하면 예외가 발생한다`() {
+            val dispatch = reconstitutedDispatch(DispatchStatus.ASSIGNED, 100L)
+
+            assertThatThrownBy { dispatch.assignByCoordinator(200L, now) }
+                .isInstanceOf(DispatchNotPendingException::class.java)
+        }
+
+        @Test
         fun `PENDING이 아닌 상태에서 지정하면 예외가 발생한다`() {
             val dispatch = reconstitutedDispatch(DispatchStatus.ACCEPTED, 100L)
 
@@ -92,6 +148,24 @@ class DispatchTest {
             val dispatch = reconstitutedDispatch(DispatchStatus.ASSIGNED, 100L)
             dispatch.acceptAssignment(now)
 
+            assertThat(dispatch.status).isEqualTo(DispatchStatus.ACCEPTED)
+            assertThat(dispatch.acceptedAt).isEqualTo(now)
+        }
+
+        @Test
+        fun `수락이 실제 전이를 일으키면 true를 반환한다`() {
+            val dispatch = reconstitutedDispatch(DispatchStatus.ASSIGNED, 100L)
+            assertThat(dispatch.acceptAssignment(now)).isTrue()
+        }
+
+        @Test
+        fun `이미 ACCEPTED면 다시 수락해도 멱등 no-op이고 false를 반환한다`() {
+            val dispatch = reconstitutedDispatch(DispatchStatus.ASSIGNED, 100L)
+            dispatch.acceptAssignment(now)
+
+            val second = dispatch.acceptAssignment(now.plus(1, ChronoUnit.HOURS))
+
+            assertThat(second).isFalse()
             assertThat(dispatch.status).isEqualTo(DispatchStatus.ACCEPTED)
             assertThat(dispatch.acceptedAt).isEqualTo(now)
         }
@@ -137,8 +211,9 @@ class DispatchTest {
         @Test
         fun `PENDING 상태의 배차를 취소할 수 있다`() {
             val dispatch = reconstitutedDispatch(DispatchStatus.PENDING)
-            dispatch.cancel("주문 취소")
+            val transitioned = dispatch.cancel("주문 취소")
 
+            assertThat(transitioned).isTrue()
             assertThat(dispatch.status).isEqualTo(DispatchStatus.CANCELLED)
             assertThat(dispatch.cancelReason).isEqualTo("주문 취소")
         }
@@ -152,7 +227,7 @@ class DispatchTest {
         }
 
         @Test
-        fun `이미 취소된 배차는 다시 취소할 수 없다`() {
+        fun `이미 취소된 배차를 다시 취소하면 멱등 no-op이고 false를 반환한다`() {
             val dispatch = Dispatch.reconstitute(
                 id = 1L, orderId = 1L, laundromatId = 10L, status = DispatchStatus.CANCELLED,
                 carrierId = null, areaCode = "GANGNAM", desiredPickupAt = pickupAt,
@@ -160,7 +235,19 @@ class DispatchTest {
                 cancelReason = "이전 취소", createdAt = now, updatedAt = now,
             )
 
-            assertThatThrownBy { dispatch.cancel("재취소 시도") }
+            val second = dispatch.cancel("재취소 시도")
+
+            assertThat(second).isFalse()
+            assertThat(dispatch.status).isEqualTo(DispatchStatus.CANCELLED)
+            // 기존 취소 사유를 덮어쓰지 않는다(진정한 no-op).
+            assertThat(dispatch.cancelReason).isEqualTo("이전 취소")
+        }
+
+        @Test
+        fun `취소 불가 상태(TIMEOUT)에서 취소하면 예외가 발생한다`() {
+            val dispatch = reconstitutedDispatch(DispatchStatus.TIMEOUT)
+
+            assertThatThrownBy { dispatch.cancel("취소 시도") }
                 .isInstanceOf(DispatchNotCancellableException::class.java)
         }
     }
@@ -171,8 +258,19 @@ class DispatchTest {
         @Test
         fun `PENDING 상태의 배차를 타임아웃 처리할 수 있다`() {
             val dispatch = reconstitutedDispatch(DispatchStatus.PENDING)
-            dispatch.timeout()
+            val transitioned = dispatch.timeout()
 
+            assertThat(transitioned).isTrue()
+            assertThat(dispatch.status).isEqualTo(DispatchStatus.TIMEOUT)
+        }
+
+        @Test
+        fun `이미 TIMEOUT이면 다시 타임아웃해도 멱등 no-op이고 false를 반환한다`() {
+            val dispatch = reconstitutedDispatch(DispatchStatus.TIMEOUT)
+
+            val second = dispatch.timeout()
+
+            assertThat(second).isFalse()
             assertThat(dispatch.status).isEqualTo(DispatchStatus.TIMEOUT)
         }
 

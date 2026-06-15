@@ -2,6 +2,7 @@ package com.carry.dispatch.application.service
 
 import com.carry.dispatch.application.port.inbound.AcceptAssignmentCommand
 import com.carry.dispatch.application.port.inbound.AssignDispatchCommand
+import com.carry.dispatch.application.port.inbound.CancelDispatchCommand
 import com.carry.dispatch.application.port.inbound.ClaimDispatchCommand
 import com.carry.dispatch.application.port.inbound.RejectAssignmentCommand
 import com.carry.dispatch.application.port.outbound.CarrierAreaPersistencePort
@@ -10,6 +11,7 @@ import com.carry.dispatch.application.port.outbound.PenaltyRecordPersistencePort
 import com.carry.dispatch.domain.exception.CarrierNotInAreaException
 import com.carry.dispatch.domain.exception.DispatchNotOwnedException
 import com.carry.dispatch.domain.exception.DispatchTimeoutNotAllowedException
+import com.carry.event.dispatch.DispatchCancelledEvent
 import com.carry.event.dispatch.DispatchTimeoutEvent
 import com.carry.dispatch.domain.model.CarrierArea
 import com.carry.dispatch.domain.model.Dispatch
@@ -67,6 +69,21 @@ class DispatchCommandServiceTest {
         active = true, createdAt = now, updatedAt = now,
     )
 
+    /** save가 전달받은 dispatch를 그대로 반향(echo)하도록 스텁한다(상태 보존). */
+    private fun stubSaveEcho() {
+        val saved = slot<Dispatch>()
+        every { dispatchPersistencePort.save(capture(saved)) } answers {
+            val d = saved.captured
+            Dispatch.reconstitute(
+                id = d.id ?: 1L, orderId = d.orderId, laundromatId = d.laundromatId,
+                status = d.status, carrierId = d.carrierId, areaCode = d.areaCode,
+                desiredPickupAt = d.desiredPickupAt, assignedBy = d.assignedBy,
+                assignedAt = d.assignedAt, acceptedAt = d.acceptedAt, cancelReason = d.cancelReason,
+                createdAt = now, updatedAt = now,
+            )
+        }
+    }
+
     @Nested
     inner class ClaimDispatch {
 
@@ -103,6 +120,38 @@ class DispatchCommandServiceTest {
 
             assertThatThrownBy { sut.claimDispatch(ClaimDispatchCommand(1L, 200L)) }
                 .isInstanceOf(CarrierNotInAreaException::class.java)
+        }
+
+        @Test
+        fun `같은 캐리어가 다시 클레임하면 이벤트를 재발행하지 않고 현재 상태를 반환한다`() {
+            // findById가 같은 인스턴스를 반환 → 첫 호출이 ACCEPTED로 변이시켜 재호출은 멱등 no-op이 된다.
+            val dispatch = pendingDispatch()
+            every { dispatchPersistencePort.findById(1L) } returns dispatch
+            every { carrierAreaPersistencePort.findByCarrierIdAndAreaCode(200L, "GANGNAM") } returns activeCarrierArea()
+            stubSaveEcho()
+
+            sut.claimDispatch(ClaimDispatchCommand(1L, 200L))
+            val result = sut.claimDispatch(ClaimDispatchCommand(1L, 200L))
+
+            assertThat(result.status).isEqualTo(DispatchStatus.ACCEPTED)
+            assertThat(result.carrierId).isEqualTo(200L)
+            verify(exactly = 1) {
+                eventPublisher.publish("Dispatch", "10", "DispatchAcceptedEvent", any(), any())
+            }
+        }
+
+        @Test
+        fun `이미 클레임한 캐리어의 재시도는 구역을 재검사하지 않고 성공한다`() {
+            // 실제 선점(PENDING)에서만 구역을 검증하므로, 이미 소유한 재시도는 구역이 비활성이어도 막히지 않는다.
+            val dispatch = pendingDispatch()
+            every { dispatchPersistencePort.findById(1L) } returns dispatch
+            every { carrierAreaPersistencePort.findByCarrierIdAndAreaCode(200L, "GANGNAM") } returns activeCarrierArea()
+
+            sut.claimDispatch(ClaimDispatchCommand(1L, 200L))
+            val result = sut.claimDispatch(ClaimDispatchCommand(1L, 200L))
+
+            assertThat(result.status).isEqualTo(DispatchStatus.ACCEPTED)
+            verify(exactly = 1) { carrierAreaPersistencePort.findByCarrierIdAndAreaCode(200L, "GANGNAM") }
         }
     }
 
@@ -165,6 +214,52 @@ class DispatchCommandServiceTest {
 
             assertThatThrownBy { sut.acceptAssignment(AcceptAssignmentCommand(1L, 999L)) }
                 .isInstanceOf(DispatchNotOwnedException::class.java)
+        }
+
+        @Test
+        fun `같은 캐리어가 다시 수락하면 이벤트를 재발행하지 않고 현재 상태를 반환한다`() {
+            val dispatch = assignedDispatch()
+            every { dispatchPersistencePort.findById(1L) } returns dispatch
+            stubSaveEcho()
+
+            sut.acceptAssignment(AcceptAssignmentCommand(1L, 200L))
+            val result = sut.acceptAssignment(AcceptAssignmentCommand(1L, 200L))
+
+            assertThat(result.status).isEqualTo(DispatchStatus.ACCEPTED)
+            verify(exactly = 1) {
+                eventPublisher.publish("Dispatch", "10", "DispatchAcceptedEvent", any(), any())
+            }
+        }
+    }
+
+    @Nested
+    inner class CancelDispatch {
+
+        @Test
+        fun `취소하면 CANCELLED로 전이하고 DispatchCancelledEvent를 발행한다`() {
+            every { dispatchPersistencePort.findById(1L) } returns pendingDispatch()
+
+            sut.cancelDispatch(CancelDispatchCommand(1L, "주문 취소"))
+
+            verify {
+                eventPublisher.publish(
+                    "Dispatch", "10", "DispatchCancelledEvent",
+                    DispatchCancelledEvent(dispatchId = 1L, orderId = 10L, reason = "주문 취소"), any(),
+                )
+            }
+        }
+
+        @Test
+        fun `이미 취소된 배차를 다시 취소하면 이벤트를 재발행하지 않는다`() {
+            val dispatch = pendingDispatch()
+            every { dispatchPersistencePort.findById(1L) } returns dispatch
+
+            sut.cancelDispatch(CancelDispatchCommand(1L, "주문 취소"))
+            sut.cancelDispatch(CancelDispatchCommand(1L, "재취소"))
+
+            verify(exactly = 1) {
+                eventPublisher.publish("Dispatch", "10", "DispatchCancelledEvent", any(), any())
+            }
         }
     }
 
@@ -241,6 +336,22 @@ class DispatchCommandServiceTest {
 
             verify(exactly = 0) { eventPublisher.publish(any(), any(), any(), any(), any()) }
             verify(exactly = 0) { metrics.incrementCounter("carry.dispatch.timeout") }
+        }
+
+        @Test
+        fun `이미 TIMEOUT인 배차를 다시 타임아웃하면 이벤트도 카운터도 재발생하지 않는다`() {
+            val dispatch = pendingDispatch()
+            every { dispatchPersistencePort.findById(1L) } returns dispatch
+            stubSaveEcho()
+
+            sut.timeoutDispatch(1L)
+            val result = sut.timeoutDispatch(1L)
+
+            assertThat(result.status).isEqualTo(DispatchStatus.TIMEOUT)
+            verify(exactly = 1) {
+                eventPublisher.publish("Dispatch", "10", "DispatchTimeoutEvent", any(), any())
+            }
+            verify(exactly = 1) { metrics.incrementCounter("carry.dispatch.timeout") }
         }
     }
 }
