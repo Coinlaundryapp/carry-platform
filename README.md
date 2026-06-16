@@ -195,8 +195,13 @@ PostgreSQL, Kafka, Zookeeper, Redis, Debezium Connect, Jaeger, OTel Collector가
 ### 애플리케이션 실행
 
 ```bash
-./gradlew :carry-app:bootRun
+SPRING_PROFILES_ACTIVE=local ./gradlew :carry-app:bootRun
 ```
+
+> **로컬 스키마는 Flyway가 관리합니다**(`ddl-auto: validate`). 기동 시 Flyway가 `db/migration`의 V0~V23을
+> 적용해 스키마를 빌드합니다(V0=PostGIS 확장 — 로컬 postgres는 `postgis/postgis` 이미지). 마이그레이션을
+> 추가/수정했거나 stale 스키마를 버리고 싶으면 `scripts/db-reset.sh`(Windows: `db-reset.ps1`)로 볼륨을 비우고
+> 재기동하면 Flyway가 깨끗이 다시 빌드합니다.
 
 ### 빌드 & 테스트
 

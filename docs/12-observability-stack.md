@@ -50,7 +50,7 @@ docker compose up -d
 | 서비스 | URL | 자격 |
 |---|---|---|
 | Prometheus | http://localhost:9090 | — |
-| Grafana | http://localhost:3000 | admin / admin (Viewer는 익명 가능) |
+| Grafana | http://localhost:3000 | 로그인 필요(익명 접근 차단, #145). 로컬 기본 admin/admin, 운영은 `GRAFANA_ADMIN_USER`/`GRAFANA_ADMIN_PASSWORD` env 주입 |
 | Jaeger | http://localhost:16686 | — |
 
 대시보드는 자동 프로비저닝되어 `Carry / Carry — Business & Resilience`로 즉시 보인다.

@@ -413,7 +413,9 @@ abstract class IntegrationTestBase {
     companion object {
         @Container
         @JvmStatic
-        val postgres = PostgreSQLContainer("postgres:16-alpine")
+        // PostGIS 포함 이미지 — 인근 검색(ST_Distance·ST_DWithin)·V3 GIST 인덱스가 PostGIS에 의존.
+        // 확장은 Flyway V0(CREATE EXTENSION postgis)가 생성한다. 로컬 docker도 동일 이미지.
+        val postgres = PostgreSQLContainer("postgis/postgis:16-3.4")
             .withDatabaseName("carry_test")
 
         @Container
