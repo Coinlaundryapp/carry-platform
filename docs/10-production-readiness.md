@@ -204,18 +204,20 @@ resilience4j.circuitbreaker.instances.pg-gateway:
 
 ---
 
-### P1-3. Flyway 마이그레이션 미검증
+### P1-3. Flyway 마이그레이션 미검증 — ✅ 해소됨 (#143)
 
-**현황**: local 프로파일에서 Flyway disabled + JPA ddl-auto=update. 실제 마이그레이션 파일(`db/migration/`)이 dev/prod 환경에서 정상 동작하는지 검증되지 않음.
+**현황(해소)**: local 프로파일도 Flyway 활성화 + `ddl-auto: validate`로 전환됨(#143). 모든 환경(local/test/prod)이
+동일한 Flyway 경로를 쓰며, carry-app 통합테스트가 Testcontainers(`postgis/postgis:16-3.4`)에서 V0~V23 적용 후
+`validate` 통과로 마이그레이션 정합을 상시 검증한다. 진짜 블로커였던 PostGIS 미프로비저닝(인근 검색 `ST_DWithin`·
+V3 GIST 인덱스 의존)도 확장 생성을 main 마이그레이션 V0로 승격하고 로컬 이미지를 `postgis/postgis`로 통일해 해소.
+스키마 리셋은 `scripts/db-reset.sh|ps1`(볼륨 비우고 Flyway 클린 빌드).
 
-**위험**: 스키마 변경 시 데이터 손실, 롤백 불가, 환경 간 스키마 불일치.
-
-**해결 방안**:
+**(이하 원래 해결 방안 — 위 #143로 1·2 반영 완료)**:
 ```
-1. local에서도 Flyway 활성화 (ddl-auto=validate)
+1. local에서도 Flyway 활성화 (ddl-auto=validate)  ✅ #143
    - 개발 중 스키마 변경을 마이그레이션 파일로 관리하는 습관 강제
 
-2. CI에서 Flyway 검증 추가
+2. CI에서 Flyway 검증 추가  ✅ 통합테스트가 testcontainers Flyway+validate로 상시 검증
    - Testcontainers PostgreSQL에 Flyway 마이그레이션 적용 후 validate
 
 3. 마이그레이션 파일 누락 체크
