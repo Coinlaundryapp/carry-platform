@@ -47,6 +47,9 @@ class OrderCancellationSagaIntegrationTest : IntegrationTestBase() {
     @Autowired lateinit var deliverySagaHandler: DeliverySagaEventHandler
     @Autowired lateinit var deliveryPersistencePort: DeliveryPersistencePort
 
+    @Autowired lateinit var paymentSagaHandler: com.carry.payment.application.port.inbound.PaymentSagaEventHandler
+    @Autowired lateinit var invoicePersistencePort: com.carry.payment.application.port.outbound.InvoicePersistencePort
+
     @Autowired lateinit var jdbc: JdbcTemplate
     @Autowired lateinit var objectMapper: ObjectMapper
 
@@ -169,6 +172,45 @@ class OrderCancellationSagaIntegrationTest : IntegrationTestBase() {
 
         val cancelledDelivery = deliveryPersistencePort.findByOrderId(orderId)!!
         assertThat(cancelledDelivery.status).isEqualTo(DeliveryStatus.CANCELLED)
+    }
+
+    @Test
+    fun `cancel committed before pickup event -- forward event ignored and no ghost invoice`() {
+        // cross-aggregate race: 취소(Order 행)가 선커밋된 뒤 비동기 PickupCompletedEvent 가 도착하는 경우.
+        // 기존엔 order saga 가 CANCELLED 에서 markPickedUp throw → DLQ poison,
+        // payment saga 는 취소된 주문에 유령 인보이스를 발행했다.
+        val (orderId, dispatchId) = createOrderAndDispatch()
+
+        dispatchCommandService.claimDispatch(ClaimDispatchCommand(dispatchId, TestFixtures.CARRIER_ID))
+        val dispatchAcceptedEvent = outbox.readOutboxPayload<DispatchAcceptedEvent>("Dispatch", "DispatchAcceptedEvent", orderId.toString())
+        orderSagaHandler.onDispatchAccepted(dispatchAcceptedEvent)
+        deliverySagaHandler.onDispatchAccepted(dispatchAcceptedEvent)
+
+        // 취소 선커밋 (DISPATCHED 는 취소 가능 윈도우)
+        orderCommandService.cancelOrder(orderId, "고객 변심", "CUSTOMER")
+        assertThat(orderPersistencePort.findById(orderId)!!.status).isEqualTo(OrderStatus.CANCELLED)
+
+        // 라이더는 이미 수거를 마친 상태 — 늦은 PickupCompletedEvent 도착
+        val delivery = deliveryPersistencePort.findByOrderId(orderId)!!
+        val pickupEvent = com.carry.event.delivery.PickupCompletedEvent(
+            deliveryId = delivery.id!!,
+            orderId = orderId,
+            carrierId = TestFixtures.CARRIER_ID,
+            customerId = TestFixtures.CUSTOMER_ID,
+            actualWeight = java.math.BigDecimal("3.00"),
+            laundryItemType = "NORMAL",
+            orderUnitType = "KG",
+            orderRequestType = "STANDARD",
+            selectedOptions = emptyList(),
+        )
+
+        // order saga: throw 없이 멱등 no-op — 주문은 CANCELLED 유지
+        orderSagaHandler.onPickupCompleted(pickupEvent)
+        assertThat(orderPersistencePort.findById(orderId)!!.status).isEqualTo(OrderStatus.CANCELLED)
+
+        // payment saga: 유령 인보이스 미발행
+        paymentSagaHandler.onPickupCompleted(pickupEvent)
+        assertThat(invoicePersistencePort.findByOrderId(orderId)).isNull()
     }
 
     @Test

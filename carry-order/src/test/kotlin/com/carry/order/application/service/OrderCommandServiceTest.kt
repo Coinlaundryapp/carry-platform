@@ -252,6 +252,50 @@ class OrderCommandServiceTest {
         }
 
         @Test
+        fun `고객 셀프취소도 감사로그를 기록한다`() {
+            // 코디 취소(cancelOrder)만 감사가 남고 셀프취소는 메트릭만 남던 액터별 비대칭 제거
+            val order = Order.reconstitute(
+                id = 1L, customerId = 1L, status = OrderStatus.CREATED,
+                laundromatId = 10L, laundryItemType = "REGULAR",
+                selectedOptions = listOf(SelectedOption("WASH", "STANDARD")),
+                shippingAddress = address, desiredPickupAt = now, desiredDeliveryAt = now.plus(4, ChronoUnit.HOURS),
+                carrierId = null, invoiceId = null, totalAmount = null, actualWeight = null,
+                cancellation = null, completedAt = null,
+                createdAt = now, updatedAt = now,
+            )
+            every { orderPersistencePort.findById(1L) } returns order
+
+            sut.cancelOrderByCustomer(1L, 1L, "고객 변심")
+
+            verify {
+                auditPort.record(
+                    AuditAction.ORDER_CANCEL, "ORDER", "1",
+                    mapOf("status" to "CREATED"),
+                    mapOf("status" to "CANCELLED", "reason" to "고객 변심", "cancelledBy" to "CUSTOMER"),
+                )
+            }
+        }
+
+        @Test
+        fun `유효하지 않은 취소 주체 문자열은 INVALID_INPUT 예외로 매핑된다`() {
+            // raw IllegalArgumentException 은 catch-all 에 걸려 500 — 클라이언트 잘못이므로 400 이어야 한다
+            val order = Order.reconstitute(
+                id = 1L, customerId = 1L, status = OrderStatus.CREATED,
+                laundromatId = 10L, laundryItemType = "REGULAR",
+                selectedOptions = listOf(SelectedOption("WASH", "STANDARD")),
+                shippingAddress = address, desiredPickupAt = now, desiredDeliveryAt = now.plus(4, ChronoUnit.HOURS),
+                carrierId = null, invoiceId = null, totalAmount = null, actualWeight = null,
+                cancellation = null, completedAt = null,
+                createdAt = now, updatedAt = now,
+            )
+            every { orderPersistencePort.findById(1L) } returns order
+
+            assertThatThrownBy { sut.cancelOrder(1L, "취소", "HACKER") }
+                .isInstanceOf(BusinessException::class.java)
+                .extracting("errorCode").isEqualTo(ErrorCode.INVALID_INPUT)
+        }
+
+        @Test
         fun `고객이 PAID 주문을 직접 취소하면 차단된다`() {
             // 픽업 후 고객 self-cancel 차단 정책 유지 — 환불 분기는 코디ㆍ시스템 전용
             val order = paidOrder()

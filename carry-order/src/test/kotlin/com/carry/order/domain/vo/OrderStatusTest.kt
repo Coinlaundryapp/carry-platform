@@ -87,6 +87,27 @@ class OrderStatusTest {
     }
 
     @Test
+    fun `취소·환불 분기·완료 상태는 forward 사가가 비활성이다`() {
+        // 늦게 도착한 forward 이벤트를 멱등 no-op 으로 처리할지 판정하는 술어
+        assertThat(OrderStatus.CANCELLED.isForwardActive()).isFalse()
+        assertThat(OrderStatus.REFUND_PENDING.isForwardActive()).isFalse()
+        assertThat(OrderStatus.REFUNDED.isForwardActive()).isFalse()
+        assertThat(OrderStatus.COMPLETED.isForwardActive()).isFalse()
+    }
+
+    @Test
+    fun `진행 중 상태는 forward 사가가 활성이다`() {
+        // PAYMENT_FAILED 는 재결제로 forward 재개가 가능하므로 활성
+        assertThat(OrderStatus.CREATED.isForwardActive()).isTrue()
+        assertThat(OrderStatus.DISPATCHED.isForwardActive()).isTrue()
+        assertThat(OrderStatus.PICKED_UP.isForwardActive()).isTrue()
+        assertThat(OrderStatus.INVOICED.isForwardActive()).isTrue()
+        assertThat(OrderStatus.PAYMENT_FAILED.isForwardActive()).isTrue()
+        assertThat(OrderStatus.PAID.isForwardActive()).isTrue()
+        assertThat(OrderStatus.IN_PROGRESS.isForwardActive()).isTrue()
+    }
+
+    @Test
     fun `전체 Happy Path 상태 전이가 유효하다`() {
         val happyPath = listOf(
             OrderStatus.CREATED to OrderStatus.DISPATCHED,

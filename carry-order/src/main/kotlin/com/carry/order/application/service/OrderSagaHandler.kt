@@ -38,6 +38,7 @@ class OrderSagaHandler(
         SagaLogContext.withOrderId(event.orderId) {
             log.info("Order saga: onDispatchAccepted dispatchId={} carrierId={}", event.dispatchId, event.carrierId)
             val order = findOrder(event.orderId)
+            if (skipIfForwardStopped(order, "DispatchAcceptedEvent")) return@withOrderId
             order.markDispatched(event.carrierId)
             orderPersistencePort.save(order)
         }
@@ -72,6 +73,7 @@ class OrderSagaHandler(
         SagaLogContext.withOrderId(event.orderId) {
             log.info("Order saga: onPickupCompleted deliveryId={} weight={}", event.deliveryId, event.actualWeight)
             val order = findOrder(event.orderId)
+            if (skipIfForwardStopped(order, "PickupCompletedEvent")) return@withOrderId
             order.markPickedUp(event.actualWeight)
             orderPersistencePort.save(order)
         }
@@ -82,6 +84,7 @@ class OrderSagaHandler(
         SagaLogContext.withOrderId(event.orderId) {
             log.info("Order saga: onInvoiceIssued invoiceId={} amount={}", event.invoiceId, event.totalAmount)
             val order = findOrder(event.orderId)
+            if (skipIfForwardStopped(order, "InvoiceIssuedEvent")) return@withOrderId
             order.markInvoiced(event.invoiceId, event.totalAmount)
             orderPersistencePort.save(order)
         }
@@ -92,6 +95,7 @@ class OrderSagaHandler(
         SagaLogContext.withOrderId(event.orderId) {
             log.info("Order saga: onPaymentCompleted paymentId={}", event.paymentId)
             val order = findOrder(event.orderId)
+            if (skipIfForwardStopped(order, "PaymentCompletedEvent")) return@withOrderId
             order.markPaid()
             orderPersistencePort.save(order)
         }
@@ -115,6 +119,7 @@ class OrderSagaHandler(
         SagaLogContext.withOrderId(event.orderId) {
             log.info("Order saga: onLaundryStarted deliveryId={}", event.deliveryId)
             val order = findOrder(event.orderId)
+            if (skipIfForwardStopped(order, "LaundryStartedEvent")) return@withOrderId
             order.markInProgress()
             orderPersistencePort.save(order)
         }
@@ -125,6 +130,7 @@ class OrderSagaHandler(
         SagaLogContext.withOrderId(event.orderId) {
             log.info("Order saga: onDeliveryCompleted deliveryId={}", event.deliveryId)
             val order = findOrder(event.orderId)
+            if (skipIfForwardStopped(order, "DeliveryCompletedEvent")) return@withOrderId
             val now = clock.instant()
             order.markCompleted(now)
             orderPersistencePort.save(order)
@@ -145,6 +151,19 @@ class OrderSagaHandler(
                 orderPersistencePort.save(order)
             }
         }
+    }
+
+    /**
+     * 취소·환불 분기·완료로 forward 진행이 중단된 주문에 늦게 도착한 forward 이벤트를
+     * throw(→DLQ poison) 대신 멱등 no-op 으로 흡수한다(reverse 핸들러 가드와 대칭).
+     * 선행 전이가 아직 반영되지 않은 "이른" 이벤트는 여기서 걸러지지 않고 도메인 가드에서
+     * throw 되는데, 이는 의도적이다 — no-op 하면 전이가 영구 유실되므로 Kafka 재시도가 치유한다.
+     */
+    private fun skipIfForwardStopped(order: Order, eventType: String): Boolean {
+        if (order.status.isForwardActive()) return false
+        log.warn("Order saga: {} 무시 — forward 진행이 중단된 주문 orderId={} status={}", eventType, order.id, order.status)
+        metrics.incrementCounter("carry.saga.forward_skipped", "event" to eventType, "status" to order.status.name)
+        return true
     }
 
     private fun findOrder(orderId: Long): Order {

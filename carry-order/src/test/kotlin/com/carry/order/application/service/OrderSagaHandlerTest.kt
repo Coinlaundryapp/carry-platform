@@ -161,6 +161,60 @@ class OrderSagaHandlerTest {
     }
 
     @Test
+    fun `취소된 주문에 늦게 도착한 forward 이벤트는 throw 없이 무시한다`() {
+        // 취소 선커밋 vs 픽업 race — 늦은 forward 이벤트가 throw 되면 DLQ poison 이 된다.
+        // reverse 핸들러(onPaymentFailed/onRefundCompleted)의 가드 패턴과 대칭으로 멱등 no-op.
+        every { orderPersistencePort.findById(1L) } returns orderAt(OrderStatus.CANCELLED)
+
+        sut.onDispatchAccepted(DispatchAcceptedEvent(10L, 1L, 100L, 10L))
+        sut.onPickupCompleted(PickupCompletedEvent(
+            10L, 1L, 100L, 1L, BigDecimal("5.0"), "REGULAR", "SOLO", "NEW",
+            listOf(SelectedOptionSnapshot("WASH", "STANDARD")),
+        ))
+        sut.onInvoiceIssued(InvoiceIssuedEvent(200L, 1L, 15000L, emptyList()))
+        sut.onPaymentCompleted(PaymentCompletedEvent(300L, 1L, 200L, 15000L))
+        sut.onLaundryStarted(LaundryStartedEvent(10L, 1L))
+        sut.onDeliveryCompleted(DeliveryCompletedEvent(10L, 1L, 100L))
+
+        verify(exactly = 0) { orderPersistencePort.save(any()) }
+    }
+
+    @Test
+    fun `환불 분기로 빠진 주문에 도착한 forward 이벤트는 무시한다`() {
+        // PAID 취소 → REFUND_PENDING 인 주문에 늦은 LaundryStartedEvent — forward 재개 불가
+        every { orderPersistencePort.findById(1L) } returns orderAt(OrderStatus.REFUND_PENDING)
+
+        sut.onLaundryStarted(LaundryStartedEvent(10L, 1L))
+
+        verify(exactly = 0) { orderPersistencePort.save(any()) }
+    }
+
+    @Test
+    fun `forward 이벤트 무시 시 skip 메트릭을 기록한다`() {
+        every { orderPersistencePort.findById(1L) } returns orderAt(OrderStatus.CANCELLED)
+
+        sut.onLaundryStarted(LaundryStartedEvent(10L, 1L))
+
+        verify {
+            metrics.incrementCounter(
+                "carry.saga.forward_skipped",
+                "event" to "LaundryStartedEvent", "status" to "CANCELLED",
+            )
+        }
+    }
+
+    @Test
+    fun `이른 forward 이벤트는 여전히 throw 하여 재시도로 치유한다`() {
+        // cross-topic 순서 미보장: InvoiceIssuedEvent 가 PickupCompletedEvent 보다 먼저 소비될 수 있다.
+        // 이 경우 no-op 하면 전이가 영구 유실되므로 throw → Kafka 재시도(1s×3)가 자가치유한다.
+        every { orderPersistencePort.findById(1L) } returns orderAt(OrderStatus.DISPATCHED)
+
+        org.assertj.core.api.Assertions.assertThatThrownBy {
+            sut.onInvoiceIssued(InvoiceIssuedEvent(200L, 1L, 15000L, emptyList()))
+        }.isInstanceOf(com.carry.order.domain.exception.InvalidOrderStatusTransitionException::class.java)
+    }
+
+    @Test
     fun `DeliveryCompletedEvent 수신 시 carry_saga_duration 을 주문 생성부터의 소요시간으로 기록한다`() {
         // 사가 시작(주문 생성) 3시간 전 → 완료 시각(고정 clock=now)까지 = 3시간.
         val createdAt = now.minus(3, ChronoUnit.HOURS)
