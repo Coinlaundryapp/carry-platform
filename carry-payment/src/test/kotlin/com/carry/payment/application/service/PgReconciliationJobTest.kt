@@ -1,6 +1,7 @@
 package com.carry.payment.application.service
 
 import com.carry.common.metrics.MetricsPort
+import com.carry.payment.application.port.inbound.PaymentCommandUseCase
 import com.carry.payment.application.port.outbound.PaymentGatewayPort
 import com.carry.payment.application.port.outbound.PaymentGatewayResolver
 import com.carry.payment.application.port.outbound.PaymentPersistencePort
@@ -29,6 +30,7 @@ class PgReconciliationJobTest {
     private val resolver = mockk<PaymentGatewayResolver>()
     private val gateway = mockk<PaymentGatewayPort>()
     private val mismatchPort = mockk<ReconciliationMismatchPort>()
+    private val paymentCommandUseCase = mockk<PaymentCommandUseCase>(relaxed = true)
     private val metrics = mockk<MetricsPort>(relaxed = true)
 
     private val now = Instant.parse("2026-07-12T12:00:00Z")
@@ -40,7 +42,7 @@ class PgReconciliationJobTest {
     private val to = now.minusMillis(graceMs)
 
     private val sut = PgReconciliationJob(
-        paymentPersistencePort, resolver, mismatchPort, metrics, clock, lookbackMs, graceMs,
+        paymentPersistencePort, resolver, mismatchPort, paymentCommandUseCase, metrics, clock, lookbackMs, graceMs,
     )
 
     @BeforeEach
@@ -128,20 +130,50 @@ class PgReconciliationJobTest {
     }
 
     @Test
-    fun `PG 취소 완료인데 로컬이 REFUND_PENDING 이면 PG_CANCEL_NOT_MARKED 를 기록한다`() {
-        // executeRefund 가 PG 성공 후 로컬 마킹 직전 실패한 윈도 — P2b 수렴 대상
+    fun `PG 취소 완료인데 로컬이 REFUND_PENDING 이면 confirmRefundFromPg 로 수렴하고 기록하지 않는다`() {
+        // executeRefund 가 PG 성공 후 로컬 마킹 직전 실패한 윈도 — PG 는 이미 취소됐으므로
+        // 스위퍼의 PG 재호출을 기다리지 않고 대사가 로컬만 REFUNDED 로 수렴(P2b 환불 화해)
         val payment = aPayment(PaymentStatus.REFUND_PENDING)
         every { gateway.listTransactions(from, to) } returns listOf(charge(), cancel())
         every { paymentPersistencePort.findByPgTransactionId("tx-1") } returns payment
-        val recorded = mutableListOf<ReconciliationMismatch>()
+
+        sut.reconcile()
+
+        verify { paymentCommandUseCase.confirmRefundFromPg(10L, 18000L) }
+        verify(exactly = 0) { mismatchPort.recordIfNew(any()) }
+        verify {
+            metrics.incrementCounter(
+                "carry.payment.reconcile.refund_converged", "provider" to "TOSS_PAYMENTS",
+            )
+        }
+    }
+
+    @Test
+    fun `환불 수렴이 실패하면 PG_CANCEL_NOT_MARKED 기록으로 폴백한다`() {
+        val payment = aPayment(PaymentStatus.REFUND_PENDING)
+        every { gateway.listTransactions(from, to) } returns listOf(charge(), cancel())
+        every { paymentPersistencePort.findByPgTransactionId("tx-1") } returns payment
+        every { paymentCommandUseCase.confirmRefundFromPg(any(), any()) } throws RuntimeException("DB down")
+        val recorded = slot<ReconciliationMismatch>()
         every { mismatchPort.recordIfNew(capture(recorded)) } returns true
 
         sut.reconcile()
 
-        // charge 는 REFUND_PENDING(완료 이력 있음)이라 정상, cancel 만 불일치
-        assertThat(recorded).hasSize(1)
-        assertThat(recorded.single().type).isEqualTo(ReconciliationMismatchType.PG_CANCEL_NOT_MARKED)
-        assertThat(recorded.single().detail).contains("P2b")
+        assertThat(recorded.captured.type).isEqualTo(ReconciliationMismatchType.PG_CANCEL_NOT_MARKED)
+    }
+
+    @Test
+    fun `PG 취소인데 로컬 결제가 없으면 수렴 없이 PG_CANCEL_NOT_MARKED 를 기록한다`() {
+        // 확실한 REFUND_PENDING 케이스만 자동 수렴 — 그 외는 비파괴 기록 유지
+        every { gateway.listTransactions(from, to) } returns listOf(cancel("tx-9"))
+        every { paymentPersistencePort.findByPgTransactionId("tx-9") } returns null
+        val recorded = slot<ReconciliationMismatch>()
+        every { mismatchPort.recordIfNew(capture(recorded)) } returns true
+
+        sut.reconcile()
+
+        assertThat(recorded.captured.type).isEqualTo(ReconciliationMismatchType.PG_CANCEL_NOT_MARKED)
+        verify(exactly = 0) { paymentCommandUseCase.confirmRefundFromPg(any(), any()) }
     }
 
     @Test

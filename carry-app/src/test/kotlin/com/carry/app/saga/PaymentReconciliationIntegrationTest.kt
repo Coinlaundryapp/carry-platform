@@ -15,19 +15,23 @@ import com.carry.dispatch.application.service.DispatchCommandService
 import com.carry.event.delivery.PickupCompletedEvent
 import com.carry.event.delivery.SelectedOptionSnapshot
 import com.carry.event.dispatch.DispatchAcceptedEvent
+import com.carry.event.order.OrderCancelledEvent
 import com.carry.event.order.OrderCreatedEvent
 import com.carry.event.payment.InvoiceIssuedEvent
+import com.carry.event.payment.PaymentCompletedEvent
 import com.carry.order.application.port.inbound.CreateOrderCommand
 import com.carry.order.application.port.inbound.OrderSagaEventHandler
 import com.carry.order.application.port.inbound.SelectedOptionCommand
 import com.carry.order.application.service.OrderCommandService
 import com.carry.payment.application.port.inbound.PaymentSagaEventHandler
 import com.carry.payment.application.port.inbound.RequestPaymentCommand
+import com.carry.payment.application.port.outbound.PaymentPersistencePort
 import com.carry.payment.application.port.outbound.PgProviderAdapter
 import com.carry.payment.application.port.outbound.PgTransactionRecord
 import com.carry.payment.application.port.outbound.PgTransactionType
 import com.carry.payment.application.service.PaymentCommandService
 import com.carry.payment.application.service.PgReconciliationJob
+import com.carry.payment.domain.vo.PaymentStatus
 import com.carry.payment.domain.vo.PgProvider
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.assertj.core.api.Assertions.assertThat
@@ -59,6 +63,7 @@ class PaymentReconciliationIntegrationTest : IntegrationTestBase() {
     @Autowired lateinit var deliveryPersistencePort: DeliveryPersistencePort
     @Autowired lateinit var paymentSagaHandler: PaymentSagaEventHandler
     @Autowired lateinit var paymentCommandService: PaymentCommandService
+    @Autowired lateinit var paymentPersistencePort: PaymentPersistencePort
     @Autowired lateinit var pgReconciliationJob: PgReconciliationJob
     @Autowired lateinit var pgProviderAdapter: PgProviderAdapter
     @Autowired lateinit var jdbc: JdbcTemplate
@@ -162,6 +167,37 @@ class PaymentReconciliationIntegrationTest : IntegrationTestBase() {
         // 윈도 중첩 재실행 — 중복 적재 없음
         pgReconciliationJob.reconcile()
         assertThat(mismatchRows()).hasSize(1)
+    }
+
+    @Test
+    fun `refund reconciliation -- PG cancel done but local REFUND_PENDING converges to REFUNDED`() {
+        // "PG 성공·로컬 markRefunded 직전 실패" 윈도 재현 — 스위퍼의 PG 재호출을 기다리지 않고
+        // 대사가 PG 원장에서 취소 확정을 확인해 로컬만 REFUNDED 로 수렴한다(P2b 환불 화해).
+        val orderId = progressToPaid()
+        orderSagaHandler.onPaymentCompleted(
+            outbox.readOutboxPayload<PaymentCompletedEvent>("Payment", "PaymentCompletedEvent", orderId.toString())
+        )
+
+        // PAID 주문 취소 → 환불 보상 시작(payment REFUND_PENDING, PG 호출 없음)
+        orderCommandService.cancelOrder(orderId, "고객 변심", "CUSTOMER")
+        val cancelEvent = outbox.readOutboxPayload<OrderCancelledEvent>("Order", "OrderCancelledEvent", orderId.toString())
+        paymentSagaHandler.onOrderCancelled(cancelEvent)
+
+        val pending = paymentPersistencePort.findByOrderId(orderId)!!
+        assertThat(pending.status).isEqualTo(PaymentStatus.REFUND_PENDING)
+
+        // PG 원장에는 취소가 이미 존재(로컬 마킹만 실패한 상태 시뮬레이션)
+        fakePg.extraTransactions += PgTransactionRecord(
+            pending.pgTransactionId!!, PgTransactionType.CANCEL, pending.amount, Instant.now(),
+        )
+
+        pgReconciliationJob.reconcile()
+
+        val refunded = paymentPersistencePort.findByOrderId(orderId)!!
+        assertThat(refunded.status).isEqualTo(PaymentStatus.REFUNDED)
+        outbox.assertOutboxContains("Payment", "RefundCompletedEvent", orderId.toString())
+        // 수렴됐으므로 불일치 원장은 비어 있어야 한다
+        assertThat(mismatchRows()).isEmpty()
     }
 
     @Test

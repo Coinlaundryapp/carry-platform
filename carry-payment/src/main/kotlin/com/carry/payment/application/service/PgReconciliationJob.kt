@@ -1,6 +1,7 @@
 package com.carry.payment.application.service
 
 import com.carry.common.metrics.MetricsPort
+import com.carry.payment.application.port.inbound.PaymentCommandUseCase
 import com.carry.payment.application.port.outbound.PaymentGatewayResolver
 import com.carry.payment.application.port.outbound.PaymentPersistencePort
 import com.carry.payment.application.port.outbound.PgTransactionRecord
@@ -41,6 +42,7 @@ class PgReconciliationJob(
     private val paymentPersistencePort: PaymentPersistencePort,
     private val paymentGatewayResolver: PaymentGatewayResolver,
     private val mismatchPort: ReconciliationMismatchPort,
+    private val paymentCommandUseCase: PaymentCommandUseCase,
     private val metrics: MetricsPort,
     private val clock: Clock,
     @Value("\${carry.payment.reconcile-lookback-ms:90000000}") private val lookbackMs: Long,
@@ -91,15 +93,27 @@ class PgReconciliationJob(
         }
         cancels.values.forEach { cancel ->
             val local = paymentPersistencePort.findByPgTransactionId(cancel.pgTransactionId)
-            if (local == null || local.status != PaymentStatus.REFUNDED) {
-                report(provider, ReconciliationMismatchType.PG_CANCEL_NOT_MARKED, local, cancel.pgTransactionId, pgAmount = cancel.amount,
-                    detail = when {
-                        local == null -> "PG 취소인데 로컬 결제 없음"
-                        local.status == PaymentStatus.REFUND_PENDING ->
-                            "PG 취소 완료인데 로컬 REFUND_PENDING — 스위퍼 PG 재호출 전 수렴 대상(P2b)"
-                        else -> "PG 취소인데 로컬 결제가 ${local.status} 상태"
-                    })
+            if (local != null && local.status == PaymentStatus.REFUNDED) return@forEach
+
+            // 환불 화해(P2b): PG 취소는 확정인데 로컬이 REFUND_PENDING = "PG 성공·로컬 마킹 실패" 윈도.
+            // 확실한 이 케이스만 자동 수렴하고(스위퍼의 PG 재호출을 기다리지 않음), 그 외는 비파괴 기록 유지.
+            if (local != null && local.status == PaymentStatus.REFUND_PENDING) {
+                try {
+                    paymentCommandUseCase.confirmRefundFromPg(local.orderId, cancel.amount)
+                    metrics.incrementCounter("carry.payment.reconcile.refund_converged", "provider" to provider.name)
+                    log.info("PG 대사: 환불 화해 — REFUND_PENDING 을 REFUNDED 로 수렴 orderId={} pgTxId={}",
+                        local.orderId, cancel.pgTransactionId)
+                    return@forEach
+                } catch (e: Exception) {
+                    log.warn("PG 대사: 환불 화해 실패, 불일치 기록으로 폴백 orderId={} — {}", local.orderId, e.message)
+                }
             }
+            report(provider, ReconciliationMismatchType.PG_CANCEL_NOT_MARKED, local, cancel.pgTransactionId, pgAmount = cancel.amount,
+                detail = when {
+                    local == null -> "PG 취소인데 로컬 결제 없음"
+                    local.status == PaymentStatus.REFUND_PENDING -> "PG 취소 완료인데 로컬 REFUND_PENDING — 자동 수렴 실패, 수동 확인 필요"
+                    else -> "PG 취소인데 로컬 결제가 ${local.status} 상태"
+                })
         }
 
         // local-side: 로컬 원장 기준으로 PG 대조 (윈도는 grace 만큼 안쪽 — 경계 오탐 방지)

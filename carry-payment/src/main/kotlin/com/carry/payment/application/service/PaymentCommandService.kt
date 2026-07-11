@@ -160,12 +160,31 @@ class PaymentCommandService(
 
         val gateway = paymentGatewayResolver.resolve(payment.pgProvider)
         // PG CB OPEN/실패 시 예외가 전파된다 → 호출 측(RefundRetrySweeper)이 REFUND_PENDING 유지·다음 주기 재시도.
-        val cancelResult = gateway.cancelPayment(payment.pgTransactionId!!)
+        // 멱등키는 결정적(전액 환불 1회 = refund-{paymentId}) — "PG 성공·로컬 마킹 실패" 후 재호출을 PG 가 dedup.
+        // (부분환불(P4a) 도입 시 refund-seq 를 붙여 확장한다.)
+        val cancelResult = gateway.cancelPayment(payment.pgTransactionId!!, "refund-${payment.id}")
 
         if (!cancelResult.success) {
             throw PaymentGatewayException(cancelResult.failReason ?: "환불 실패")
         }
 
+        completeRefund(payment, cancelResult.refundAmount ?: payment.amount)
+    }
+
+    @Transactional
+    override fun confirmRefundFromPg(orderId: Long, refundAmount: Long) {
+        val payment = paymentPersistencePort.findByOrderId(orderId)
+            ?: throw PaymentNotFoundException("orderId=$orderId")
+
+        // REFUND_PENDING 만 수렴 대상(멱등 — 스위퍼와 경합해도 한쪽만 전이 성공).
+        if (payment.status != PaymentStatus.REFUND_PENDING) return
+
+        // PG 는 이미 취소를 완료했으므로(대사가 PG 원장에서 확인) PG 재호출 없이 로컬만 수렴.
+        completeRefund(payment, if (refundAmount > 0) refundAmount else payment.amount)
+    }
+
+    /** PG 취소가 확정된 뒤의 로컬 마감 절반 — executeRefund(스위퍼)와 confirmRefundFromPg(대사 화해)가 공유. */
+    private fun completeRefund(payment: Payment, refundAmount: Long) {
         payment.markRefunded()
         val saved = paymentPersistencePort.save(payment)
 
@@ -177,19 +196,19 @@ class PaymentCommandService(
 
         eventPublisher.publish(
             aggregateType = "Payment",
-            aggregateId = orderId.toString(),
+            aggregateId = saved.orderId.toString(),
             eventType = "RefundCompletedEvent",
             payload = RefundCompletedEvent(
                 paymentId = saved.id!!,
                 orderId = saved.orderId,
-                refundAmount = cancelResult.refundAmount ?: saved.amount,
+                refundAmount = refundAmount,
             ),
         )
 
         auditPort.record(
             action = AuditAction.PAYMENT_REFUND,
             targetType = "PAYMENT",
-            targetId = orderId.toString(),
+            targetId = saved.orderId.toString(),
             before = mapOf("status" to PaymentStatus.REFUND_PENDING.name),
             after = mapOf("status" to saved.status.name),
         )

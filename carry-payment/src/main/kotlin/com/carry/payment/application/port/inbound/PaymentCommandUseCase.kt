@@ -19,6 +19,13 @@ interface PaymentCommandUseCase {
      * REFUND_PENDING 이 아니면 무동작(멱등).
      */
     fun executeRefund(orderId: Long)
+
+    /**
+     * PG 측 취소가 이미 완료됐음이 확인된 REFUND_PENDING 결제를 PG 재호출 없이 REFUNDED 로
+     * 수렴한다(REFUNDED 마킹 + RefundCompletedEvent — 환불 화해, PG 대사 잡 전용).
+     * REFUND_PENDING 이 아니면 무동작(멱등).
+     */
+    fun confirmRefundFromPg(orderId: Long, refundAmount: Long)
 }
 
 data class RequestPaymentCommand(

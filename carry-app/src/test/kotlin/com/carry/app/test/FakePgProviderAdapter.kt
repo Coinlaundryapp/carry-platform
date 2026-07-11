@@ -41,7 +41,7 @@ class FakePgProviderAdapter : PgProviderAdapter {
         }
     }
 
-    override fun cancelPayment(pgTransactionId: String): PgCancelResult {
+    override fun cancelPayment(pgTransactionId: String, idempotencyKey: String): PgCancelResult {
         return if (shouldSucceed) {
             val charge = recordedTransactions.firstOrNull {
                 it.pgTransactionId == pgTransactionId && it.type == PgTransactionType.CHARGE

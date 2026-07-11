@@ -47,7 +47,7 @@ class StubPgProviderAdapterTest {
 
     @Test
     fun `환불(취소) 요청은 항상 성공한다`() {
-        val result = adapter.cancelPayment("STUB-TX-42")
+        val result = adapter.cancelPayment("STUB-TX-42", "refund-1")
 
         assertThat(result.success).isTrue()
         assertThat(result.failReason).isNull()
@@ -77,7 +77,7 @@ class StubPgProviderAdapterTest {
     fun `취소 시 원거래 금액으로 CANCEL 이 기록되고 refundAmount 를 반환한다`() {
         val txId = adapter.requestPayment(sampleRequest).pgTransactionId!!
 
-        val result = adapter.cancelPayment(txId)
+        val result = adapter.cancelPayment(txId, "refund-1")
 
         assertThat(result.success).isTrue()
         assertThat(result.refundAmount).isEqualTo(15000L)
