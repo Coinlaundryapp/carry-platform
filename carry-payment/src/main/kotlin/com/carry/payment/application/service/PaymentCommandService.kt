@@ -12,6 +12,8 @@ import com.carry.event.port.EventPublisherPort
 import com.carry.payment.application.port.inbound.PaymentCommandUseCase
 import com.carry.payment.application.port.inbound.RequestPaymentCommand
 import com.carry.payment.application.port.outbound.InvoicePersistencePort
+import com.carry.payment.application.port.outbound.LedgerPort
+import com.carry.payment.application.port.outbound.OrderStateQueryPort
 import com.carry.payment.application.port.outbound.PaymentIdempotencyPort
 import com.carry.payment.application.port.outbound.PaymentPersistencePort
 import com.carry.payment.application.port.outbound.PaymentGatewayResolver
@@ -20,6 +22,7 @@ import com.carry.payment.domain.exception.InvoiceAlreadyPaidException
 import com.carry.payment.domain.exception.InvoiceNotFoundException
 import com.carry.payment.domain.exception.PaymentGatewayException
 import com.carry.payment.domain.exception.PaymentNotFoundException
+import com.carry.payment.domain.model.LedgerEntries
 import com.carry.payment.domain.model.Payment
 import com.carry.payment.domain.vo.InvoiceStatus
 import com.carry.payment.domain.vo.PaymentStatus
@@ -36,6 +39,8 @@ class PaymentCommandService(
     private val metrics: MetricsPort,
     private val auditPort: AuditPort,
     private val idempotencyPort: PaymentIdempotencyPort,
+    private val ledgerPort: LedgerPort,
+    private val orderStateQueryPort: OrderStateQueryPort,
     private val clock: Clock,
 ) : PaymentCommandUseCase {
 
@@ -102,6 +107,11 @@ class PaymentCommandService(
                         invoiceId = saved.invoiceId,
                         amount = saved.amount,
                     ),
+                )
+
+                // 정산 원장 기입 — 결제 확정과 동일 트랜잭션(유실 불가). 균형 기입은 팩토리가 강제.
+                ledgerPort.record(
+                    LedgerEntries.forPayment(saved, invoice, orderStateQueryPort.findCarrierId(command.orderId)),
                 )
 
                 key?.let { idempotencyPort.complete(it, saved.id!!) }
@@ -192,6 +202,10 @@ class PaymentCommandService(
         invoice?.let {
             it.refund()
             invoicePersistencePort.save(it)
+            // 환불 확정과 동일 트랜잭션에서 원장 역분개(PAYMENT 그룹과 부호 반전).
+            ledgerPort.record(
+                LedgerEntries.forRefund(saved, it, orderStateQueryPort.findCarrierId(saved.orderId)),
+            )
         }
 
         eventPublisher.publish(

@@ -5,6 +5,8 @@ import com.carry.common.metrics.MetricsPort
 import com.carry.event.port.EventPublisherPort
 import com.carry.payment.application.port.inbound.RequestPaymentCommand
 import com.carry.payment.application.port.outbound.InvoicePersistencePort
+import com.carry.payment.application.port.outbound.LedgerPort
+import com.carry.payment.application.port.outbound.OrderStateQueryPort
 import com.carry.payment.application.port.outbound.PaymentIdempotencyPort
 import com.carry.payment.application.port.outbound.PaymentPersistencePort
 import com.carry.payment.application.port.outbound.PaymentGatewayPort
@@ -44,13 +46,17 @@ class PaymentCommandServiceTest {
     private val paymentGateway = mockk<PaymentGatewayPort>()
     private val auditPort = mockk<com.carry.audit.port.AuditPort>(relaxed = true)
     private val idempotencyPort = mockk<PaymentIdempotencyPort>(relaxed = true)
+    private val ledgerPort = mockk<LedgerPort>(relaxed = true)
+    private val orderStateQueryPort = mockk<OrderStateQueryPort>(relaxed = true) {
+        every { findCarrierId(any()) } returns 77L
+    }
 
     private val now = Instant.parse("2026-06-07T00:00:00Z")
     private val clock = Clock.fixed(now, ZoneOffset.UTC)
 
     private val sut = PaymentCommandService(
         paymentPersistencePort, invoicePersistencePort, paymentGatewayResolver, eventPublisher, metrics, auditPort,
-        idempotencyPort, clock,
+        idempotencyPort, ledgerPort, orderStateQueryPort, clock,
     )
 
     private val lineItems = listOf(
@@ -345,6 +351,90 @@ class PaymentCommandServiceTest {
 
             verify(exactly = 0) { paymentPersistencePort.save(any()) }
             verify(exactly = 0) { eventPublisher.publish(any(), any(), any(), any(), any()) }
+        }
+    }
+
+    @Nested
+    inner class Ledger {
+
+        private fun stubSuccessfulPayment() {
+            every { invoicePersistencePort.findByOrderId(10L) } returns anInvoice()
+            every { paymentGatewayResolver.resolve(PgProvider.TOSS_PAYMENTS) } returns paymentGateway
+            every { paymentGateway.requestPayment(any()) } returns PgPaymentResult(
+                success = true, pgTransactionId = "tx_ledger_1",
+            )
+            val saved = slot<Payment>()
+            every { paymentPersistencePort.save(capture(saved)) } answers {
+                Payment.reconstitute(
+                    id = 42L, invoiceId = saved.captured.invoiceId, orderId = saved.captured.orderId,
+                    customerId = saved.captured.customerId, status = saved.captured.status,
+                    pgProvider = saved.captured.pgProvider, pgTransactionId = saved.captured.pgTransactionId,
+                    amount = saved.captured.amount, paidAt = saved.captured.paidAt,
+                    failReason = saved.captured.failReason, createdAt = now, updatedAt = now,
+                )
+            }
+        }
+
+        @Test
+        fun `결제 성공 시 균형 원장(고객 차변 + 캐리어 변제)을 동일 트랜잭션에서 기입한다`() {
+            stubSuccessfulPayment()
+            val entries = slot<List<com.carry.payment.domain.model.LedgerEntry>>()
+            every { ledgerPort.record(capture(entries)) } returns Unit
+
+            sut.requestPayment(aCommand())
+
+            // 세탁비·배달비 → CARRIER(코인세탁소 현금 투입 변제 + 수고비), 고객은 총액 차변
+            assertThat(entries.captured.sumOf { it.amount }).isZero()
+            assertThat(entries.captured).hasSize(3)
+            val customer = entries.captured.single { it.accountType == com.carry.payment.domain.vo.LedgerAccountType.CUSTOMER }
+            assertThat(customer.amount).isEqualTo(-18000L)
+            val carrierSum = entries.captured
+                .filter { it.accountType == com.carry.payment.domain.vo.LedgerAccountType.CARRIER }
+                .sumOf { it.amount }
+            assertThat(carrierSum).isEqualTo(18000L)
+            assertThat(entries.captured.filter { it.accountType == com.carry.payment.domain.vo.LedgerAccountType.CARRIER })
+                .allMatch { it.accountId == 77L }
+        }
+
+        @Test
+        fun `결제 실패 시 원장을 기입하지 않는다`() {
+            every { invoicePersistencePort.findByOrderId(10L) } returns anInvoice()
+            every { paymentGatewayResolver.resolve(PgProvider.TOSS_PAYMENTS) } returns paymentGateway
+            every { paymentGateway.requestPayment(any()) } returns PgPaymentResult(success = false, failReason = "잔액 부족")
+            every { paymentPersistencePort.save(any()) } answers {
+                val p = firstArg<Payment>()
+                Payment.reconstitute(
+                    id = 42L, invoiceId = p.invoiceId, orderId = p.orderId, customerId = p.customerId,
+                    status = p.status, pgProvider = p.pgProvider, pgTransactionId = p.pgTransactionId,
+                    amount = p.amount, paidAt = p.paidAt, failReason = p.failReason, createdAt = now, updatedAt = now,
+                )
+            }
+
+            sut.requestPayment(aCommand())
+
+            verify(exactly = 0) { ledgerPort.record(any()) }
+        }
+
+        @Test
+        fun `환불 확정 시 역분개(부호 반전 REFUND 그룹)를 기입한다`() {
+            every { paymentPersistencePort.findByOrderId(10L) } returns Payment.reconstitute(
+                id = 1L, invoiceId = 1L, orderId = 10L, customerId = 100L, status = PaymentStatus.REFUND_PENDING,
+                pgProvider = PgProvider.TOSS_PAYMENTS, pgTransactionId = "tx_123", amount = 18000L,
+                paidAt = now, failReason = null, createdAt = now, updatedAt = now,
+            )
+            every { paymentGatewayResolver.resolve(PgProvider.TOSS_PAYMENTS) } returns paymentGateway
+            every { paymentGateway.cancelPayment("tx_123", any()) } returns PgCancelResult(success = true, refundAmount = 18000L)
+            every { invoicePersistencePort.findById(1L) } returns anInvoice(InvoiceStatus.PAID)
+            every { paymentPersistencePort.save(any()) } answers { firstArg() }
+            val entries = slot<List<com.carry.payment.domain.model.LedgerEntry>>()
+            every { ledgerPort.record(capture(entries)) } returns Unit
+
+            sut.executeRefund(10L)
+
+            assertThat(entries.captured.sumOf { it.amount }).isZero()
+            assertThat(entries.captured).allMatch { it.entryType == com.carry.payment.domain.vo.LedgerEntryType.REFUND }
+            val customer = entries.captured.single { it.accountType == com.carry.payment.domain.vo.LedgerAccountType.CUSTOMER }
+            assertThat(customer.amount).isEqualTo(+18000L)
         }
     }
 }
