@@ -4,9 +4,14 @@ import com.carry.payment.application.port.outbound.PgCancelResult
 import com.carry.payment.application.port.outbound.PgPaymentRequest
 import com.carry.payment.application.port.outbound.PgPaymentResult
 import com.carry.payment.application.port.outbound.PgProviderAdapter
+import com.carry.payment.application.port.outbound.PgTransactionRecord
+import com.carry.payment.application.port.outbound.PgTransactionType
 import com.carry.payment.domain.vo.PgProvider
 import org.springframework.context.annotation.Profile
 import org.springframework.stereotype.Component
+import java.time.Clock
+import java.time.Instant
+import java.util.concurrent.CopyOnWriteArrayList
 
 /**
  * 로컬/E2E 전용 스텁 PG 어댑터.
@@ -17,21 +22,42 @@ import org.springframework.stereotype.Component
  * 이 어댑터는 `local` 프로파일에서만 활성화되어 결제·환불을 결정적으로 성공시킨다 →
  * 로컬/E2E에서 결제 완료·배달 완주·환불 보상 사가를 끝까지 관통할 수 있다.
  *
+ * 대사(reconciliation) 잡을 위해 과금·취소를 인메모리 거래 로그로 기록하고
+ * [listTransactions]로 재생한다 — "PG 측 원장"의 스텁. 재기동 시 소실되지만
+ * 로컬 전용이라 허용(실 PG 도입 시 원장은 PG 가 보관).
+ *
  * 운영 프로파일에는 등록되지 않으므로 실제 결제 경로에는 영향이 없다.
  */
 @Component
 @Profile("local")
-class StubPgProviderAdapter : PgProviderAdapter {
+class StubPgProviderAdapter(
+    private val clock: Clock,
+) : PgProviderAdapter {
+
+    private val transactions = CopyOnWriteArrayList<PgTransactionRecord>()
 
     override fun supports(): PgProvider = PgProvider.TOSS_PAYMENTS
 
-    override fun requestPayment(request: PgPaymentRequest): PgPaymentResult =
-        PgPaymentResult(
-            success = true,
-            // 동일 결제키 → 동일 거래 ID (재시도 멱등 재생과 정합).
-            pgTransactionId = "STUB-${request.orderId}-${request.paymentKey}",
-        )
+    override fun requestPayment(request: PgPaymentRequest): PgPaymentResult {
+        // 동일 결제키 → 동일 거래 ID (재시도 멱등 재생과 정합).
+        val pgTransactionId = "STUB-${request.orderId}-${request.paymentKey}"
+        // 멱등 재시도가 원장에 중복 CHARGE 로 남지 않도록 최초 1회만 기록.
+        if (transactions.none { it.pgTransactionId == pgTransactionId && it.type == PgTransactionType.CHARGE }) {
+            transactions += PgTransactionRecord(pgTransactionId, PgTransactionType.CHARGE, request.amount, clock.instant())
+        }
+        return PgPaymentResult(success = true, pgTransactionId = pgTransactionId)
+    }
 
-    override fun cancelPayment(pgTransactionId: String): PgCancelResult =
-        PgCancelResult(success = true)
+    override fun cancelPayment(pgTransactionId: String): PgCancelResult {
+        val charge = transactions.firstOrNull { it.pgTransactionId == pgTransactionId && it.type == PgTransactionType.CHARGE }
+        if (transactions.none { it.pgTransactionId == pgTransactionId && it.type == PgTransactionType.CANCEL }) {
+            transactions += PgTransactionRecord(
+                pgTransactionId, PgTransactionType.CANCEL, charge?.amount ?: 0L, clock.instant(),
+            )
+        }
+        return PgCancelResult(success = true, refundAmount = charge?.amount)
+    }
+
+    override fun listTransactions(from: Instant, to: Instant): List<PgTransactionRecord> =
+        transactions.filter { !it.occurredAt.isBefore(from) && !it.occurredAt.isAfter(to) }
 }

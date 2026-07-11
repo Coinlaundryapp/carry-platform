@@ -2,7 +2,9 @@ package com.carry.payment.adapter.outbound.persistence.repository
 
 import com.carry.payment.adapter.outbound.persistence.entity.PaymentJpaEntity
 import com.carry.payment.domain.vo.PaymentStatus
+import com.carry.payment.domain.vo.PgProvider
 import org.springframework.data.jpa.repository.JpaRepository
+import java.time.Instant
 
 interface PaymentJpaRepository : JpaRepository<PaymentJpaEntity, Long> {
     // 재결제 시 주문당 결제 행이 여러 개(FAILED + COMPLETED) 생길 수 있으므로 최신 행("현재 결제")을 반환한다.
@@ -10,4 +12,14 @@ interface PaymentJpaRepository : JpaRepository<PaymentJpaEntity, Long> {
     fun findFirstByOrderIdOrderByIdDesc(orderId: Long): PaymentJpaEntity?
 
     fun findByStatus(status: PaymentStatus): List<PaymentJpaEntity>
+
+    // pg_transaction_id 는 유니크 제약이 없으므로(재결제 이력) 최신 행을 반환한다.
+    fun findFirstByPgTransactionIdOrderByIdDesc(pgTransactionId: String): PaymentJpaEntity?
+
+    fun findByPgProviderAndStatusInAndUpdatedAtBetween(
+        pgProvider: PgProvider,
+        statuses: Collection<PaymentStatus>,
+        from: Instant,
+        to: Instant,
+    ): List<PaymentJpaEntity>
 }

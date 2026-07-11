@@ -6,8 +6,10 @@ import com.carry.payment.application.port.outbound.PaymentGatewayPort
 import com.carry.payment.application.port.outbound.PgCancelResult
 import com.carry.payment.application.port.outbound.PgPaymentRequest
 import com.carry.payment.application.port.outbound.PgPaymentResult
+import com.carry.payment.application.port.outbound.PgTransactionRecord
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
+import java.time.Instant
 
 /**
  * [PaymentGatewayPort] 데코레이터 — 외부 PG 호출을 Resilience4j Circuit Breaker로 감싸
@@ -29,6 +31,9 @@ class CircuitBreakerPaymentGateway(
 
     override fun cancelPayment(pgTransactionId: String): PgCancelResult =
         execute { delegate.cancelPayment(pgTransactionId) }
+
+    override fun listTransactions(from: Instant, to: Instant): List<PgTransactionRecord> =
+        execute { delegate.listTransactions(from, to) }
 
     private fun <T> execute(block: () -> T): T =
         try {

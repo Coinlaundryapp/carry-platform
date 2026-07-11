@@ -85,6 +85,40 @@ class CircuitBreakerPaymentGatewayTest {
     }
 
     @Test
+    fun `listTransactions는 delegate에 위임되고 circuit breaker로 보호된다`() {
+        val delegate = mockk<PaymentGatewayPort>()
+        every { delegate.listTransactions(any(), any()) } returns emptyList()
+        val sut = CircuitBreakerPaymentGateway(delegate, circuitBreaker())
+        val from = java.time.Instant.parse("2026-07-11T00:00:00Z")
+        val to = java.time.Instant.parse("2026-07-12T00:00:00Z")
+
+        val result = sut.listTransactions(from, to)
+
+        assertThat(result).isEmpty()
+        verify(exactly = 1) { delegate.listTransactions(from, to) }
+    }
+
+    @Test
+    fun `listTransactions도 circuit OPEN 시 BusinessException으로 fast-fail한다`() {
+        val delegate = mockk<PaymentGatewayPort>()
+        every { delegate.listTransactions(any(), any()) } throws RuntimeException("PG down")
+        val cb = circuitBreaker(windowSize = 4, failureRate = 50f)
+        val sut = CircuitBreakerPaymentGateway(delegate, cb)
+        val from = java.time.Instant.parse("2026-07-11T00:00:00Z")
+        val to = java.time.Instant.parse("2026-07-12T00:00:00Z")
+
+        repeat(4) {
+            assertThatThrownBy { sut.listTransactions(from, to) }
+                .isInstanceOf(RuntimeException::class.java)
+        }
+
+        assertThat(cb.state).isEqualTo(CircuitBreaker.State.OPEN)
+        assertThatThrownBy { sut.listTransactions(from, to) }
+            .isInstanceOf(BusinessException::class.java)
+            .extracting("errorCode").isEqualTo(ErrorCode.PG_GATEWAY_UNAVAILABLE)
+    }
+
+    @Test
     fun `cancelPayment도 circuit breaker로 보호된다`() {
         val delegate = mockk<PaymentGatewayPort>()
         every { delegate.cancelPayment(any()) } throws RuntimeException("PG down")
