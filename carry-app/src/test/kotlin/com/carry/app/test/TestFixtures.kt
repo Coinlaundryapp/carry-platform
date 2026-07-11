@@ -121,6 +121,7 @@ object TestFixtures {
             DELETE FROM delivery_deliveries;
             DELETE FROM review_media;
             DELETE FROM review_reviews;
+            DELETE FROM payment_reconciliation_mismatches;
             DELETE FROM payment_payments;
             DELETE FROM payment_invoice_line_items;
             DELETE FROM payment_invoices;
