@@ -29,8 +29,8 @@ class CircuitBreakerPaymentGateway(
     override fun requestPayment(request: PgPaymentRequest): PgPaymentResult =
         execute { delegate.requestPayment(request) }
 
-    override fun cancelPayment(pgTransactionId: String): PgCancelResult =
-        execute { delegate.cancelPayment(pgTransactionId) }
+    override fun cancelPayment(pgTransactionId: String, idempotencyKey: String): PgCancelResult =
+        execute { delegate.cancelPayment(pgTransactionId, idempotencyKey) }
 
     override fun listTransactions(from: Instant, to: Instant): List<PgTransactionRecord> =
         execute { delegate.listTransactions(from, to) }

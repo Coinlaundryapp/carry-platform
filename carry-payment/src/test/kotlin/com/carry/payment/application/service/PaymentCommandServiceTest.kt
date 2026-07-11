@@ -276,7 +276,7 @@ class PaymentCommandServiceTest {
         fun `executeRefund - REFUND_PENDING 결제를 PG 취소 성공 시 REFUNDED + RefundCompletedEvent`() {
             every { paymentPersistencePort.findByOrderId(10L) } returns aPayment(PaymentStatus.REFUND_PENDING)
             every { paymentGatewayResolver.resolve(PgProvider.TOSS_PAYMENTS) } returns paymentGateway
-            every { paymentGateway.cancelPayment("tx_123") } returns PgCancelResult(success = true, refundAmount = 18000L)
+            every { paymentGateway.cancelPayment("tx_123", any()) } returns PgCancelResult(success = true, refundAmount = 18000L)
             every { invoicePersistencePort.findById(1L) } returns anInvoice(InvoiceStatus.PAID)
             val saved = slot<Payment>()
             every { paymentPersistencePort.save(capture(saved)) } answers { saved.captured }
@@ -288,10 +288,24 @@ class PaymentCommandServiceTest {
         }
 
         @Test
+        fun `executeRefund - PG 취소에 결정적 멱등키(refund-paymentId)를 전달한다`() {
+            // 스위퍼 재시도가 PG 측에서 dedup 되도록 — "PG 성공·로컬 마킹 실패" 윈도의 이중환불 차단
+            every { paymentPersistencePort.findByOrderId(10L) } returns aPayment(PaymentStatus.REFUND_PENDING)
+            every { paymentGatewayResolver.resolve(PgProvider.TOSS_PAYMENTS) } returns paymentGateway
+            every { paymentGateway.cancelPayment(any(), any()) } returns PgCancelResult(success = true, refundAmount = 18000L)
+            every { invoicePersistencePort.findById(1L) } returns anInvoice(InvoiceStatus.PAID)
+            every { paymentPersistencePort.save(any()) } answers { firstArg() }
+
+            sut.executeRefund(10L)
+
+            verify { paymentGateway.cancelPayment("tx_123", "refund-1") }
+        }
+
+        @Test
         fun `executeRefund - PG 취소 실패 시 예외를 던지고 환불 처리하지 않는다(스위퍼가 재시도)`() {
             every { paymentPersistencePort.findByOrderId(10L) } returns aPayment(PaymentStatus.REFUND_PENDING)
             every { paymentGatewayResolver.resolve(PgProvider.TOSS_PAYMENTS) } returns paymentGateway
-            every { paymentGateway.cancelPayment("tx_123") } returns PgCancelResult(success = false, failReason = "PG 거절")
+            every { paymentGateway.cancelPayment("tx_123", any()) } returns PgCancelResult(success = false, failReason = "PG 거절")
 
             assertThatThrownBy { sut.executeRefund(10L) }
                 .isInstanceOf(PaymentGatewayException::class.java)
@@ -306,6 +320,31 @@ class PaymentCommandServiceTest {
             sut.executeRefund(10L)
 
             verify(exactly = 0) { paymentGatewayResolver.resolve(any()) }
+        }
+
+        @Test
+        fun `confirmRefundFromPg - REFUND_PENDING 을 PG 재호출 없이 REFUNDED 로 수렴하고 이벤트를 발행한다`() {
+            // 대사가 "PG 취소 완료·로컬 미반영" 을 발견한 경우 — PG 는 이미 취소됐으므로 로컬만 수렴
+            every { paymentPersistencePort.findByOrderId(10L) } returns aPayment(PaymentStatus.REFUND_PENDING)
+            every { invoicePersistencePort.findById(1L) } returns anInvoice(InvoiceStatus.PAID)
+            val saved = slot<Payment>()
+            every { paymentPersistencePort.save(capture(saved)) } answers { saved.captured }
+
+            sut.confirmRefundFromPg(10L, 18000L)
+
+            assertThat(saved.captured.status).isEqualTo(PaymentStatus.REFUNDED)
+            verify { eventPublisher.publish("Payment", "10", "RefundCompletedEvent", any(), any()) }
+            verify(exactly = 0) { paymentGatewayResolver.resolve(any()) }
+        }
+
+        @Test
+        fun `confirmRefundFromPg - REFUND_PENDING 이 아니면 무동작(멱등)`() {
+            every { paymentPersistencePort.findByOrderId(10L) } returns aPayment(PaymentStatus.REFUNDED)
+
+            sut.confirmRefundFromPg(10L, 18000L)
+
+            verify(exactly = 0) { paymentPersistencePort.save(any()) }
+            verify(exactly = 0) { eventPublisher.publish(any(), any(), any(), any(), any()) }
         }
     }
 }

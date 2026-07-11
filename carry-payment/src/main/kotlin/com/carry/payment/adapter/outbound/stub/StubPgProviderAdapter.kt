@@ -48,7 +48,9 @@ class StubPgProviderAdapter(
         return PgPaymentResult(success = true, pgTransactionId = pgTransactionId)
     }
 
-    override fun cancelPayment(pgTransactionId: String): PgCancelResult {
+    // 스텁의 취소는 pgTransactionId 기준으로 이미 결정적(중복 CANCEL 미기록·동일 결과 재생)이라
+    // 멱등키는 실 어댑터 헤더 전달용 자리만 차지한다.
+    override fun cancelPayment(pgTransactionId: String, idempotencyKey: String): PgCancelResult {
         val charge = transactions.firstOrNull { it.pgTransactionId == pgTransactionId && it.type == PgTransactionType.CHARGE }
         if (transactions.none { it.pgTransactionId == pgTransactionId && it.type == PgTransactionType.CANCEL }) {
             transactions += PgTransactionRecord(

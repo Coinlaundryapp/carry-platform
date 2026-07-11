@@ -121,17 +121,17 @@ class CircuitBreakerPaymentGatewayTest {
     @Test
     fun `cancelPayment도 circuit breaker로 보호된다`() {
         val delegate = mockk<PaymentGatewayPort>()
-        every { delegate.cancelPayment(any()) } throws RuntimeException("PG down")
+        every { delegate.cancelPayment(any(), any()) } throws RuntimeException("PG down")
         val cb = circuitBreaker(windowSize = 4, failureRate = 50f)
         val sut = CircuitBreakerPaymentGateway(delegate, cb)
 
         repeat(4) {
-            assertThatThrownBy { sut.cancelPayment("tx-1") }
+            assertThatThrownBy { sut.cancelPayment("tx-1", "refund-1") }
                 .isInstanceOf(RuntimeException::class.java)
         }
 
         assertThat(cb.state).isEqualTo(CircuitBreaker.State.OPEN)
-        assertThatThrownBy { sut.cancelPayment("tx-1") }
+        assertThatThrownBy { sut.cancelPayment("tx-1", "refund-1") }
             .isInstanceOf(BusinessException::class.java)
             .extracting("errorCode").isEqualTo(ErrorCode.PG_GATEWAY_UNAVAILABLE)
     }
