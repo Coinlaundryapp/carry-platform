@@ -1,7 +1,9 @@
 package com.carry.payment.application.service
 
+import com.carry.event.delivery.PickupCompletedEvent
 import com.carry.event.order.OrderCancelledEvent
 import com.carry.payment.application.port.inbound.PaymentCommandUseCase
+import com.carry.payment.application.port.outbound.OrderStateQueryPort
 import com.carry.payment.application.port.outbound.PaymentPersistencePort
 import com.carry.payment.domain.model.Payment
 import com.carry.payment.domain.vo.PaymentStatus
@@ -10,6 +12,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import org.junit.jupiter.api.Test
+import java.math.BigDecimal
 import java.time.Instant
 
 class PaymentSagaHandlerTest {
@@ -17,16 +20,42 @@ class PaymentSagaHandlerTest {
     private val invoiceService = mockk<InvoiceService>(relaxed = true)
     private val paymentPersistencePort = mockk<PaymentPersistencePort>(relaxed = true)
     private val paymentCommandUseCase = mockk<PaymentCommandUseCase>(relaxed = true)
+    private val orderStateQueryPort = mockk<OrderStateQueryPort>()
 
-    private val sut = PaymentSagaHandler(invoiceService, paymentPersistencePort, paymentCommandUseCase)
+    private val sut = PaymentSagaHandler(invoiceService, paymentPersistencePort, paymentCommandUseCase, orderStateQueryPort)
 
     private val now = Instant.now()
+
+    private fun aPickupEvent() = PickupCompletedEvent(
+        deliveryId = 1L, orderId = 10L, carrierId = 100L, customerId = 100L,
+        actualWeight = BigDecimal("3.00"), laundryItemType = "NORMAL",
+        orderUnitType = "KG", orderRequestType = "STANDARD", selectedOptions = emptyList(),
+    )
 
     private fun aPayment(status: PaymentStatus) = Payment.reconstitute(
         id = 1L, invoiceId = 200L, orderId = 10L, customerId = 100L, status = status,
         pgProvider = PgProvider.TOSS_PAYMENTS, pgTransactionId = "tx_123", amount = 18000L,
         paidAt = now, failReason = null, createdAt = now, updatedAt = now,
     )
+
+    @Test
+    fun `수거 완료 시 인보이스 발행 가능한 주문이면 인보이스를 발행한다`() {
+        every { orderStateQueryPort.isInvoiceable(10L) } returns true
+
+        sut.onPickupCompleted(aPickupEvent())
+
+        verify { invoiceService.createInvoiceFromPickup(any()) }
+    }
+
+    @Test
+    fun `수거 완료 시 취소·종결된 주문이면 인보이스를 발행하지 않는다`() {
+        // 취소 선커밋 vs 픽업 race — 취소된 주문에 유령 인보이스가 발행되는 것을 차단
+        every { orderStateQueryPort.isInvoiceable(10L) } returns false
+
+        sut.onPickupCompleted(aPickupEvent())
+
+        verify(exactly = 0) { invoiceService.createInvoiceFromPickup(any()) }
+    }
 
     @Test
     fun `주문 취소 시 완료된 결제가 있으면 환불 대기로 표시한다`() {

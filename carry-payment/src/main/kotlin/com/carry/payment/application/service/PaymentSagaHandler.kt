@@ -5,6 +5,7 @@ import com.carry.event.delivery.PickupCompletedEvent
 import com.carry.event.order.OrderCancelledEvent
 import com.carry.payment.application.port.inbound.PaymentCommandUseCase
 import com.carry.payment.application.port.inbound.PaymentSagaEventHandler
+import com.carry.payment.application.port.outbound.OrderStateQueryPort
 import com.carry.payment.application.port.outbound.PaymentPersistencePort
 import com.carry.payment.domain.vo.PaymentStatus
 import org.slf4j.LoggerFactory
@@ -16,6 +17,7 @@ class PaymentSagaHandler(
     private val invoiceService: InvoiceService,
     private val paymentPersistencePort: PaymentPersistencePort,
     private val paymentCommandUseCase: PaymentCommandUseCase,
+    private val orderStateQueryPort: OrderStateQueryPort,
 ) : PaymentSagaEventHandler {
 
     private val log = LoggerFactory.getLogger(javaClass)
@@ -24,6 +26,12 @@ class PaymentSagaHandler(
     override fun onPickupCompleted(event: PickupCompletedEvent) {
         SagaLogContext.withOrderId(event.orderId) {
             log.info("Payment saga: onPickupCompleted deliveryId={}", event.deliveryId)
+            // 취소 선커밋 vs 픽업 race — 취소·종결된 주문에 유령 인보이스가 발행되지 않도록
+            // 발행 전 주문 상태를 확인하고 조용히 skip(throw 하면 DLQ 로 빠진다).
+            if (!orderStateQueryPort.isInvoiceable(event.orderId)) {
+                log.warn("Payment saga: onPickupCompleted skip — 인보이스 발행 불가 주문 orderId={}", event.orderId)
+                return@withOrderId
+            }
             invoiceService.createInvoiceFromPickup(event)
         }
     }
