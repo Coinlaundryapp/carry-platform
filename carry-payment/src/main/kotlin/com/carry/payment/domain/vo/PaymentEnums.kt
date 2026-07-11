@@ -32,6 +32,19 @@ enum class ChargeType {
     LAUNDRY_PRICE, DELIVERY_FEE, SERVICE_FEE,
 }
 
+/** 원장 기입의 거래 그룹 유형 — REFUND 는 PAYMENT 행들의 정확한 역분개. */
+enum class LedgerEntryType {
+    PAYMENT, REFUND,
+}
+
+/**
+ * 정산 계정 타입. 세탁소는 수취인이 아니다 — 캐리어가 코인세탁소 기계에 현금을 직접
+ * 투입하고 수행하는 모델이라, 세탁비는 캐리어에게 변제(reimbursement)된다(2026-07-12 확정).
+ */
+enum class LedgerAccountType {
+    CUSTOMER, CARRIER, PLATFORM,
+}
+
 /** PG 대사(reconciliation)에서 감지하는 불일치 유형 — 유형별로 운영 대응 절차가 다르다. */
 enum class ReconciliationMismatchType {
     /** PG 과금인데 로컬 결제가 없거나 완료 상태가 아님 — 고객 돈이 나갔는데 서비스 미제공 위험. */

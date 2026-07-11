@@ -23,4 +23,12 @@ class OrderStateQueryPortAdapter(
             false
         }
     }
+
+    override fun findCarrierId(orderId: Long): Long? {
+        return try {
+            orderQueryUseCase.getOrderForCoordinator(orderId).carrierId
+        } catch (_: OrderNotFoundException) {
+            null
+        }
+    }
 }

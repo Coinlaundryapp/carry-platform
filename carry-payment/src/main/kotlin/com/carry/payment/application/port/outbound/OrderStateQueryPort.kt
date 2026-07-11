@@ -9,4 +9,7 @@ interface OrderStateQueryPort {
 
     /** 취소·환불 분기·완료로 forward 진행이 중단된 주문이거나 주문이 없으면 false. */
     fun isInvoiceable(orderId: Long): Boolean
+
+    /** 주문에 배정된 캐리어 ID(정산 원장 기입용). 주문이 없거나 미배정이면 null. */
+    fun findCarrierId(orderId: Long): Long?
 }
