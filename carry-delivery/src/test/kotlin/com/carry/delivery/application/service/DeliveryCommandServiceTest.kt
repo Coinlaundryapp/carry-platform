@@ -2,9 +2,7 @@ package com.carry.delivery.application.service
 
 import com.carry.common.metrics.MetricsPort
 import com.carry.delivery.application.port.outbound.DeliveryPersistencePort
-import com.carry.delivery.application.port.outbound.contract.FakePaymentQueryPort
 import com.carry.delivery.domain.exception.DeliveryNotOwnedException
-import com.carry.delivery.domain.exception.OrderNotPaidException
 import com.carry.delivery.domain.model.Delivery
 import com.carry.delivery.domain.model.DeliveryStep
 import com.carry.delivery.domain.vo.DeliveryStatus
@@ -29,7 +27,6 @@ import java.time.ZoneOffset
 class DeliveryCommandServiceTest {
 
     private val deliveryPersistencePort = mockk<DeliveryPersistencePort>(relaxed = true)
-    private val paymentQueryPort = FakePaymentQueryPort()
     private val eventPublisher = mockk<EventPublisherPort>(relaxed = true)
     private val metrics = mockk<MetricsPort>(relaxed = true)
 
@@ -37,7 +34,7 @@ class DeliveryCommandServiceTest {
     private val clock = Clock.fixed(now, ZoneOffset.UTC)
 
     private val sut = DeliveryCommandService(
-        deliveryPersistencePort, paymentQueryPort, eventPublisher, metrics, clock,
+        deliveryPersistencePort, eventPublisher, metrics, clock,
     )
 
     private fun deliveryAt(status: DeliveryStatus, id: Long = 1L): Delivery {
@@ -160,10 +157,9 @@ class DeliveryCommandServiceTest {
     inner class CompleteDelivery {
 
         @Test
-        fun `결제 완료된 주문의 배달을 완료하고 이벤트를 발행한다`() {
+        fun `결제 여부와 무관하게 배달을 완료할 수 있다 — 물리 흐름 무게이트 불변식`() {
             val delivery = deliveryAt(DeliveryStatus.DELIVERY_PENDING)
             every { deliveryPersistencePort.findById(1L) } returns delivery
-            paymentQueryPort.markPaid(100L)
             val saved = slot<Delivery>()
             every { deliveryPersistencePort.save(capture(saved)) } answers { saved.captured }
 
@@ -179,7 +175,6 @@ class DeliveryCommandServiceTest {
         fun `이미 배달 완료된 건을 다시 완료해도 이벤트도 카운터도 재발생하지 않는다`() {
             val delivery = deliveryAt(DeliveryStatus.DELIVERY_PENDING)
             every { deliveryPersistencePort.findById(1L) } returns delivery
-            paymentQueryPort.markPaid(100L)
             val saved = slot<Delivery>()
             every { deliveryPersistencePort.save(capture(saved)) } answers { saved.captured }
 
@@ -189,16 +184,6 @@ class DeliveryCommandServiceTest {
             assertThat(result.status).isEqualTo(DeliveryStatus.DELIVERED)
             verify(exactly = 1) { eventPublisher.publish("Delivery", "1", "DeliveryCompletedEvent", any(), any()) }
             verify(exactly = 1) { metrics.incrementCounter("carry.delivery.completed") }
-        }
-
-        @Test
-        fun `결제되지 않은 주문의 배달 완료 시 예외가 발생한다`() {
-            val delivery = deliveryAt(DeliveryStatus.DELIVERY_PENDING)
-            every { deliveryPersistencePort.findById(1L) } returns delivery
-            // paymentQueryPort에 markPaid를 호출하지 않아 isOrderPaid가 false를 반환
-
-            assertThatThrownBy { sut.completeDelivery(1L, listOf(5L), 50L) }
-                .isInstanceOf(OrderNotPaidException::class.java)
         }
     }
 

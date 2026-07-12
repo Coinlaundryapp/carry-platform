@@ -57,7 +57,6 @@ enum class ErrorCode(
     PAYMENT_FAILED(502, "Payment processing failed"),
     PG_GATEWAY_UNAVAILABLE(503, "Payment gateway is temporarily unavailable — retry later"),
     UNSUPPORTED_PG_PROVIDER(400, "Unsupported payment gateway provider"),
-    ORDER_NOT_PAID(402, "Order payment is not completed"),
     PAYMENT_NOT_OWNED(403, "Payment does not belong to the user"),
     BILLING_KEY_ISSUE_FAILED(400, "Billing key issuance was rejected by PG"),
     BILLING_KEY_NOT_FOUND(404, "Active billing key not found"),

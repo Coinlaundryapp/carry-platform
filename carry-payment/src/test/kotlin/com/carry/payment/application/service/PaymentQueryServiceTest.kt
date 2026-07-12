@@ -29,31 +29,6 @@ class PaymentQueryServiceTest {
     )
 
     @Nested
-    inner class IsOrderPaid {
-
-        @Test
-        fun `COMPLETED 상태의 결제가 존재하면 true를 반환한다`() {
-            every { paymentPersistencePort.findByOrderId(10L) } returns aPayment(PaymentStatus.COMPLETED)
-
-            assertThat(sut.isOrderPaid(10L)).isTrue()
-        }
-
-        @Test
-        fun `PENDING 상태의 결제가 존재하면 false를 반환한다`() {
-            every { paymentPersistencePort.findByOrderId(10L) } returns aPayment(PaymentStatus.PENDING)
-
-            assertThat(sut.isOrderPaid(10L)).isFalse()
-        }
-
-        @Test
-        fun `결제가 없으면 false를 반환한다`() {
-            every { paymentPersistencePort.findByOrderId(10L) } returns null
-
-            assertThat(sut.isOrderPaid(10L)).isFalse()
-        }
-    }
-
-    @Nested
     inner class GetPayment {
 
         @Test
