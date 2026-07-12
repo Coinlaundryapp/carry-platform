@@ -92,7 +92,7 @@ PAID → REFUNDED                  (과금 후 주문 취소 보상)
 
 ### 5.2 재시도 — ChargeRetrySweeper
 
-- 기존 `RefundRetrySweeper`와 대칭. `@Scheduled`로 FAILED Payment 중 `next_retry_at <= now`인 건을 재과금.
+- 기존 `RefundRetrySweeper`와 같은 @Scheduled+ShedLock 스위퍼 패턴(단, 백오프 기제는 신규 — RefundRetrySweeper에는 없음). FAILED Payment 중 `next_retry_at <= now`인 건을 재과금. 재시도 대상 제외(취소된 주문 등)는 **인보이스 상태 가드**(CANCELLED 인보이스는 skip)로 구현한다 — `next_retry_at` NULL 여부에 의존하지 않는다.
 - 백오프: 1h → 4h → 12h → 24h → 이후 일 1회, 상한 없음(주문 취소 없음). 값은 설정으로 외부화.
 - 매 시도는 그 시점의 **활성** 빌링키를 다시 조회 — 카드 재등록이 자연스럽게 복구 경로가 된다.
 - 멱등키는 `charge-{invoiceId}`로 고정 — "PG 성공·로컬 마킹 실패" 후 재시도가 이중과금이 되지 않도록 PG가 dedup.
@@ -156,7 +156,7 @@ PAID → REFUNDED                  (과금 후 주문 취소 보상)
 1. `PaymentController`가 노출 중인 엔드포인트 전수 조사 — 위젯 승인 외 유지 대상(인보이스 조회 등) 분리.
 2. notification 모듈이 소비하는 결제 이벤트 목록과 새 알림(카드 재등록 안내) 템플릿 위치.
 3. openapi 스펙 재생성 범위(프론트 후속 사이클 대비 계약 확정).
-4. `docs/06-saga.md` 전면 갱신 — 현행 결제 게이트 흐름 기술이 전부 stale이 되므로 구현 마지막 단계에 문서 갱신 태스크 포함.
+4. 문서 갱신 — `docs/06-saga.md` 전면 갱신 + `ORDER_NOT_PAID`(402)를 언급하는 문서(`docs/14-client-retry-guide.md` 등) 정리. phase3 이하 역사 문서는 그대로 둔다.
 
 ## 10. 의도적 제외 (재제안 금지 아님 — 후속 후보)
 
