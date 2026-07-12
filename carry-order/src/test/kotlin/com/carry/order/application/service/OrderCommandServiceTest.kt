@@ -118,14 +118,18 @@ class OrderCommandServiceTest {
             laundromatQueryPort.add(100L)
             serviceAvailabilityQueryPort.markAvailable("GANGNAM")
             billingQueryPort.setActiveBillingKey(1L, active = false)
+            // 완료된 주문 없음 → 재생 분기 통과 후 빌링 전제조건까지 도달
+            every { idempotencyPort.findCompletedOrderId("retry-key") } returns null
 
-            assertThatThrownBy { sut.createOrder(aCommand()) }
+            assertThatThrownBy { sut.createOrder(aCommand().copy(idempotencyKey = "retry-key")) }
                 .isInstanceOf(BusinessException::class.java)
                 .extracting("errorCode").isEqualTo(ErrorCode.BILLING_KEY_REQUIRED)
 
             // 전제조건 거부 = 부작용 없음(주문 미생성, 이벤트 미발행)
             verify(exactly = 0) { orderPersistencePort.save(any()) }
             verify(exactly = 0) { eventPublisher.publish(any(), any(), any(), any(), any()) }
+            // 교정 가능한 거부 → 멱등 슬롯을 소비하지 않아야 카드 등록 후 동일 주문 재시도가 막히지 않는다
+            verify(exactly = 0) { idempotencyPort.reserve(any()) }
         }
 
         @Test
