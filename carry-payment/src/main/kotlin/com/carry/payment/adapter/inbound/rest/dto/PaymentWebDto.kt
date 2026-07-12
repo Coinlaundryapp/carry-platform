@@ -4,17 +4,8 @@ import com.carry.payment.domain.model.Invoice
 import com.carry.payment.domain.model.Payment
 import com.carry.payment.domain.vo.InvoiceLineItem
 import io.swagger.v3.oas.annotations.media.Schema
-import jakarta.validation.constraints.NotBlank
 import java.math.BigDecimal
 import java.time.Instant
-
-@Schema(description = "결제 요청")
-data class PaymentRequest(
-    @Schema(description = "PG사", example = "TOSS")
-    @field:NotBlank val pgProvider: String,
-    @Schema(description = "PG 결제 키")
-    @field:NotBlank val paymentKey: String,
-)
 
 @Schema(description = "청구서 응답")
 data class InvoiceResponse(

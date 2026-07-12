@@ -1,10 +1,6 @@
 package com.carry.payment.application.port.inbound
 
-import com.carry.payment.domain.model.Payment
-import com.carry.payment.domain.vo.PgProvider
-
 interface PaymentCommandUseCase {
-    fun requestPayment(command: RequestPaymentCommand): Payment
 
     /**
      * 환불 의도를 표시한다(COMPLETED → REFUND_PENDING). PG 를 호출하지 않으므로 PG 장애와 무관하게
@@ -27,11 +23,3 @@ interface PaymentCommandUseCase {
      */
     fun confirmRefundFromPg(orderId: Long, refundAmount: Long)
 }
-
-data class RequestPaymentCommand(
-    val orderId: Long,
-    val customerId: Long,
-    val pgProvider: PgProvider,
-    val paymentKey: String,
-    val idempotencyKey: String? = null,
-)

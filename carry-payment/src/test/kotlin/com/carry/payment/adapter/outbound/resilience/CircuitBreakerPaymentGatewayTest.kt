@@ -3,7 +3,9 @@ package com.carry.payment.adapter.outbound.resilience
 import com.carry.common.exception.BusinessException
 import com.carry.common.exception.ErrorCode
 import com.carry.payment.application.port.outbound.PaymentGatewayPort
-import com.carry.payment.application.port.outbound.PgPaymentRequest
+import com.carry.payment.application.port.outbound.PgBillingChargeRequest
+import com.carry.payment.application.port.outbound.PgBillingKeyRequest
+import com.carry.payment.application.port.outbound.PgBillingKeyResult
 import com.carry.payment.application.port.outbound.PgPaymentResult
 import io.github.resilience4j.circuitbreaker.CircuitBreaker
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig
@@ -17,12 +19,18 @@ import java.time.Duration
 
 class CircuitBreakerPaymentGatewayTest {
 
-    private val sampleRequest = PgPaymentRequest(
+    private val sampleBillingKeyRequest = PgBillingKeyRequest(
+        authKey = "auth_test_xxx",
+        customerKey = "cust_1",
+    )
+
+    private val sampleChargeRequest = PgBillingChargeRequest(
+        billingKey = "billkey_1",
+        customerKey = "cust_1",
         orderId = 1L,
         amount = 10000,
         orderName = "테스트 주문",
-        customerName = "고객",
-        paymentKey = "pk_test_xxx",
+        idempotencyKey = "charge-1",
     )
 
     private fun circuitBreaker(windowSize: Int = 4, failureRate: Float = 50f): CircuitBreaker {
@@ -37,25 +45,38 @@ class CircuitBreakerPaymentGatewayTest {
     }
 
     @Test
-    fun `정상 호출은 delegate에 그대로 위임된다`() {
+    fun `issueBillingKey 정상 호출은 delegate에 그대로 위임된다`() {
         val delegate = mockk<PaymentGatewayPort>()
-        every { delegate.requestPayment(any()) } returns PgPaymentResult(success = true, pgTransactionId = "tx-1")
+        every { delegate.issueBillingKey(any()) } returns PgBillingKeyResult(success = true, billingKey = "billkey_1")
         val sut = CircuitBreakerPaymentGateway(delegate, circuitBreaker())
 
-        val result = sut.requestPayment(sampleRequest)
+        val result = sut.issueBillingKey(sampleBillingKeyRequest)
+
+        assertThat(result.success).isTrue()
+        assertThat(result.billingKey).isEqualTo("billkey_1")
+        verify(exactly = 1) { delegate.issueBillingKey(sampleBillingKeyRequest) }
+    }
+
+    @Test
+    fun `chargeBilling 정상 호출은 delegate에 그대로 위임된다`() {
+        val delegate = mockk<PaymentGatewayPort>()
+        every { delegate.chargeBilling(any()) } returns PgPaymentResult(success = true, pgTransactionId = "tx-1")
+        val sut = CircuitBreakerPaymentGateway(delegate, circuitBreaker())
+
+        val result = sut.chargeBilling(sampleChargeRequest)
 
         assertThat(result.success).isTrue()
         assertThat(result.pgTransactionId).isEqualTo("tx-1")
-        verify(exactly = 1) { delegate.requestPayment(sampleRequest) }
+        verify(exactly = 1) { delegate.chargeBilling(sampleChargeRequest) }
     }
 
     @Test
     fun `delegate가 던지는 예외는 그대로 전파된다 — circuit이 CLOSED일 때`() {
         val delegate = mockk<PaymentGatewayPort>()
-        every { delegate.requestPayment(any()) } throws IllegalStateException("PG returned 500")
+        every { delegate.chargeBilling(any()) } throws IllegalStateException("PG returned 500")
         val sut = CircuitBreakerPaymentGateway(delegate, circuitBreaker())
 
-        assertThatThrownBy { sut.requestPayment(sampleRequest) }
+        assertThatThrownBy { sut.chargeBilling(sampleChargeRequest) }
             .isInstanceOf(IllegalStateException::class.java)
             .hasMessage("PG returned 500")
     }
@@ -63,13 +84,13 @@ class CircuitBreakerPaymentGatewayTest {
     @Test
     fun `실패가 임계치를 넘으면 circuit이 OPEN되고 이후 호출은 BusinessException(PG_GATEWAY_UNAVAILABLE)로 fast-fail한다`() {
         val delegate = mockk<PaymentGatewayPort>()
-        every { delegate.requestPayment(any()) } throws RuntimeException("PG down")
+        every { delegate.chargeBilling(any()) } throws RuntimeException("PG down")
         val cb = circuitBreaker(windowSize = 4, failureRate = 50f)
         val sut = CircuitBreakerPaymentGateway(delegate, cb)
 
         // 4회 연속 실패 → 실패율 100% → OPEN
         repeat(4) {
-            assertThatThrownBy { sut.requestPayment(sampleRequest) }
+            assertThatThrownBy { sut.chargeBilling(sampleChargeRequest) }
                 .isInstanceOf(RuntimeException::class.java)
                 .hasMessage("PG down")
         }
@@ -77,11 +98,11 @@ class CircuitBreakerPaymentGatewayTest {
         assertThat(cb.state).isEqualTo(CircuitBreaker.State.OPEN)
 
         // 다음 호출은 delegate에 도달하지 않고 즉시 BusinessException
-        assertThatThrownBy { sut.requestPayment(sampleRequest) }
+        assertThatThrownBy { sut.chargeBilling(sampleChargeRequest) }
             .isInstanceOf(BusinessException::class.java)
             .extracting("errorCode").isEqualTo(ErrorCode.PG_GATEWAY_UNAVAILABLE)
 
-        verify(exactly = 4) { delegate.requestPayment(any()) }
+        verify(exactly = 4) { delegate.chargeBilling(any()) }
     }
 
     @Test

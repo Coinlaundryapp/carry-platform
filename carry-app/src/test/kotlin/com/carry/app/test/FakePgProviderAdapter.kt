@@ -1,7 +1,9 @@
 package com.carry.app.test
 
+import com.carry.payment.application.port.outbound.PgBillingChargeRequest
+import com.carry.payment.application.port.outbound.PgBillingKeyRequest
+import com.carry.payment.application.port.outbound.PgBillingKeyResult
 import com.carry.payment.application.port.outbound.PgCancelResult
-import com.carry.payment.application.port.outbound.PgPaymentRequest
 import com.carry.payment.application.port.outbound.PgPaymentResult
 import com.carry.payment.application.port.outbound.PgProviderAdapter
 import com.carry.payment.application.port.outbound.PgTransactionRecord
@@ -23,7 +25,17 @@ class FakePgProviderAdapter : PgProviderAdapter {
 
     override fun supports(): PgProvider = PgProvider.TOSS_PAYMENTS
 
-    override fun requestPayment(request: PgPaymentRequest): PgPaymentResult {
+    // 빌링키 발급은 항상 성공 — 실패 시뮬레이션은 과금(chargeBilling)에만 존재한다(재등록 복구 시나리오는
+    // 등록 자체는 성공한다고 가정).
+    override fun issueBillingKey(request: PgBillingKeyRequest): PgBillingKeyResult =
+        PgBillingKeyResult(
+            success = true,
+            billingKey = "FAKE-BILLKEY-${request.customerKey}",
+            cardCompany = "FAKE카드",
+            cardLast4 = "1234",
+        )
+
+    override fun chargeBilling(request: PgBillingChargeRequest): PgPaymentResult {
         return if (shouldSucceed) {
             val pgTransactionId = "fake-txn-${UUID.randomUUID()}"
             recordedTransactions += PgTransactionRecord(
@@ -36,7 +48,7 @@ class FakePgProviderAdapter : PgProviderAdapter {
         } else {
             PgPaymentResult(
                 success = false,
-                failReason = failReason,
+                failReason = "FAKE: 과금 실패",
             )
         }
     }

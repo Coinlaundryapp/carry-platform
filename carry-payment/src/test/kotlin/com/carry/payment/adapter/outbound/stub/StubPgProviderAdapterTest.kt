@@ -1,6 +1,7 @@
 package com.carry.payment.adapter.outbound.stub
 
-import com.carry.payment.application.port.outbound.PgPaymentRequest
+import com.carry.payment.application.port.outbound.PgBillingChargeRequest
+import com.carry.payment.application.port.outbound.PgBillingKeyRequest
 import com.carry.payment.application.port.outbound.PgTransactionType
 import com.carry.payment.domain.vo.PgProvider
 import org.assertj.core.api.Assertions.assertThat
@@ -15,12 +16,18 @@ class StubPgProviderAdapterTest {
     private val clock = Clock.fixed(now, ZoneOffset.UTC)
     private val adapter = StubPgProviderAdapter(clock)
 
-    private val sampleRequest = PgPaymentRequest(
+    private val sampleBillingKeyRequest = PgBillingKeyRequest(
+        authKey = "auth_test_abc",
+        customerKey = "cust_7",
+    )
+
+    private val sampleChargeRequest = PgBillingChargeRequest(
+        billingKey = "STUB-BILLKEY-cust_7",
+        customerKey = "cust_7",
         orderId = 42L,
         amount = 15000,
         orderName = "캐리 세탁 주문 #42",
-        customerName = "고객 #7",
-        paymentKey = "pk_test_abc",
+        idempotencyKey = "charge-42",
     )
 
     @Test
@@ -29,20 +36,23 @@ class StubPgProviderAdapterTest {
     }
 
     @Test
-    fun `결제 요청은 항상 성공하고 결정적 거래 ID를 반환한다`() {
-        val result = adapter.requestPayment(sampleRequest)
+    fun `빌링키 발급은 성공하고 결정적 billingKey를 반환한다`() {
+        val result = adapter.issueBillingKey(sampleBillingKeyRequest)
 
         assertThat(result.success).isTrue()
-        assertThat(result.pgTransactionId).isNotBlank()
+        assertThat(result.billingKey).isEqualTo("STUB-BILLKEY-cust_7")
+        assertThat(result.cardCompany).isNotBlank()
+        assertThat(result.cardLast4).isNotBlank()
         assertThat(result.failReason).isNull()
     }
 
     @Test
-    fun `동일 요청은 동일 거래 ID를 재생한다 (결정적)`() {
-        val first = adapter.requestPayment(sampleRequest)
-        val second = adapter.requestPayment(sampleRequest)
+    fun `authKey가 fail- 로 시작하면 빌링키 발급이 거절된다`() {
+        val result = adapter.issueBillingKey(sampleBillingKeyRequest.copy(authKey = "fail-card"))
 
-        assertThat(first.pgTransactionId).isEqualTo(second.pgTransactionId)
+        assertThat(result.success).isFalse()
+        assertThat(result.billingKey).isNull()
+        assertThat(result.failReason).isNotBlank()
     }
 
     @Test
@@ -54,28 +64,31 @@ class StubPgProviderAdapterTest {
     }
 
     @Test
-    fun `결제 성공 시 CHARGE 거래가 원장에 기록된다`() {
-        adapter.requestPayment(sampleRequest)
+    fun `과금 성공 시 CHARGE 거래가 원장에 기록된다`() {
+        val result = adapter.chargeBilling(sampleChargeRequest)
+
+        assertThat(result.success).isTrue()
+        assertThat(result.pgTransactionId).isNotBlank()
 
         val records = adapter.listTransactions(now.minusSeconds(60), now.plusSeconds(60))
         assertThat(records).hasSize(1)
         assertThat(records.single().type).isEqualTo(PgTransactionType.CHARGE)
-        assertThat(records.single().pgTransactionId).isEqualTo("STUB-42-pk_test_abc")
         assertThat(records.single().amount).isEqualTo(15000L)
     }
 
     @Test
-    fun `동일 결제키 재시도는 CHARGE 를 중복 기록하지 않는다`() {
-        adapter.requestPayment(sampleRequest)
-        adapter.requestPayment(sampleRequest)
+    fun `동일 멱등키 재과금은 CHARGE 를 중복 기록하지 않고 동일 결과를 재생한다`() {
+        val first = adapter.chargeBilling(sampleChargeRequest)
+        val second = adapter.chargeBilling(sampleChargeRequest)
 
+        assertThat(first.pgTransactionId).isEqualTo(second.pgTransactionId)
         val records = adapter.listTransactions(now.minusSeconds(60), now.plusSeconds(60))
         assertThat(records).hasSize(1)
     }
 
     @Test
     fun `취소 시 원거래 금액으로 CANCEL 이 기록되고 refundAmount 를 반환한다`() {
-        val txId = adapter.requestPayment(sampleRequest).pgTransactionId!!
+        val txId = adapter.chargeBilling(sampleChargeRequest).pgTransactionId!!
 
         val result = adapter.cancelPayment(txId, "refund-1")
 
@@ -89,7 +102,7 @@ class StubPgProviderAdapterTest {
 
     @Test
     fun `윈도 밖의 거래는 조회되지 않는다`() {
-        adapter.requestPayment(sampleRequest)
+        adapter.chargeBilling(sampleChargeRequest)
 
         assertThat(adapter.listTransactions(now.plusSeconds(1), now.plusSeconds(60))).isEmpty()
         assertThat(adapter.listTransactions(now.minusSeconds(60), now.minusSeconds(1))).isEmpty()
