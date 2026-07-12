@@ -6,8 +6,10 @@ import com.carry.event.order.OrderCancelledEvent
 import com.carry.event.payment.InvoiceIssuedEvent
 import com.carry.payment.application.port.inbound.PaymentCommandUseCase
 import com.carry.payment.application.port.inbound.PaymentSagaEventHandler
+import com.carry.payment.application.port.outbound.InvoicePersistencePort
 import com.carry.payment.application.port.outbound.OrderStateQueryPort
 import com.carry.payment.application.port.outbound.PaymentPersistencePort
+import com.carry.payment.domain.vo.InvoiceStatus
 import com.carry.payment.domain.vo.PaymentStatus
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
@@ -20,6 +22,7 @@ class PaymentSagaHandler(
     private val paymentCommandUseCase: PaymentCommandUseCase,
     private val orderStateQueryPort: OrderStateQueryPort,
     private val autoChargeService: AutoChargeService,
+    private val invoicePersistencePort: InvoicePersistencePort,
 ) : PaymentSagaEventHandler {
 
     private val log = LoggerFactory.getLogger(javaClass)
@@ -49,8 +52,16 @@ class PaymentSagaHandler(
             if (payment != null && payment.status == PaymentStatus.COMPLETED) {
                 log.info("Payment saga: onOrderCancelled — 환불 대기 표시 paymentId={} (재시도 스위퍼가 PG 환불 실행)", payment.id)
                 paymentCommandUseCase.markRefundPending(event.orderId)
+                return@withOrderId
+            }
+            // 미과금 인보이스(ISSUED/OVERDUE)는 과금 중단 — 스위퍼의 인보이스 상태 가드가 재시도를 자연 배제
+            val invoice = invoicePersistencePort.findByOrderId(event.orderId)
+            if (invoice != null && invoice.status in setOf(InvoiceStatus.ISSUED, InvoiceStatus.OVERDUE)) {
+                invoice.cancel()
+                invoicePersistencePort.save(invoice)
+                log.info("Payment saga: onOrderCancelled — 미과금 인보이스 취소 invoiceId={}", invoice.id)
             } else {
-                log.info("Payment saga: onOrderCancelled — 환불 대상 결제 없음, skip")
+                log.info("Payment saga: onOrderCancelled — 환불/취소 대상 없음, skip")
             }
         }
     }

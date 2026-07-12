@@ -5,6 +5,7 @@ import com.carry.audit.port.AuditPort
 import com.carry.common.exception.BusinessException
 import com.carry.common.exception.ErrorCode
 import com.carry.payment.application.port.outbound.BillingKeyPersistencePort
+import com.carry.payment.application.port.outbound.InvoicePersistencePort
 import com.carry.payment.application.port.outbound.PaymentGatewayPort
 import com.carry.payment.application.port.outbound.PaymentGatewayResolver
 import com.carry.payment.application.port.outbound.PgBillingKeyRequest
@@ -30,11 +31,14 @@ class BillingKeyServiceTest {
     private val paymentGatewayResolver = mockk<PaymentGatewayResolver>()
     private val paymentGateway = mockk<PaymentGatewayPort>()
     private val auditPort = mockk<AuditPort>(relaxed = true)
+    private val invoicePersistencePort = mockk<InvoicePersistencePort>()
 
     private val now = Instant.parse("2026-07-12T00:00:00Z")
     private val clock = Clock.fixed(now, ZoneOffset.UTC)
 
-    private val sut = BillingKeyService(billingKeyPersistencePort, paymentGatewayResolver, auditPort, clock)
+    private val sut = BillingKeyService(
+        billingKeyPersistencePort, paymentGatewayResolver, auditPort, clock, invoicePersistencePort,
+    )
 
     private val customerId = 100L
     private val authKey = "auth_test_key"
@@ -149,5 +153,25 @@ class BillingKeyServiceTest {
         assertThatThrownBy { sut.getActive(customerId) }
             .isInstanceOf(BusinessException::class.java)
             .satisfies({ ex -> assertThat((ex as BusinessException).errorCode).isEqualTo(ErrorCode.BILLING_KEY_NOT_FOUND) })
+    }
+
+    @Test
+    fun `hasActiveBillingKey 는 billingKeyPersistencePort 의 existsActiveByCustomerId 에 위임한다`() {
+        every { billingKeyPersistencePort.existsActiveByCustomerId(customerId) } returns true
+
+        val result = sut.hasActiveBillingKey(customerId)
+
+        assertThat(result).isTrue()
+        verify { billingKeyPersistencePort.existsActiveByCustomerId(customerId) }
+    }
+
+    @Test
+    fun `hasOverdueInvoice 는 invoicePersistencePort 의 existsOverdueByCustomerId 에 위임한다`() {
+        every { invoicePersistencePort.existsOverdueByCustomerId(customerId) } returns true
+
+        val result = sut.hasOverdueInvoice(customerId)
+
+        assertThat(result).isTrue()
+        verify { invoicePersistencePort.existsOverdueByCustomerId(customerId) }
     }
 }

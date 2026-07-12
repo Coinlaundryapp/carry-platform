@@ -5,7 +5,9 @@ import com.carry.audit.port.AuditPort
 import com.carry.common.exception.BusinessException
 import com.carry.common.exception.ErrorCode
 import com.carry.payment.application.port.inbound.BillingKeyUseCase
+import com.carry.payment.application.port.inbound.BillingQueryUseCase
 import com.carry.payment.application.port.outbound.BillingKeyPersistencePort
+import com.carry.payment.application.port.outbound.InvoicePersistencePort
 import com.carry.payment.application.port.outbound.PaymentGatewayResolver
 import com.carry.payment.application.port.outbound.PgBillingKeyRequest
 import com.carry.payment.domain.model.BillingKey
@@ -21,7 +23,8 @@ class BillingKeyService(
     private val paymentGatewayResolver: PaymentGatewayResolver,
     private val auditPort: AuditPort,
     private val clock: Clock,
-) : BillingKeyUseCase {
+    private val invoicePersistencePort: InvoicePersistencePort,
+) : BillingKeyUseCase, BillingQueryUseCase {
 
     @Transactional
     override fun register(customerId: Long, authKey: String): BillingKey {
@@ -70,4 +73,12 @@ class BillingKeyService(
     override fun getActive(customerId: Long): BillingKey =
         billingKeyPersistencePort.findActiveByCustomerId(customerId)
             ?: throw BusinessException(ErrorCode.BILLING_KEY_NOT_FOUND, "customerId=$customerId")
+
+    @Transactional(readOnly = true)
+    override fun hasActiveBillingKey(customerId: Long): Boolean =
+        billingKeyPersistencePort.existsActiveByCustomerId(customerId)
+
+    @Transactional(readOnly = true)
+    override fun hasOverdueInvoice(customerId: Long): Boolean =
+        invoicePersistencePort.existsOverdueByCustomerId(customerId)
 }
