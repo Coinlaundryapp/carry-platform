@@ -1,5 +1,7 @@
 package com.carry.payment.domain.model
 
+import com.carry.common.exception.checkState
+import com.carry.common.exception.requireInput
 import com.carry.payment.domain.vo.BillingKeyStatus
 import java.time.Instant
 
@@ -23,7 +25,7 @@ class BillingKey private constructor(
     val invalidatedAt: Instant? get() = _invalidatedAt
 
     fun invalidate(now: Instant) {
-        check(_status == BillingKeyStatus.ACTIVE) { "이미 무효화된 빌링키입니다: id=$id" }
+        checkState(_status == BillingKeyStatus.ACTIVE) { "이미 무효화된 빌링키입니다: id=$id" }
         _status = BillingKeyStatus.INVALID
         _invalidatedAt = now
     }
@@ -33,7 +35,7 @@ class BillingKey private constructor(
             customerId: Long, customerKey: String, billingKey: String,
             cardCompany: String, cardLast4: String, now: Instant,
         ): BillingKey {
-            require(cardLast4.length == 4) { "cardLast4 는 4자리여야 합니다" }
+            requireInput(cardLast4.length == 4) { "cardLast4 는 4자리여야 합니다" }
             return BillingKey(null, customerId, customerKey, billingKey, cardCompany, cardLast4,
                 BillingKeyStatus.ACTIVE, null, now)
         }

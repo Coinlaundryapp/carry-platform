@@ -1,5 +1,6 @@
 package com.carry.payment.domain.model
 
+import com.carry.common.exception.BusinessException
 import com.carry.payment.domain.vo.BillingKeyStatus
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
@@ -32,13 +33,13 @@ class BillingKeyTest {
         val key = create()
         key.invalidate(now)
         assertThatThrownBy { key.invalidate(now) }
-            .isInstanceOf(IllegalStateException::class.java)
+            .isInstanceOf(BusinessException::class.java)
     }
 
     @Test
     fun `card last4는 4자리가 아니면 생성 거부`() {
         assertThatThrownBy {
             BillingKey.create(1L, "ck", "bk", "카드", "00000", now)
-        }.isInstanceOf(IllegalArgumentException::class.java)
+        }.isInstanceOf(BusinessException::class.java)
     }
 }
