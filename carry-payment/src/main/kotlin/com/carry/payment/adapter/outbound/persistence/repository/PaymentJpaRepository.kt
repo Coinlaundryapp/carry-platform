@@ -13,6 +13,9 @@ interface PaymentJpaRepository : JpaRepository<PaymentJpaEntity, Long> {
 
     fun findByStatus(status: PaymentStatus): List<PaymentJpaEntity>
 
+    // ChargeRetrySweeper 대상 조회 — next_retry_at 이 도래한(과거인) FAILED 결제.
+    fun findByStatusAndNextRetryAtBefore(status: PaymentStatus, before: Instant): List<PaymentJpaEntity>
+
     // pg_transaction_id 는 유니크 제약이 없으므로(재결제 이력) 최신 행을 반환한다.
     fun findFirstByPgTransactionIdOrderByIdDesc(pgTransactionId: String): PaymentJpaEntity?
 
