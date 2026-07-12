@@ -22,6 +22,10 @@
     ],
     "tags": [
         {
+            "name": "Billing Key",
+            "description": "자동결제 수단(빌링키) 관리 API"
+        },
+        {
             "name": "Payment",
             "description": "\u5bc3\uacd7\uc823 \u613f\udc80\u7531\udcac API"
         },
@@ -1026,80 +1030,83 @@
                 }
             }
         },
-        "/api/v2/payments/pay": {
+        "/api/v2/billing-keys": {
             "post": {
                 "tags": [
-                    "Payment"
+                    "Billing Key"
                 ],
-                "summary": "\u5bc3\uacd7\uc823 \udcec\uc282\uf9e3\udcad",
-                "description": "\u4e8c\uc1f0\u0426\udcec\ubfc9 \udceb\udc8c\udc80\udced\ube33 \u5bc3\uacd7\uc823\u745c\udcbc \udcec\uc282\uf9e3\udcad\udced\ube40\udceb\ub572\udceb\ub58e. Idempotency-Key \udced\ubfe4\udceb\ub711 \udcec\uc823\u6028\udcb5 \udcec\ub586 \udceb\ub8de\udcec\uc52a \udced\uad8e \udcec\uc631\udcec\uc282\uf9e3\udcad\udcec\udc9d\udc80 \u6e72\uacd7\u3008 \u5bc3\uaccc\ub0b5\u745c\udcbc \udcec\uc631\udcec\uae6e\udced\ube2f\uf9ce\udcb0(\udcec\uc520\u4ee5\udc91 \uf9e3\udcad\u63f4\udcac \u8adb\u2479\udca7\udc80), \uf9de\uafa9\ucb68 \udcec\uc631\udcec\ub586\udceb\ub8c4\udceb\ub497 \udcec\uae49 \udced\uad8e\u745c\udcbc \udcec\uad97\udcec\uc29c\udced\ube40\udceb\ub572\udceb\ub58e.",
-                "operationId": "requestPayment",
-                "parameters": [
-                    {
-                        "name": "orderId",
-                        "in": "query",
-                        "required": true,
-                        "schema": {
-                            "type": "integer",
-                            "format": "int64"
-                        }
-                    },
-                    {
-                        "name": "Idempotency-Key",
-                        "in": "header",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
+                "summary": "\ube4c\ub9c1\ud0a4 \ub4f1\ub85d",
+                "description": "PG SDK \uce74\ub4dc \ub4f1\ub85d\ucc3d \uacb0\uacfc(authKey)\ub85c \uc790\ub3d9\uacb0\uc81c \uc218\ub2e8\uc744 \ub4f1\ub85d\ud569\ub2c8\ub2e4. \uc774\ubbf8 \ub4f1\ub85d\ub41c \uce74\ub4dc\uac00 \uc788\uc73c\uba74 \uae30\uc874 \ud0a4\ub97c \ubb34\ud6a8\ud654\ud558\uace0 \uc0c8 \ud0a4\ub85c \uad50\uccb4\ud569\ub2c8\ub2e4.",
+                "operationId": "register",
                 "requestBody": {
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/PaymentRequest"
+                                "$ref": "#/components/schemas/BillingKeyRegisterRequest"
                             }
                         }
                     },
                     "required": true
                 },
                 "responses": {
-                    "409": {
-                        "description": "\udceb\ub8de\udcec\uc52a Idempotency-Key \udcec\uc282\uf9e3\udcad \uf9de\uafaa\ubefe \u4ee5\udc91",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiResponsePaymentResponse"
-                                }
-                            }
-                        }
-                    },
                     "400": {
-                        "description": "\udcec\uc612\uf9cf\uc0b3\ub9c2 \udcec\uc282\uf9e3\udcad",
+                        "description": "PG \ubc1c\uae09 \uac70\uc808 \ub610\ub294 \uc798\ubabb\ub41c \uc694\uccad",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiResponsePaymentResponse"
+                                    "$ref": "#/components/schemas/ApiResponseBillingKeyResponse"
                                 }
                             }
                         }
                     },
-                    "404": {
-                        "description": "\u4e8c\uc1f0\u0426\udcec\uc4e3 \uf9e1\uc5a0\uc4e3 \udcec\ub2d4 \udcec\ubfbe\udcec\uc4ec",
+                    "401": {
+                        "description": "\uc778\uc99d \ud544\uc694",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiResponsePaymentResponse"
+                                    "$ref": "#/components/schemas/ApiResponseBillingKeyResponse"
                                 }
                             }
                         }
                     },
                     "201": {
-                        "description": "\u5bc3\uacd7\uc823 \udcec\uc282\uf9e3\udcad \udcec\uaf66\u6028\udcb5",
+                        "description": "\ube4c\ub9c1\ud0a4 \ub4f1\ub85d \uc131\uacf5",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiResponsePaymentResponse"
+                                    "$ref": "#/components/schemas/ApiResponseBillingKeyResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/billing-keys/me": {
+            "get": {
+                "tags": [
+                    "Billing Key"
+                ],
+                "summary": "\ub0b4 \ube4c\ub9c1\ud0a4 \uc870\ud68c",
+                "description": "\ud604\uc7ac \ub4f1\ub85d\ub41c \ud65c\uc131 \ube4c\ub9c1\ud0a4\ub97c \uc870\ud68c\ud569\ub2c8\ub2e4",
+                "operationId": "getActive",
+                "responses": {
+                    "200": {
+                        "description": "\ube4c\ub9c1\ud0a4 \uc870\ud68c \uc131\uacf5",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResponseBillingKeyResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "\ub4f1\ub85d\ub41c \ube4c\ub9c1\ud0a4 \uc5c6\uc74c",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResponseBillingKeyResponse"
                                 }
                             }
                         }
@@ -1139,6 +1146,16 @@
                 "responses": {
                     "400": {
                         "description": "\udcec\uc612\uf9cf\uc0b3\ub9c2 \udcec\uc282\uf9e3\udcad",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResponseOrderResponse"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "\uc8fc\ubb38 \uc0dd\uc131 \uc804\uc81c\uc870\uac74 \ubbf8\ucda9\uc871 \u2014 BILLING_KEY_REQUIRED(\ud65c\uc131 \ube4c\ub9c1\ud0a4 \uc5c6\uc74c) \ub610\ub294 OVERDUE_INVOICE_EXISTS(\uc5f0\uccb4 \uc778\ubcf4\uc774\uc2a4 \uc874\uc7ac)",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -3195,13 +3212,8 @@
                                 "CREATED",
                                 "DISPATCHED",
                                 "PICKED_UP",
-                                "INVOICED",
-                                "PAYMENT_FAILED",
-                                "PAID",
                                 "IN_PROGRESS",
                                 "COMPLETED",
-                                "REFUND_PENDING",
-                                "REFUNDED",
                                 "CANCELLED"
                             ]
                         }
@@ -4670,24 +4682,77 @@
                 },
                 "description": "\u73e5\udc9d \u6e72\ub349\ube38 \udcec\uc4f3\udceb\ub59f"
             },
-            "PaymentRequest": {
+            "BillingKeyRegisterRequest": {
                 "required": [
-                    "paymentKey",
-                    "pgProvider"
+                    "authKey"
                 ],
                 "type": "object",
                 "properties": {
-                    "pgProvider": {
+                    "authKey": {
                         "type": "string",
-                        "description": "PG\udcec\uad97",
-                        "example": "TOSS"
-                    },
-                    "paymentKey": {
-                        "type": "string",
-                        "description": "PG \u5bc3\uacd7\uc823 \udced\uad8e"
+                        "description": "PG SDK \uce74\ub4dc \ub4f1\ub85d\ucc3d \uacb0\uacfc authKey",
+                        "example": "auth_key_from_toss_sdk"
                     }
                 },
-                "description": "\u5bc3\uacd7\uc823 \udcec\uc282\uf9e3\udcad"
+                "description": "\ube4c\ub9c1\ud0a4 \ub4f1\ub85d \uc694\uccad"
+            },
+            "BillingKeyResponse": {
+                "required": [
+                    "cardCompany",
+                    "cardLast4",
+                    "registeredAt"
+                ],
+                "type": "object",
+                "properties": {
+                    "cardCompany": {
+                        "type": "string",
+                        "description": "\uce74\ub4dc\uc0ac"
+                    },
+                    "cardLast4": {
+                        "type": "string",
+                        "description": "\uce74\ub4dc \ub4b7 4\uc790\ub9ac"
+                    },
+                    "registeredAt": {
+                        "type": "string",
+                        "description": "\ub4f1\ub85d \uc2dc\uac01",
+                        "format": "date-time"
+                    }
+                },
+                "description": "\ube4c\ub9c1\ud0a4 \ub4f1\ub85d \uc751\ub2f5 \u2014 \uce74\ub4dc \ub9c8\uc2a4\ud0b9 \uc815\ubcf4\ub9cc \uc81c\uacf5, \uc6d0\ubcf8 billingKey/customerKey \ub294 \ub178\ucd9c\ud558\uc9c0 \uc54a\ub294\ub2e4"
+            },
+            "ApiResponseBillingKeyResponse": {
+                "required": [
+                    "code",
+                    "message",
+                    "status"
+                ],
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "type": "integer",
+                        "description": "HTTP \uc0c1\ud0dc \ucf54\ub4dc",
+                        "format": "int32",
+                        "example": 200
+                    },
+                    "code": {
+                        "type": "string",
+                        "description": "\uc751\ub2f5 \ucf54\ub4dc",
+                        "example": "SUCCESS"
+                    },
+                    "message": {
+                        "type": "string",
+                        "description": "\uc751\ub2f5 \uba54\uc2dc\uc9c0",
+                        "example": "Success"
+                    },
+                    "data": {
+                        "$ref": "#/components/schemas/BillingKeyResponse"
+                    },
+                    "traceId": {
+                        "type": "string",
+                        "description": "\ud2b8\ub808\uc774\uc2f1 ID (\uc694\uccad \ucd94\uc801\uc6a9, \uc120\ud0dd\uc801 \ud544\ub4dc)"
+                    }
+                },
+                "description": "\ud45c\uc900 API \uc751\ub2f5 \ubd09\ud22c"
             },
             "ApiResponsePaymentResponse": {
                 "required": [
@@ -4972,12 +5037,6 @@
                     "carrierId": {
                         "type": "integer",
                         "description": "\u8adb\uacd5\ub596\udcec\uc35d ID",
-                        "format": "int64",
-                        "nullable": true
-                    },
-                    "totalAmount": {
-                        "type": "integer",
-                        "description": "\u73e5\udc9d \u6e72\ub349\ube38",
                         "format": "int64",
                         "nullable": true
                     },
