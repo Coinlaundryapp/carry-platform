@@ -57,6 +57,8 @@ enum class ErrorCode(
     UNSUPPORTED_PG_PROVIDER(400, "Unsupported payment gateway provider"),
     ORDER_NOT_PAID(402, "Order payment is not completed"),
     PAYMENT_NOT_OWNED(403, "Payment does not belong to the user"),
+    BILLING_KEY_ISSUE_FAILED(400, "Billing key issuance was rejected by PG"),
+    BILLING_KEY_NOT_FOUND(404, "Active billing key not found"),
 
     // Invoice
     INVOICE_NOT_FOUND(404, "Invoice not found"),

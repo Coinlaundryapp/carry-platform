@@ -6,6 +6,7 @@ package com.carry.audit.domain
 enum class AuditAction {
     ORDER_CANCEL,
     PAYMENT_REFUND,
+    BILLING_KEY_REGISTERED,
     DISPATCH_ASSIGN,
     DISPATCH_REJECT_PENALTY,
     DLQ_REDRIVE,

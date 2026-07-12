@@ -13,14 +13,23 @@ class BillingKeyPersistenceAdapter(
 ) : BillingKeyPersistencePort {
 
     override fun save(billingKey: BillingKey): BillingKey {
-        val entity = if (billingKey.id == null) {
+        val entity = toEntity(billingKey)
+        return billingKeyJpaRepository.save(entity).toDomain()
+    }
+
+    override fun saveAndFlush(billingKey: BillingKey): BillingKey {
+        val entity = toEntity(billingKey)
+        return billingKeyJpaRepository.saveAndFlush(entity).toDomain()
+    }
+
+    private fun toEntity(billingKey: BillingKey): BillingKeyJpaEntity {
+        return if (billingKey.id == null) {
             BillingKeyJpaEntity.fromDomain(billingKey)
         } else {
             val existing = billingKeyJpaRepository.getReferenceById(billingKey.id)
             existing.updateFrom(billingKey)
             existing
         }
-        return billingKeyJpaRepository.save(entity).toDomain()
     }
 
     override fun findActiveByCustomerId(customerId: Long): BillingKey? {
