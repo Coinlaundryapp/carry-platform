@@ -8,7 +8,7 @@
 
 ## 1. 배경과 문제
 
-현행 주문 사가는 결제를 물리 흐름의 게이트로 사용한다: `PICKED_UP → INVOICED → PAID → IN_PROGRESS`. 고객이 결제해야 세탁이 시작되므로, 캐리어는 수거한 세탁물을 든 채 고객의 결제 액션을 기다린다. `PAYMENT_FAILED` 이후 24h 초과 시 시스템이 주문을 취소하는데, 이 시점엔 세탁물이 이미 수거된 상태라 "빨지 않은 빨래를 되돌려주는 배차"가 필요해진다.
+현행 주문 사가는 결제를 물리 흐름의 게이트로 사용한다. 상태 기계상 `PICKED_UP → INVOICED → PAID → IN_PROGRESS`로 결제가 세탁 시작 앞에 놓여 있고, 강제 게이트는 배달 완료에 있다 — `DeliveryCommandService.completeDelivery`가 `isOrderPaid`를 동기 조회해 미결제면 `OrderNotPaidException`으로 거부하므로, 캐리어는 고객이 결제할 때까지 반납을 완료할 수 없다. `PAYMENT_FAILED` 이후 24h 초과 시 시스템이 주문을 취소하는데, 이 시점엔 세탁물이 이미 수거된 상태라 "빨지 않은 빨래를 되돌려주는 배차"가 필요해진다.
 
 근본 원인: **비동기적 인간 행동(결제)이 물리 물류의 크리티컬 패스에 게이트로 박혀 있다.** 기획 의도였던 후불 원칙(무게 실측 후 과금)은 유지하되, 게이트를 제거한다.
 
@@ -35,7 +35,7 @@ PICKED_UP / IN_PROGRESS        → CANCELLED  (코디네이터·시스템 전용
 - 삭제되는 상태: `INVOICED`, `PAID`, `PAYMENT_FAILED`, `REFUND_PENDING`, `REFUNDED`.
 - 고객 self-cancel은 현행대로 수거 전(CREATED/DISPATCHED)만 허용.
 - `IN_PROGRESS` 전이는 결제 이벤트가 아니라 물리 행동(수거 완료 이후 delivery 흐름의 세탁 시작)이 트리거한다.
-- `isForwardActive()` 등 상태 술어는 축소된 상태 집합에 맞게 재정의한다.
+- `isForwardActive()` 등 상태 술어는 축소된 상태 집합에 맞게 재정의한다. `StuckSagaDetector.WATCHED_STATUSES`가 INVOICED/PAID/REFUND_PENDING을 하드코딩 감시 중이므로 새 상태 집합·새 결제 사가(FAILED 장기 체류는 정상)에 맞게 재정의하고, KDoc의 `PaymentRetryDeadlineSweeper` 언급도 정리한다.
 
 ### 3.2 InvoiceStatus — 결제 모듈 내부
 
@@ -87,7 +87,7 @@ PAID → REFUNDED                  (과금 후 주문 취소 보상)
 2. `InvoiceIssuedEvent`를 **payment 모듈 자신이 소비** (기존 outbox → Kafka → consumer 인프라와 멱등 처리 재사용).
 3. `AutoChargeService`: 활성 빌링키 조회 → `PaymentGatewayPort.chargeBilling(billingKey, customerKey, amount, idempotencyKey = "charge-{invoiceId}")`.
 4. 성공: Payment COMPLETED + 인보이스 PAID + 원장 기입(현행 분배 로직 재사용: 세탁비·배달비 → CARRIER, 수수료 → PLATFORM) + `PaymentCompletedEvent` 발행.
-5. 실패: Payment FAILED + `PaymentFailedEvent` 발행. **주문 모듈은 이 이벤트를 더 이상 소비하지 않는다.** notification만 소비해 "카드 확인/재등록 안내" 발송.
+5. 실패: Payment FAILED + `PaymentFailedEvent` 발행. **주문 모듈은 이 이벤트를 더 이상 소비하지 않는다.** notification만 소비해 "카드 확인/재등록 안내" 발송. 알림 스팸 방지를 위해 `PaymentFailedEvent`는 **최초 실패 시 1회만** 발행하고, 스위퍼 재시도 실패는 이벤트 없이 `next_retry_at`만 갱신한다.
 6. 활성 빌링키가 없는 경우(이론상 주문 전제조건으로 차단되지만, 재등록 전 INVALID 처리 직후 등 틈새): 과금 시도 없이 Payment FAILED와 동일 경로.
 
 ### 5.2 재시도 — ChargeRetrySweeper
@@ -104,9 +104,10 @@ PAID → REFUNDED                  (과금 후 주문 취소 보상)
 
 ### 5.4 제거되는 것
 
-- `OrderSagaHandler`의 결제 이벤트 핸들러 일체 (onInvoiceIssued / onPaymentCompleted / onPaymentFailed).
+- **`DeliveryCommandService.completeDelivery`의 결제 게이트** — 현행 코드는 배달 완료 시 `paymentQueryPort.isOrderPaid(orderId)`를 동기 조회해 미결제면 `OrderNotPaidException`을 던진다(`DeliveryCommandService.kt:112`). 이 게이트가 물리 흐름의 실제 블로킹 지점이며, 제거하지 않으면 과금 실패 주문은 반납을 완료할 수 없어 COMPLETED에 영원히 도달하지 못한다. delivery→payment 방향 `PaymentQueryPort`·`OrderNotPaidException`·`ORDER_NOT_PAID` 에러코드를 함께 제거한다. (세탁 시작 `startWashing`에는 결제 게이트가 없음을 코드로 확인 완료 — 변경 불필요.)
+- `OrderSagaHandler`의 결제 이벤트 핸들러 일체 (onInvoiceIssued / onPaymentCompleted / onPaymentFailed / **onRefundCompleted**) 및 `OrderEventConsumer`의 해당 배선.
 - `PaymentRetryDeadlineSweeper` (24h 미결제 → 주문 시스템 취소) — 미결제는 더 이상 주문을 죽이지 않는다.
-- delivery 모듈이 세탁 시작을 `PaymentCompletedEvent`로 게이트하고 있다면 해당 핸들러 제거, 세탁 시작을 수거 완료 이후 캐리어 행동으로 연결. **(플랜 단계 확인 항목 §9-1)**
+- `Order`의 인보이스 참조 필드(`markInvoiced`가 기록하던 invoiceId·금액) — 인보이스 정보는 결제 모듈 API(`getInvoiceByOrder`)로 일원화한다.
 
 ## 6. 취소·환불
 
@@ -138,7 +139,7 @@ PAID → REFUNDED                  (과금 후 주문 취소 보상)
 ### 8.1 Flyway
 
 - V-next 1: `customer_billing_keys` 생성.
-- V-next 2: 인보이스 상태 CHECK/enum에 OVERDUE 추가(스키마 표현에 따름), Payment 재시도 컬럼(`next_retry_at`, `retry_count`) 추가.
+- V-next 2: 인보이스 상태 CHECK/enum에 OVERDUE 추가(스키마 표현에 따름), Payment 재시도 컬럼(`next_retry_at`, `retry_count`) 추가 + 기존 FAILED 행에 `next_retry_at` 백필(NULL이면 새 스위퍼가 영원히 집어가지 않음).
 - V-next 3: 기존 주문 status 매핑 — `INVOICED → PICKED_UP`, `PAID → IN_PROGRESS`, `PAYMENT_FAILED → PICKED_UP`, `REFUND_PENDING/REFUNDED → CANCELLED`. 실데이터 없는 학습 프로젝트라 dev 데이터만 해당.
 
 ### 8.2 테스트 (검증은 JUnit XML 기준)
@@ -152,10 +153,10 @@ PAID → REFUNDED                  (과금 후 주문 취소 보상)
 
 ## 9. 플랜 단계 확인 항목
 
-1. delivery 모듈의 세탁 시작(LaundryStarted) 트리거가 `PaymentCompletedEvent`를 게이트로 쓰는지 코드로 확인하고, 사용 시 제거·재배선 방식 확정.
-2. `PaymentController`가 노출 중인 엔드포인트 전수 조사 — 위젯 승인 외 유지 대상(인보이스 조회 등) 분리.
-3. notification 모듈이 소비하는 결제 이벤트 목록과 새 알림(카드 재등록 안내) 템플릿 위치.
-4. openapi 스펙 재생성 범위(프론트 후속 사이클 대비 계약 확정).
+1. `PaymentController`가 노출 중인 엔드포인트 전수 조사 — 위젯 승인 외 유지 대상(인보이스 조회 등) 분리.
+2. notification 모듈이 소비하는 결제 이벤트 목록과 새 알림(카드 재등록 안내) 템플릿 위치.
+3. openapi 스펙 재생성 범위(프론트 후속 사이클 대비 계약 확정).
+4. `docs/06-saga.md` 전면 갱신 — 현행 결제 게이트 흐름 기술이 전부 stale이 되므로 구현 마지막 단계에 문서 갱신 태스크 포함.
 
 ## 10. 의도적 제외 (재제안 금지 아님 — 후속 후보)
 
