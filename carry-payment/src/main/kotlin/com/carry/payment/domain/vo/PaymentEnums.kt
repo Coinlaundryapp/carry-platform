@@ -28,6 +28,11 @@ enum class PgProvider {
     TOSS_PAYMENTS,
 }
 
+/** 빌링키 상태 — 재등록 시 기존 ACTIVE 키를 INVALID 로 전환한다(고객당 활성 키 1개). */
+enum class BillingKeyStatus {
+    ACTIVE, INVALID,
+}
+
 enum class ChargeType {
     LAUNDRY_PRICE, DELIVERY_FEE, SERVICE_FEE,
 }
