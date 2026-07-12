@@ -1162,13 +1162,16 @@ enum class OrderStatus {
 
 ```sql
 -- 결제 상태를 주문에서 추방 — 물리 상태로 매핑 (실데이터 없는 학습 프로젝트, dev 데이터만 해당)
-UPDATE orders SET status = 'PICKED_UP'   WHERE status IN ('INVOICED', 'PAYMENT_FAILED');
-UPDATE orders SET status = 'IN_PROGRESS' WHERE status = 'PAID';
-UPDATE orders SET status = 'CANCELLED'   WHERE status IN ('REFUND_PENDING', 'REFUNDED');
+-- PAID 도 PICKED_UP 로: 구 모델에서 PAID 는 세탁 시작(LaundryStarted) 전 단계라 물리적으로 PICKED_UP.
+-- IN_PROGRESS 로 매핑하면 이후 LaundryStarted 가 IN_PROGRESS→IN_PROGRESS 무효 전이로 poison 된다.
+UPDATE orders SET status = 'PICKED_UP' WHERE status IN ('INVOICED', 'PAYMENT_FAILED', 'PAID');
+UPDATE orders SET status = 'CANCELLED' WHERE status IN ('REFUND_PENDING', 'REFUNDED');
 
 ALTER TABLE orders DROP COLUMN IF EXISTS invoice_id;
 ALTER TABLE orders DROP COLUMN IF EXISTS total_amount;
 ```
+
+**StuckSagaDetector 임계 상향**: 결제 분리로 PICKED_UP·IN_PROGRESS 가 정상적으로 몇 시간 체류하므로 `carry.order.stuck-saga-threshold-hours` 기본값을 6→24 로 올린다(오탐 방지).
 
 (주문 테이블 실명·컬럼명은 V5/V15/V17 마이그레이션에서 확인 후 맞출 것.)
 
@@ -1365,7 +1368,7 @@ git add -A && git commit -m "feat: BillingQueryPort 배선 + 환불 완료 알�
 
 **Files:**
 - Modify: `carry-app/src/test/kotlin/com/carry/app/test/SagaIntegrationTestConfig.kt`, `FakePgProviderAdapter.kt` (Task 1에서 개편됨 — 확인만)
-- Rewrite: `carry-app/src/test/kotlin/com/carry/app/saga/PaymentSagaIntegrationTest.kt` → `AutoChargeSagaIntegrationTest.kt`
+- Create: `carry-app/src/test/kotlin/com/carry/app/saga/AutoChargeSagaIntegrationTest.kt` (신규 — 구 `PaymentSagaIntegrationTest.kt`는 T9+T10에서 삭제됨, 파일 rewrite 아님)
 - Modify: `carry-app/src/test/kotlin/com/carry/app/saga/OrderSagaIntegrationTest.kt`, `OrderCancellationSagaIntegrationTest.kt`, `SettlementLedgerIntegrationTest.kt`
 - Modify: `carry-app/src/test/kotlin/com/carry/app/test/TestFixtures.kt` (빌링키 삽입 헬퍼 추가)
 
@@ -1391,7 +1394,7 @@ git add -A && git commit -m "feat: BillingQueryPort 배선 + 환불 완료 알�
 - `SettlementLedgerIntegrationTest`: `progressToPaid()` → `progressToCharged()` — 수동 결제 호출 대신 `PaymentSagaHandler.onInvoiceIssued` 호출로 교체.
 - `PaymentReconciliationIntegrationTest`: `progressToPaid()`를 자동과금 경로로 재작성 — CHARGE 레코드는 이제 `chargeBilling`이 남기므로 대사 시나리오 자체는 유지된다. REFUND_PENDING→REFUNDED 수렴 케이스는 결제 모듈 상태 검증으로 전환(주문 상태 아님).
 - `OrderCancellationSagaIntegrationTest`: REFUND_PENDING 주문 상태 검증을 "주문 CANCELLED + payment 모듈 상태" 검증으로 교체.
-- **빌링키 픽스처 전면 적용**: `createOrder`를 호출하는 모든 통합 테스트가 Task 11의 전제조건에 걸린다 — 위 4개 외에 `DispatchSagaIntegrationTest`, `OutboxAtomicityIntegrationTest`, `ConcurrencyIntegrationTest`, `QueryCountGuardTest`도 셋업에 `insertBillingKey(customerId)` 추가. Task 1에서 부착한 `@Disabled` 전부 제거.
+- **빌링키 픽스처 전면 적용**: `createOrder`를 호출하는 모든 통합 테스트가 Task 11의 전제조건에 걸린다 — 위 4개 외에 `DispatchSagaIntegrationTest`, `OutboxAtomicityIntegrationTest`, `ConcurrencyIntegrationTest`, `QueryCountGuardTest`도 셋업에 `insertBillingKey(customerId)` 추가. T1·T9+T10에서 부착한 `@Disabled` 전부 제거. (T9+T10에서 `OrderSagaIntegrationTest`·`SettlementLedgerIntegrationTest`·`PaymentReconciliationIntegrationTest`는 컴파일 유지용으로 결제 호출부가 트리밍된 상태 — 여기서 자동과금 경로로 완성한다. `progressToPaid()` 오칭·discard된 outbox 읽기도 이때 정리.)
 
 - [ ] **Step 6: 통합 테스트 실행 + Commit**
 
