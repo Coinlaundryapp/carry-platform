@@ -30,6 +30,9 @@ class FakePaymentPersistencePort : PaymentPersistencePort {
     override fun findById(id: Long): Payment? = byOrderId.values.find { it.id == id }
     override fun findByOrderId(orderId: Long): Payment? = byOrderId[orderId]
     override fun findByStatus(status: PaymentStatus): List<Payment> = byOrderId.values.filter { it.status == status }
+    override fun findRetryableFailed(now: Instant): List<Payment> = byOrderId.values.filter {
+        it.status == PaymentStatus.FAILED && it.nextRetryAt != null && !it.nextRetryAt!!.isAfter(now)
+    }
     override fun findByPgTransactionId(pgTransactionId: String): Payment? =
         byOrderId.values.find { it.pgTransactionId == pgTransactionId }
     override fun findByProviderAndStatusInWindow(

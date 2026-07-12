@@ -20,8 +20,6 @@ import com.carry.event.dispatch.DispatchAcceptedEvent
 import com.carry.event.order.OrderCreatedEvent
 import com.carry.event.order.SelectedOptionDto
 import com.carry.event.order.ShippingAddressDto
-import com.carry.event.payment.InvoiceIssuedEvent
-import com.carry.event.payment.PaymentCompletedEvent
 import com.carry.event.delivery.DeliveryCompletedEvent
 import com.carry.event.delivery.LaundryStartedEvent
 import com.carry.order.application.port.inbound.CreateOrderCommand
@@ -31,10 +29,8 @@ import com.carry.order.application.service.OrderCommandService
 import com.carry.order.application.port.outbound.OrderPersistencePort
 import com.carry.order.domain.vo.OrderStatus
 import com.carry.payment.application.port.inbound.PaymentSagaEventHandler
-import com.carry.payment.application.port.inbound.RequestPaymentCommand
 import com.carry.payment.application.service.PaymentCommandService
 import com.carry.payment.application.port.outbound.PgProviderAdapter
-import com.carry.payment.domain.vo.PgProvider
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
@@ -62,6 +58,7 @@ class OrderSagaIntegrationTest : IntegrationTestBase() {
 
     @Autowired lateinit var paymentSagaHandler: PaymentSagaEventHandler
     @Autowired lateinit var paymentCommandService: PaymentCommandService
+    @Autowired lateinit var billingKeyUseCase: com.carry.payment.application.port.inbound.BillingKeyUseCase
 
     @Autowired lateinit var pgProviderAdapter: PgProviderAdapter
     @Autowired lateinit var jdbc: JdbcTemplate
@@ -82,6 +79,7 @@ class OrderSagaIntegrationTest : IntegrationTestBase() {
         TestFixtures.insertShippingAddress(jdbc)
         TestFixtures.insertCarrierArea(jdbc)
         TestFixtures.insertServiceArea(jdbc)
+        TestFixtures.insertBillingKey(billingKeyUseCase)
     }
 
     @AfterEach
@@ -162,41 +160,10 @@ class OrderSagaIntegrationTest : IntegrationTestBase() {
         val pickedUpOrder = orderPersistencePort.findById(orderId)!!
         assertThat(pickedUpOrder.status).isEqualTo(OrderStatus.PICKED_UP)
 
-        // 8. PaymentSagaHandler: PickupCompletedEvent → Invoice 생성 + InvoiceIssuedEvent
-        paymentSagaHandler.onPickupCompleted(pickupEvent)
-        outbox.assertOutboxContains("Payment", "InvoiceIssuedEvent", orderId.toString())
-
-        // 9. OrderSagaHandler: InvoiceIssuedEvent → Order INVOICED
-        val invoiceEvent = outbox.readOutboxPayload<InvoiceIssuedEvent>("Payment", "InvoiceIssuedEvent", orderId.toString())
-        orderSagaHandler.onInvoiceIssued(invoiceEvent)
-
-        val invoicedOrder = orderPersistencePort.findById(orderId)!!
-        assertThat(invoicedOrder.status).isEqualTo(OrderStatus.INVOICED)
-        assertThat(invoicedOrder.invoiceId).isEqualTo(invoiceEvent.invoiceId)
-        assertThat(invoicedOrder.totalAmount).isEqualTo(invoiceEvent.totalAmount)
-
-        // Invoice 금액 검증: 5kg * 3000원 = 15000 + 배달비 3000 + 수수료 1500 = 19500
-        assertThat(invoiceEvent.totalAmount).isEqualTo(19500L)
-        assertThat(invoiceEvent.lineItems).hasSize(3)
-
-        // 10. 결제 요청 → PaymentCompletedEvent
-        fakePg.shouldSucceed = true
-        val payment = paymentCommandService.requestPayment(
-            RequestPaymentCommand(
-                orderId = orderId,
-                customerId = TestFixtures.CUSTOMER_ID,
-                pgProvider = PgProvider.TOSS_PAYMENTS,
-                paymentKey = "test-payment-key",
-            )
-        )
-        outbox.assertOutboxContains("Payment", "PaymentCompletedEvent", orderId.toString())
-
-        // 11. OrderSagaHandler: PaymentCompletedEvent → Order PAID
-        val paymentEvent = outbox.readOutboxPayload<PaymentCompletedEvent>("Payment", "PaymentCompletedEvent", orderId.toString())
-        orderSagaHandler.onPaymentCompleted(paymentEvent)
-
-        val paidOrder = orderPersistencePort.findById(orderId)!!
-        assertThat(paidOrder.status).isEqualTo(OrderStatus.PAID)
+        // Invoice/결제(자동과금)는 order 모듈에서 결제 결합이 제거되며 carry-payment 소관으로 완전히
+        // 분리되었다 — 자동과금 경로 자체(Payment COMPLETED·Invoice PAID·원장 균형)는
+        // AutoChargeSagaIntegrationTest 가 검증한다. 여기서는 물리 흐름 전이만 확인한다:
+        // PICKED_UP → IN_PROGRESS 는 결제 완료를 거치지 않고 LaundryStartedEvent 로 직접 전이한다.
 
         // 12. 세탁 시작
         deliveryCommandService.startWashing(delivery.id!!, listOf(2L), TestFixtures.CARRIER_ID)

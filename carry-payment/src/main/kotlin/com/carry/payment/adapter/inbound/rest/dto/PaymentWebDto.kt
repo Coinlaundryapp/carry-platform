@@ -1,5 +1,6 @@
 package com.carry.payment.adapter.inbound.rest.dto
 
+import com.carry.payment.domain.model.BillingKey
 import com.carry.payment.domain.model.Invoice
 import com.carry.payment.domain.model.Payment
 import com.carry.payment.domain.vo.InvoiceLineItem
@@ -7,14 +8,6 @@ import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.constraints.NotBlank
 import java.math.BigDecimal
 import java.time.Instant
-
-@Schema(description = "결제 요청")
-data class PaymentRequest(
-    @Schema(description = "PG사", example = "TOSS")
-    @field:NotBlank val pgProvider: String,
-    @Schema(description = "PG 결제 키")
-    @field:NotBlank val paymentKey: String,
-)
 
 @Schema(description = "청구서 응답")
 data class InvoiceResponse(
@@ -83,6 +76,28 @@ data class PaymentResponse(
             paidAt = payment.paidAt,
             failReason = payment.failReason,
             createdAt = payment.createdAt,
+        )
+    }
+}
+
+@Schema(description = "빌링키 등록 요청")
+data class BillingKeyRegisterRequest(
+    @Schema(description = "PG SDK 카드 등록창 결과 authKey", example = "auth_key_from_toss_sdk")
+    @field:NotBlank
+    val authKey: String,
+)
+
+@Schema(description = "빌링키 등록 응답 — 카드 마스킹 정보만 제공, 원본 billingKey/customerKey 는 노출하지 않는다")
+data class BillingKeyResponse(
+    @Schema(description = "카드사") val cardCompany: String,
+    @Schema(description = "카드 뒷 4자리") val cardLast4: String,
+    @Schema(description = "등록 시각") val registeredAt: Instant,
+) {
+    companion object {
+        fun from(billingKey: BillingKey) = BillingKeyResponse(
+            cardCompany = billingKey.cardCompany,
+            cardLast4 = billingKey.cardLast4,
+            registeredAt = billingKey.createdAt,
         )
     }
 }

@@ -1,7 +1,9 @@
 package com.carry.payment.adapter.outbound.stub
 
+import com.carry.payment.application.port.outbound.PgBillingChargeRequest
+import com.carry.payment.application.port.outbound.PgBillingKeyRequest
+import com.carry.payment.application.port.outbound.PgBillingKeyResult
 import com.carry.payment.application.port.outbound.PgCancelResult
-import com.carry.payment.application.port.outbound.PgPaymentRequest
 import com.carry.payment.application.port.outbound.PgPaymentResult
 import com.carry.payment.application.port.outbound.PgProviderAdapter
 import com.carry.payment.application.port.outbound.PgTransactionRecord
@@ -38,10 +40,26 @@ class StubPgProviderAdapter(
 
     override fun supports(): PgProvider = PgProvider.TOSS_PAYMENTS
 
-    override fun requestPayment(request: PgPaymentRequest): PgPaymentResult {
-        // 동일 결제키 → 동일 거래 ID (재시도 멱등 재생과 정합).
-        val pgTransactionId = "STUB-${request.orderId}-${request.paymentKey}"
-        // 멱등 재시도가 원장에 중복 CHARGE 로 남지 않도록 최초 1회만 기록.
+    override fun issueBillingKey(request: PgBillingKeyRequest): PgBillingKeyResult {
+        // 로컬 개발용 결정적 실패 마커: authKey가 "fail-"로 시작하면 발급 거절
+        if (request.authKey.startsWith("fail-")) {
+            return PgBillingKeyResult(success = false, failReason = "STUB: 카드 등록 거절 시뮬레이션")
+        }
+        return PgBillingKeyResult(
+            success = true,
+            billingKey = "STUB-BILLKEY-${request.customerKey}",
+            cardCompany = "STUB카드",
+            cardLast4 = "0000",
+        )
+    }
+
+    override fun chargeBilling(request: PgBillingChargeRequest): PgPaymentResult {
+        // 로컬 개발용 결정적 실패 마커: billingKey가 "fail-"로 시작하면 과금 거절(발급의 fail- authKey 규칙과 대칭)
+        if (request.billingKey.startsWith("fail-")) {
+            return PgPaymentResult(success = false, failReason = "STUB: 과금 거절 시뮬레이션")
+        }
+        val pgTransactionId = "STUB-${request.orderId}-${request.idempotencyKey}"
+        // 멱등: 같은 idempotencyKey 재호출은 기존 성공 결과 반환, CHARGE 중복 기록 없음
         if (transactions.none { it.pgTransactionId == pgTransactionId && it.type == PgTransactionType.CHARGE }) {
             transactions += PgTransactionRecord(pgTransactionId, PgTransactionType.CHARGE, request.amount, clock.instant())
         }

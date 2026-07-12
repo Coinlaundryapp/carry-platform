@@ -2,15 +2,23 @@ package com.carry.payment.application.service
 
 import com.carry.event.delivery.PickupCompletedEvent
 import com.carry.event.order.OrderCancelledEvent
+import com.carry.event.payment.InvoiceIssuedEvent
 import com.carry.payment.application.port.inbound.PaymentCommandUseCase
+import com.carry.payment.application.port.outbound.InvoicePersistencePort
 import com.carry.payment.application.port.outbound.OrderStateQueryPort
 import com.carry.payment.application.port.outbound.PaymentPersistencePort
+import com.carry.payment.domain.model.Invoice
 import com.carry.payment.domain.model.Payment
+import com.carry.payment.domain.vo.ChargeType
+import com.carry.payment.domain.vo.InvoiceLineItem
+import com.carry.payment.domain.vo.InvoiceStatus
 import com.carry.payment.domain.vo.PaymentStatus
 import com.carry.payment.domain.vo.PgProvider
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import io.mockk.verify
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 import java.time.Instant
@@ -21,8 +29,13 @@ class PaymentSagaHandlerTest {
     private val paymentPersistencePort = mockk<PaymentPersistencePort>(relaxed = true)
     private val paymentCommandUseCase = mockk<PaymentCommandUseCase>(relaxed = true)
     private val orderStateQueryPort = mockk<OrderStateQueryPort>()
+    private val autoChargeService = mockk<AutoChargeService>(relaxed = true)
+    private val invoicePersistencePort = mockk<InvoicePersistencePort>(relaxed = true)
 
-    private val sut = PaymentSagaHandler(invoiceService, paymentPersistencePort, paymentCommandUseCase, orderStateQueryPort)
+    private val sut = PaymentSagaHandler(
+        invoiceService, paymentPersistencePort, paymentCommandUseCase, orderStateQueryPort, autoChargeService,
+        invoicePersistencePort,
+    )
 
     private val now = Instant.now()
 
@@ -36,6 +49,12 @@ class PaymentSagaHandlerTest {
         id = 1L, invoiceId = 200L, orderId = 10L, customerId = 100L, status = status,
         pgProvider = PgProvider.TOSS_PAYMENTS, pgTransactionId = "tx_123", amount = 18000L,
         paidAt = now, failReason = null, createdAt = now, updatedAt = now,
+    )
+
+    private fun anInvoice(status: InvoiceStatus) = Invoice.reconstitute(
+        id = 200L, orderId = 10L, customerId = 100L, status = status,
+        lineItems = listOf(InvoiceLineItem(ChargeType.LAUNDRY_PRICE, "세탁 비용", 18000L)),
+        weight = BigDecimal("3.00"), totalAmount = 18000L, createdAt = now, updatedAt = now,
     )
 
     @Test
@@ -65,25 +84,63 @@ class PaymentSagaHandlerTest {
 
         // PG 즉시 호출이 아니라 환불 대기 표시 — 실제 PG 환불은 RefundRetrySweeper 가 수행(DLQ 위험 제거).
         verify { paymentCommandUseCase.markRefundPending(10L) }
+        // COMPLETED 결제 분기에서 조기 반환되므로 인보이스 취소 분기는 실행되지 않는다.
+        verify(exactly = 0) { invoicePersistencePort.save(any()) }
     }
 
     @Test
-    fun `주문 취소 시 결제가 없으면 환불 대기 표시를 하지 않는다`() {
+    fun `주문 취소 시 미과금(ISSUED) 인보이스는 CANCELLED 로 전환된다`() {
+        every { paymentPersistencePort.findByOrderId(10L) } returns null
+        every { invoicePersistencePort.findByOrderId(10L) } returns anInvoice(InvoiceStatus.ISSUED)
+        val saved = slot<Invoice>()
+        every { invoicePersistencePort.save(capture(saved)) } answers { saved.captured }
+
+        sut.onOrderCancelled(OrderCancelledEvent(10L, "고객 변심", "CUSTOMER"))
+
+        assertThat(saved.captured.status).isEqualTo(InvoiceStatus.CANCELLED)
+        verify(exactly = 0) { paymentCommandUseCase.markRefundPending(any()) }
+    }
+
+    @Test
+    fun `주문 취소 시 OVERDUE 인보이스도 CANCELLED 로 전환된다`() {
+        every { paymentPersistencePort.findByOrderId(10L) } returns null
+        every { invoicePersistencePort.findByOrderId(10L) } returns anInvoice(InvoiceStatus.OVERDUE)
+        val saved = slot<Invoice>()
+        every { invoicePersistencePort.save(capture(saved)) } answers { saved.captured }
+
+        sut.onOrderCancelled(OrderCancelledEvent(10L, "재결제 시한 초과", "SYSTEM"))
+
+        assertThat(saved.captured.status).isEqualTo(InvoiceStatus.CANCELLED)
+        verify(exactly = 0) { paymentCommandUseCase.markRefundPending(any()) }
+    }
+
+    @Test
+    fun `주문 취소 시 인보이스도 결제도 없으면 조용히 skip`() {
         // 선결제 없는 주문(CREATED/DISPATCHED 단계) 취소 — throw 하면 DLQ 로 빠지므로 조용히 skip
         every { paymentPersistencePort.findByOrderId(10L) } returns null
+        every { invoicePersistencePort.findByOrderId(10L) } returns null
 
         sut.onOrderCancelled(OrderCancelledEvent(10L, "고객 변심", "CUSTOMER"))
 
         verify(exactly = 0) { paymentCommandUseCase.markRefundPending(any()) }
+        verify(exactly = 0) { invoicePersistencePort.save(any()) }
     }
 
     @Test
     fun `주문 취소 시 결제가 완료 상태가 아니면 환불 대기 표시를 하지 않는다`() {
-        // 결제 실패(FAILED) 후 시한 초과로 취소된 경우 — 환불할 결제가 없음
+        // 결제 실패(FAILED) 후 시한 초과로 취소된 경우 — 환불할 결제가 없음. 인보이스도 없어 취소 대상 없음.
         every { paymentPersistencePort.findByOrderId(10L) } returns aPayment(PaymentStatus.FAILED)
+        every { invoicePersistencePort.findByOrderId(10L) } returns null
 
         sut.onOrderCancelled(OrderCancelledEvent(10L, "재결제 시한 초과", "SYSTEM"))
 
         verify(exactly = 0) { paymentCommandUseCase.markRefundPending(any()) }
+    }
+
+    @Test
+    fun `onInvoiceIssued 는 autoChargeService의 chargeInvoice 에 위임한다`() {
+        sut.onInvoiceIssued(InvoiceIssuedEvent(invoiceId = 200L, orderId = 10L, totalAmount = 18000L, lineItems = emptyList()))
+
+        verify { autoChargeService.chargeInvoice(200L) }
     }
 }

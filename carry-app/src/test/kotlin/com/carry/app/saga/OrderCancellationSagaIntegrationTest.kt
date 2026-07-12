@@ -49,6 +49,7 @@ class OrderCancellationSagaIntegrationTest : IntegrationTestBase() {
 
     @Autowired lateinit var paymentSagaHandler: com.carry.payment.application.port.inbound.PaymentSagaEventHandler
     @Autowired lateinit var invoicePersistencePort: com.carry.payment.application.port.outbound.InvoicePersistencePort
+    @Autowired lateinit var billingKeyUseCase: com.carry.payment.application.port.inbound.BillingKeyUseCase
 
     @Autowired lateinit var jdbc: JdbcTemplate
     @Autowired lateinit var objectMapper: ObjectMapper
@@ -64,6 +65,7 @@ class OrderCancellationSagaIntegrationTest : IntegrationTestBase() {
         TestFixtures.insertShippingAddress(jdbc)
         TestFixtures.insertCarrierArea(jdbc)
         TestFixtures.insertServiceArea(jdbc)
+        TestFixtures.insertBillingKey(billingKeyUseCase)
     }
 
     @AfterEach

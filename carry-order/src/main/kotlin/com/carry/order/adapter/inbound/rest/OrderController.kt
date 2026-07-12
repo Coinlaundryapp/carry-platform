@@ -34,7 +34,14 @@ class OrderController(
     private val orderQueryUseCase: OrderQueryUseCase,
 ) {
     @Operation(summary = "주문 생성", description = "세탁물 수거/배달 주문을 생성합니다")
-    @ApiResponses(value = [SwaggerApiResponse(responseCode = "201", description = "주문 생성 성공"), SwaggerApiResponse(responseCode = "400", description = "잘못된 요청"), SwaggerApiResponse(responseCode = "422", description = "서비스 불가 지역 또는 시간")])
+    @ApiResponses(
+        value = [
+            SwaggerApiResponse(responseCode = "201", description = "주문 생성 성공"),
+            SwaggerApiResponse(responseCode = "400", description = "잘못된 요청"),
+            SwaggerApiResponse(responseCode = "409", description = "활성 빌링키 없음 또는 연체 인보이스 존재"),
+            SwaggerApiResponse(responseCode = "422", description = "서비스 불가 지역 또는 시간"),
+        ],
+    )
     @PostMapping
     fun createOrder(
         @Parameter(hidden = true) @AuthenticationPrincipal userId: Long,

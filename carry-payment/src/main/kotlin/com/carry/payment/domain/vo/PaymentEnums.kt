@@ -1,10 +1,12 @@
 package com.carry.payment.domain.vo
 
 enum class InvoiceStatus {
-    ISSUED, PAID, CANCELLED, REFUNDED;
+    ISSUED, PAID, OVERDUE, CANCELLED, REFUNDED;
 
     fun canTransitionTo(target: InvoiceStatus): Boolean = when (this) {
-        ISSUED -> target in listOf(PAID, CANCELLED)
+        ISSUED -> target in listOf(PAID, OVERDUE, CANCELLED)
+        // OVERDUE: 미수금 확정(신규 주문 차단) — 재과금은 계속되므로 PAID 로 회복 가능
+        OVERDUE -> target in listOf(PAID, CANCELLED)
         PAID -> target == REFUNDED
         CANCELLED -> false
         REFUNDED -> false
@@ -26,6 +28,11 @@ enum class PaymentStatus {
 
 enum class PgProvider {
     TOSS_PAYMENTS,
+}
+
+/** 빌링키 상태 — 재등록 시 기존 ACTIVE 키를 INVALID 로 전환한다(고객당 활성 키 1개). */
+enum class BillingKeyStatus {
+    ACTIVE, INVALID,
 }
 
 enum class ChargeType {

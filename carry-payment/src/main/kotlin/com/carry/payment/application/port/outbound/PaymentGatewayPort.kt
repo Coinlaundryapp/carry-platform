@@ -2,17 +2,30 @@ package com.carry.payment.application.port.outbound
 
 import java.time.Instant
 
-data class PgPaymentRequest(
+data class PgBillingKeyRequest(
+    val authKey: String,
+    val customerKey: String,
+)
+
+data class PgBillingKeyResult(
+    val success: Boolean,
+    val billingKey: String? = null,
+    val cardCompany: String? = null,
+    val cardLast4: String? = null,
+    val failReason: String? = null,
+)
+
+data class PgBillingChargeRequest(
+    val billingKey: String,
+    val customerKey: String,
     val orderId: Long,
     val amount: Long,
     val orderName: String,
-    val customerName: String,
-    val paymentKey: String,
     /**
-     * PG 측 dedup 용 멱등키(실 어댑터는 `Idempotency-Key` 헤더로 전달).
-     * 결제 요청은 클라이언트 paymentKey 가 곧 요청측 멱등키 — 재시도 시 동일 값이 재전달된다.
+     * PG 측 dedup 멱등키 — `charge-{invoiceId}` 로 고정, 재시도에도 동일 값 재전달.
+     * 멱등성의 키 단위는 invoice 이며, [orderId] 는 PG 거래 기록의 표시·참조용 데이터일 뿐 dedup 에 관여하지 않는다.
      */
-    val idempotencyKey: String = paymentKey,
+    val idempotencyKey: String,
 )
 
 data class PgPaymentResult(
@@ -40,7 +53,11 @@ data class PgTransactionRecord(
 )
 
 interface PaymentGatewayPort {
-    fun requestPayment(request: PgPaymentRequest): PgPaymentResult
+    /** 빌링키 발급 — 결제 발생 없음. authKey는 프론트 SDK 카드 등록창 결과(mock에선 임의 문자열). */
+    fun issueBillingKey(request: PgBillingKeyRequest): PgBillingKeyResult
+
+    /** 빌링키 자동과금 — 사용자 액션 없이 서버 단독 호출. */
+    fun chargeBilling(request: PgBillingChargeRequest): PgPaymentResult
 
     /**
      * PG 결제 취소(환불). [idempotencyKey] 는 재시도 시 PG 가 dedup 하는 결정적 키

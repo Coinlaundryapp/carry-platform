@@ -7,6 +7,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import java.time.Duration
 import java.time.Instant
 
 class PaymentTest {
@@ -22,13 +23,20 @@ class PaymentTest {
         now = now,
     )
 
-    private fun reconstitutedPayment(status: PaymentStatus = PaymentStatus.PENDING) = Payment.reconstitute(
+    private fun reconstitutedPayment(
+        status: PaymentStatus = PaymentStatus.PENDING,
+        retryCount: Int = 0,
+        nextRetryAt: Instant? = null,
+    ) = Payment.reconstitute(
         id = 1L, invoiceId = 1L, orderId = 10L, customerId = 100L,
         status = status, pgProvider = PgProvider.TOSS_PAYMENTS,
         pgTransactionId = if (status == PaymentStatus.COMPLETED) "tx_123" else null,
         amount = 19500L,
         paidAt = if (status == PaymentStatus.COMPLETED) now else null,
-        failReason = null, createdAt = now, updatedAt = now,
+        failReason = null,
+        retryCount = retryCount,
+        nextRetryAt = nextRetryAt,
+        createdAt = now, updatedAt = now,
     )
 
     @Nested
@@ -112,6 +120,50 @@ class PaymentTest {
                 .isInstanceOf(BusinessException::class.java)
             assertThatThrownBy { payment.markRefunded() }
                 .isInstanceOf(BusinessException::class.java)
+        }
+    }
+
+    @Nested
+    inner class Retry {
+
+        @Test
+        fun `scheduleRetry 는 retryCount 증가 + nextRetryAt 설정`() {
+            val payment = reconstitutedPayment(PaymentStatus.FAILED)
+            payment.scheduleRetry(now)
+            assertThat(payment.retryCount).isEqualTo(1)
+            assertThat(payment.nextRetryAt).isEqualTo(now.plus(Duration.ofHours(1)))
+        }
+
+        @Test
+        fun `scheduleRetry 는 FAILED 상태가 아니면 예외가 발생한다`() {
+            val payment = reconstitutedPayment(PaymentStatus.PENDING)
+            assertThatThrownBy { payment.scheduleRetry(now) }
+                .isInstanceOf(BusinessException::class.java)
+        }
+
+        @Test
+        fun `markRetrying 은 FAILED 에서만 PENDING 재전이`() {
+            val payment = reconstitutedPayment(PaymentStatus.FAILED, retryCount = 1, nextRetryAt = now)
+            payment.markRetrying()
+            assertThat(payment.status).isEqualTo(PaymentStatus.PENDING)
+            assertThat(payment.nextRetryAt).isNull()
+        }
+
+        @Test
+        fun `markRetrying 은 PENDING 상태에서 호출하면 예외가 발생한다`() {
+            val payment = reconstitutedPayment(PaymentStatus.PENDING)
+            assertThatThrownBy { payment.markRetrying() }
+                .isInstanceOf(BusinessException::class.java)
+        }
+
+        @Test
+        fun `백오프 스케줄 - 1h, 4h, 12h, 24h 이후 24h 고정`() {
+            assertThat(Payment.backoffFor(1)).isEqualTo(Duration.ofHours(1))
+            assertThat(Payment.backoffFor(2)).isEqualTo(Duration.ofHours(4))
+            assertThat(Payment.backoffFor(3)).isEqualTo(Duration.ofHours(12))
+            assertThat(Payment.backoffFor(4)).isEqualTo(Duration.ofHours(24))
+            assertThat(Payment.backoffFor(5)).isEqualTo(Duration.ofHours(24))
+            assertThat(Payment.backoffFor(6)).isEqualTo(Duration.ofHours(24))
         }
     }
 }

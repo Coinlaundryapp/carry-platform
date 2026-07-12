@@ -37,6 +37,10 @@ class PaymentPersistenceAdapter(
         return paymentJpaRepository.findByStatus(status).map { it.toDomain() }
     }
 
+    override fun findRetryableFailed(now: Instant): List<Payment> {
+        return paymentJpaRepository.findByStatusAndNextRetryAtBefore(PaymentStatus.FAILED, now).map { it.toDomain() }
+    }
+
     override fun findByPgTransactionId(pgTransactionId: String): Payment? {
         return paymentJpaRepository.findFirstByPgTransactionIdOrderByIdDesc(pgTransactionId)?.toDomain()
     }

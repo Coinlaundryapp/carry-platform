@@ -1,9 +1,7 @@
 package com.carry.payment.application.service
 
-import com.carry.common.exception.BusinessException
 import com.carry.common.metrics.MetricsPort
 import com.carry.event.port.EventPublisherPort
-import com.carry.payment.application.port.inbound.RequestPaymentCommand
 import com.carry.payment.application.port.outbound.InvoicePersistencePort
 import com.carry.payment.application.port.outbound.LedgerPort
 import com.carry.payment.application.port.outbound.OrderStateQueryPort
@@ -12,9 +10,6 @@ import com.carry.payment.application.port.outbound.PaymentPersistencePort
 import com.carry.payment.application.port.outbound.PaymentGatewayPort
 import com.carry.payment.application.port.outbound.PaymentGatewayResolver
 import com.carry.payment.application.port.outbound.PgCancelResult
-import com.carry.payment.application.port.outbound.PgPaymentResult
-import com.carry.payment.domain.exception.InvoiceAlreadyPaidException
-import com.carry.payment.domain.exception.InvoiceNotFoundException
 import com.carry.payment.domain.exception.PaymentGatewayException
 import com.carry.payment.domain.model.Invoice
 import com.carry.payment.domain.model.Payment
@@ -69,184 +64,6 @@ class PaymentCommandServiceTest {
         lineItems = lineItems, weight = BigDecimal("5.0"), totalAmount = 18000L,
         createdAt = now, updatedAt = now,
     )
-
-    private fun aCommand() = RequestPaymentCommand(
-        orderId = 10L,
-        customerId = 100L,
-        pgProvider = PgProvider.TOSS_PAYMENTS,
-        paymentKey = "pk_test_123",
-    )
-
-    @Nested
-    inner class RequestPayment {
-
-        @Test
-        fun `결제 요청 성공 시 COMPLETED 상태로 저장하고 이벤트를 발행한다`() {
-            every { invoicePersistencePort.findByOrderId(10L) } returns anInvoice()
-            every { paymentGatewayResolver.resolve(PgProvider.TOSS_PAYMENTS) } returns paymentGateway
-            every { paymentGateway.requestPayment(any()) } returns PgPaymentResult(
-                success = true, pgTransactionId = "tx_success_123",
-            )
-            val saved = slot<Payment>()
-            every { paymentPersistencePort.save(capture(saved)) } answers {
-                Payment.reconstitute(
-                    id = 42L, invoiceId = saved.captured.invoiceId, orderId = saved.captured.orderId,
-                    customerId = saved.captured.customerId, status = saved.captured.status,
-                    pgProvider = saved.captured.pgProvider, pgTransactionId = saved.captured.pgTransactionId,
-                    amount = saved.captured.amount, paidAt = saved.captured.paidAt,
-                    failReason = saved.captured.failReason, createdAt = now, updatedAt = now,
-                )
-            }
-
-            val result = sut.requestPayment(aCommand())
-
-            assertThat(result.id).isEqualTo(42L)
-            assertThat(result.status).isEqualTo(PaymentStatus.COMPLETED)
-            assertThat(result.pgTransactionId).isEqualTo("tx_success_123")
-            verify { eventPublisher.publish("Payment", "10", "PaymentCompletedEvent", any(), any()) }
-            verify { metrics.incrementCounter("carry.payment.success", "pg" to "TOSS_PAYMENTS") }
-        }
-
-        @Test
-        fun `PG사 결제 실패 시 FAILED 상태로 저장하고 PaymentFailedEvent를 발행한다`() {
-            every { invoicePersistencePort.findByOrderId(10L) } returns anInvoice()
-            every { paymentGatewayResolver.resolve(PgProvider.TOSS_PAYMENTS) } returns paymentGateway
-            every { paymentGateway.requestPayment(any()) } returns PgPaymentResult(
-                success = false, failReason = "잔액 부족",
-            )
-            val saved = slot<Payment>()
-            every { paymentPersistencePort.save(capture(saved)) } answers {
-                Payment.reconstitute(
-                    id = 43L, invoiceId = saved.captured.invoiceId, orderId = saved.captured.orderId,
-                    customerId = saved.captured.customerId, status = saved.captured.status,
-                    pgProvider = saved.captured.pgProvider, pgTransactionId = saved.captured.pgTransactionId,
-                    amount = saved.captured.amount, paidAt = saved.captured.paidAt,
-                    failReason = saved.captured.failReason, createdAt = now, updatedAt = now,
-                )
-            }
-
-            val result = sut.requestPayment(aCommand())
-
-            assertThat(result.status).isEqualTo(PaymentStatus.FAILED)
-            assertThat(result.failReason).isEqualTo("잔액 부족")
-            verify { eventPublisher.publish("Payment", "10", "PaymentFailedEvent", any(), any()) }
-            verify { metrics.incrementCounter("carry.payment.failure", "pg" to "TOSS_PAYMENTS") }
-        }
-
-        @Test
-        fun `청구서가 없으면 InvoiceNotFoundException이 발생한다`() {
-            every { invoicePersistencePort.findByOrderId(10L) } returns null
-
-            assertThatThrownBy { sut.requestPayment(aCommand()) }
-                .isInstanceOf(InvoiceNotFoundException::class.java)
-        }
-
-        @Test
-        fun `이미 결제된 청구서이면 InvoiceAlreadyPaidException이 발생한다`() {
-            every { invoicePersistencePort.findByOrderId(10L) } returns anInvoice(InvoiceStatus.PAID)
-
-            assertThatThrownBy { sut.requestPayment(aCommand()) }
-                .isInstanceOf(InvoiceAlreadyPaidException::class.java)
-        }
-    }
-
-    @Nested
-    inner class Idempotency {
-
-        private fun aCompletedPayment() = Payment.reconstitute(
-            id = 7L, invoiceId = 1L, orderId = 10L, customerId = 100L, status = PaymentStatus.COMPLETED,
-            pgProvider = PgProvider.TOSS_PAYMENTS, pgTransactionId = "tx_prev", amount = 18000L,
-            paidAt = now, failReason = null, createdAt = now, updatedAt = now,
-        )
-
-        @Test
-        fun `완료된 키는 PG·청구서 조회 없이 기존 결제를 재생한다`() {
-            every { idempotencyPort.findCompletedPaymentId("k") } returns 7L
-            every { paymentPersistencePort.findById(7L) } returns aCompletedPayment()
-
-            val result = sut.requestPayment(aCommand().copy(idempotencyKey = "k"))
-
-            assertThat(result.id).isEqualTo(7L)
-            // 최상단 재생 = 본문 미진입(reserve-before-PG 보장의 대칭 검증).
-            verify(exactly = 0) { idempotencyPort.reserve(any()) }
-            verify(exactly = 0) { invoicePersistencePort.findByOrderId(any()) }
-            verify(exactly = 0) { paymentGatewayResolver.resolve(any()) }
-        }
-
-        @Test
-        fun `진행 중 키(선점 실패)는 409 이며 PG를 호출하지 않는다`() {
-            every { idempotencyPort.findCompletedPaymentId("k") } returns null
-            every { idempotencyPort.reserve("k") } returns false
-
-            assertThatThrownBy { sut.requestPayment(aCommand().copy(idempotencyKey = "k")) }
-                .isInstanceOf(BusinessException::class.java)
-
-            verify(exactly = 0) { paymentGatewayResolver.resolve(any()) }
-        }
-
-        @Test
-        fun `신규 키 성공 시 처리 후 paymentId로 complete 한다`() {
-            every { idempotencyPort.findCompletedPaymentId("k") } returns null
-            every { idempotencyPort.reserve("k") } returns true
-            every { invoicePersistencePort.findByOrderId(10L) } returns anInvoice()
-            every { paymentGatewayResolver.resolve(PgProvider.TOSS_PAYMENTS) } returns paymentGateway
-            every { paymentGateway.requestPayment(any()) } returns PgPaymentResult(success = true, pgTransactionId = "tx_ok")
-            val saved = slot<Payment>()
-            every { paymentPersistencePort.save(capture(saved)) } answers {
-                Payment.reconstitute(
-                    id = 50L, invoiceId = saved.captured.invoiceId, orderId = saved.captured.orderId,
-                    customerId = saved.captured.customerId, status = saved.captured.status,
-                    pgProvider = saved.captured.pgProvider, pgTransactionId = saved.captured.pgTransactionId,
-                    amount = saved.captured.amount, paidAt = saved.captured.paidAt,
-                    failReason = saved.captured.failReason, createdAt = now, updatedAt = now,
-                )
-            }
-
-            sut.requestPayment(aCommand().copy(idempotencyKey = "k"))
-
-            verify { idempotencyPort.complete("k", 50L) }
-        }
-
-        @Test
-        fun `PG 정상실패(예외 아님) 결과도 complete 한다`() {
-            every { idempotencyPort.findCompletedPaymentId("k") } returns null
-            every { idempotencyPort.reserve("k") } returns true
-            every { invoicePersistencePort.findByOrderId(10L) } returns anInvoice()
-            every { paymentGatewayResolver.resolve(PgProvider.TOSS_PAYMENTS) } returns paymentGateway
-            every { paymentGateway.requestPayment(any()) } returns PgPaymentResult(success = false, failReason = "잔액 부족")
-            val saved = slot<Payment>()
-            every { paymentPersistencePort.save(capture(saved)) } answers {
-                Payment.reconstitute(
-                    id = 51L, invoiceId = saved.captured.invoiceId, orderId = saved.captured.orderId,
-                    customerId = saved.captured.customerId, status = saved.captured.status,
-                    pgProvider = saved.captured.pgProvider, pgTransactionId = saved.captured.pgTransactionId,
-                    amount = saved.captured.amount, paidAt = saved.captured.paidAt,
-                    failReason = saved.captured.failReason, createdAt = now, updatedAt = now,
-                )
-            }
-
-            val result = sut.requestPayment(aCommand().copy(idempotencyKey = "k"))
-
-            assertThat(result.status).isEqualTo(PaymentStatus.FAILED)
-            verify { idempotencyPort.complete("k", 51L) }
-        }
-
-        @Test
-        fun `PG 예외 시 멱등 키를 해소(release)해 같은 키 재시도가 막히지 않는다`() {
-            every { idempotencyPort.findCompletedPaymentId("k") } returns null
-            every { idempotencyPort.reserve("k") } returns true
-            every { invoicePersistencePort.findByOrderId(10L) } returns anInvoice()
-            every { paymentGatewayResolver.resolve(PgProvider.TOSS_PAYMENTS) } returns paymentGateway
-            every { paymentGateway.requestPayment(any()) } throws PaymentGatewayException("CB OPEN")
-
-            assertThatThrownBy { sut.requestPayment(aCommand().copy(idempotencyKey = "k")) }
-                .isInstanceOf(PaymentGatewayException::class.java)
-
-            // 성공·정상실패가 아니라 예외 → complete 미호출, 대신 release로 PENDING 잔존을 없앤다.
-            verify { idempotencyPort.release("k") }
-            verify(exactly = 0) { idempotencyPort.complete(any(), any()) }
-        }
-    }
 
     @Nested
     inner class Refund {
@@ -356,64 +173,6 @@ class PaymentCommandServiceTest {
 
     @Nested
     inner class Ledger {
-
-        private fun stubSuccessfulPayment() {
-            every { invoicePersistencePort.findByOrderId(10L) } returns anInvoice()
-            every { paymentGatewayResolver.resolve(PgProvider.TOSS_PAYMENTS) } returns paymentGateway
-            every { paymentGateway.requestPayment(any()) } returns PgPaymentResult(
-                success = true, pgTransactionId = "tx_ledger_1",
-            )
-            val saved = slot<Payment>()
-            every { paymentPersistencePort.save(capture(saved)) } answers {
-                Payment.reconstitute(
-                    id = 42L, invoiceId = saved.captured.invoiceId, orderId = saved.captured.orderId,
-                    customerId = saved.captured.customerId, status = saved.captured.status,
-                    pgProvider = saved.captured.pgProvider, pgTransactionId = saved.captured.pgTransactionId,
-                    amount = saved.captured.amount, paidAt = saved.captured.paidAt,
-                    failReason = saved.captured.failReason, createdAt = now, updatedAt = now,
-                )
-            }
-        }
-
-        @Test
-        fun `결제 성공 시 균형 원장(고객 차변 + 캐리어 변제)을 동일 트랜잭션에서 기입한다`() {
-            stubSuccessfulPayment()
-            val entries = slot<List<com.carry.payment.domain.model.LedgerEntry>>()
-            every { ledgerPort.record(capture(entries)) } returns Unit
-
-            sut.requestPayment(aCommand())
-
-            // 세탁비·배달비 → CARRIER(코인세탁소 현금 투입 변제 + 수고비), 고객은 총액 차변
-            assertThat(entries.captured.sumOf { it.amount }).isZero()
-            assertThat(entries.captured).hasSize(3)
-            val customer = entries.captured.single { it.accountType == com.carry.payment.domain.vo.LedgerAccountType.CUSTOMER }
-            assertThat(customer.amount).isEqualTo(-18000L)
-            val carrierSum = entries.captured
-                .filter { it.accountType == com.carry.payment.domain.vo.LedgerAccountType.CARRIER }
-                .sumOf { it.amount }
-            assertThat(carrierSum).isEqualTo(18000L)
-            assertThat(entries.captured.filter { it.accountType == com.carry.payment.domain.vo.LedgerAccountType.CARRIER })
-                .allMatch { it.accountId == 77L }
-        }
-
-        @Test
-        fun `결제 실패 시 원장을 기입하지 않는다`() {
-            every { invoicePersistencePort.findByOrderId(10L) } returns anInvoice()
-            every { paymentGatewayResolver.resolve(PgProvider.TOSS_PAYMENTS) } returns paymentGateway
-            every { paymentGateway.requestPayment(any()) } returns PgPaymentResult(success = false, failReason = "잔액 부족")
-            every { paymentPersistencePort.save(any()) } answers {
-                val p = firstArg<Payment>()
-                Payment.reconstitute(
-                    id = 42L, invoiceId = p.invoiceId, orderId = p.orderId, customerId = p.customerId,
-                    status = p.status, pgProvider = p.pgProvider, pgTransactionId = p.pgTransactionId,
-                    amount = p.amount, paidAt = p.paidAt, failReason = p.failReason, createdAt = now, updatedAt = now,
-                )
-            }
-
-            sut.requestPayment(aCommand())
-
-            verify(exactly = 0) { ledgerPort.record(any()) }
-        }
 
         @Test
         fun `환불 확정 시 역분개(부호 반전 REFUND 그룹)를 기입한다`() {

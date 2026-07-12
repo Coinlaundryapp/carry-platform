@@ -58,8 +58,6 @@ class OrderJpaEntity(
     val desiredDeliveryAt: Instant,
 
     var carrierId: Long?,
-    var invoiceId: Long?,
-    var totalAmount: Long?,
     @Column(precision = 10, scale = 2)
     var actualWeight: BigDecimal?,
 
@@ -97,8 +95,6 @@ class OrderJpaEntity(
         desiredPickupAt = desiredPickupAt,
         desiredDeliveryAt = desiredDeliveryAt,
         carrierId = carrierId,
-        invoiceId = invoiceId,
-        totalAmount = totalAmount,
         actualWeight = actualWeight,
         // 취소 컬럼은 cancel() 에서 항상 함께 채워지므로 셋 중 하나(사유)로 존재 여부를 판정한다.
         cancellation = cancelReason?.let { OrderCancellation(it, cancelledBy!!, cancelledAt!!) },
@@ -110,8 +106,6 @@ class OrderJpaEntity(
     fun updateFrom(order: Order) {
         status = order.status
         carrierId = order.carrierId
-        invoiceId = order.invoiceId
-        totalAmount = order.totalAmount
         actualWeight = order.actualWeight
         cancelReason = order.cancellation?.reason
         cancelledBy = order.cancellation?.by
@@ -138,8 +132,6 @@ class OrderJpaEntity(
                 desiredPickupAt = order.desiredPickupAt,
                 desiredDeliveryAt = order.desiredDeliveryAt,
                 carrierId = order.carrierId,
-                invoiceId = order.invoiceId,
-                totalAmount = order.totalAmount,
                 actualWeight = order.actualWeight,
                 cancelReason = order.cancellation?.reason,
                 cancelledBy = order.cancellation?.by,

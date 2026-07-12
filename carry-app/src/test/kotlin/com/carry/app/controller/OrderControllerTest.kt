@@ -76,7 +76,7 @@ class OrderControllerTest {
         selectedOptions = listOf(SelectedOption("WASH", "STANDARD")),
         shippingAddress = address,
         desiredPickupAt = pickupAt, desiredDeliveryAt = deliveryAt,
-        carrierId = null, invoiceId = null, totalAmount = null, actualWeight = null,
+        carrierId = null, actualWeight = null,
         cancellation = null, completedAt = null,
         createdAt = now, updatedAt = now,
     )

@@ -39,6 +39,7 @@ import org.springframework.jdbc.core.JdbcTemplate
 class OutboxAtomicityIntegrationTest : IntegrationTestBase() {
 
     @Autowired lateinit var orderCommandService: OrderCommandService
+    @Autowired lateinit var billingKeyUseCase: com.carry.payment.application.port.inbound.BillingKeyUseCase
     @Autowired lateinit var jdbc: JdbcTemplate
 
     @MockkBean(relaxed = true)
@@ -50,6 +51,7 @@ class OutboxAtomicityIntegrationTest : IntegrationTestBase() {
         TestFixtures.insertLaundromat(jdbc)
         TestFixtures.insertShippingAddress(jdbc)
         TestFixtures.insertServiceArea(jdbc)
+        TestFixtures.insertBillingKey(billingKeyUseCase)
     }
 
     @AfterEach

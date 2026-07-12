@@ -28,6 +28,7 @@ class QueryCountGuardTest : IntegrationTestBase() {
     @Autowired lateinit var dispatchSagaHandler: com.carry.dispatch.application.port.inbound.DispatchSagaEventHandler
     @Autowired lateinit var dispatchPersistencePort: com.carry.dispatch.application.port.outbound.DispatchPersistencePort
     @Autowired lateinit var objectMapper: com.fasterxml.jackson.databind.ObjectMapper
+    @Autowired lateinit var billingKeyUseCase: com.carry.payment.application.port.inbound.BillingKeyUseCase
 
     @BeforeEach
     fun setUp() {
@@ -37,6 +38,7 @@ class QueryCountGuardTest : IntegrationTestBase() {
         TestFixtures.insertShippingAddress(jdbc)
         TestFixtures.insertCarrierArea(jdbc)
         TestFixtures.insertServiceArea(jdbc)
+        TestFixtures.insertBillingKey(billingKeyUseCase)
     }
 
     @AfterEach

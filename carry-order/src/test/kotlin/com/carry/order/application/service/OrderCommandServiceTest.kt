@@ -10,6 +10,7 @@ import com.carry.order.application.port.inbound.CreateOrderCommand
 import com.carry.order.application.port.inbound.SelectedOptionCommand
 import com.carry.order.application.port.outbound.IdempotencyPort
 import com.carry.order.application.port.outbound.OrderPersistencePort
+import com.carry.order.application.port.outbound.contract.FakeBillingQueryPort
 import com.carry.order.application.port.outbound.contract.FakeLaundromatQueryPort
 import com.carry.order.application.port.outbound.contract.FakeServiceAvailabilityQueryPort
 import com.carry.order.application.port.outbound.contract.FakeUserQueryPort
@@ -38,6 +39,8 @@ class OrderCommandServiceTest {
     private val userQueryPort = FakeUserQueryPort()
     private val laundromatQueryPort = FakeLaundromatQueryPort()
     private val serviceAvailabilityQueryPort = FakeServiceAvailabilityQueryPort()
+    // 기본값(활성 빌링키 있음, 연체 없음) = 전제조건 통과 → 기존 createOrder 테스트에 영향 없음
+    private val billingQueryPort = FakeBillingQueryPort()
     private val eventPublisher = mockk<EventPublisherPort>(relaxed = true)
     private val metrics = mockk<MetricsPort>(relaxed = true)
     private val auditPort = mockk<AuditPort>(relaxed = true)
@@ -48,7 +51,7 @@ class OrderCommandServiceTest {
 
     private val sut = OrderCommandService(
         orderPersistencePort, userQueryPort, laundromatQueryPort, serviceAvailabilityQueryPort,
-        eventPublisher, metrics, auditPort, idempotencyPort, clock,
+        billingQueryPort, eventPublisher, metrics, auditPort, idempotencyPort, clock,
     )
 
     private val address = OrderShippingAddress(
@@ -84,7 +87,7 @@ class OrderCommandServiceTest {
                     shippingAddress = saved.captured.shippingAddress,
                     desiredPickupAt = saved.captured.desiredPickupAt,
                     desiredDeliveryAt = saved.captured.desiredDeliveryAt,
-                    carrierId = null, invoiceId = null, totalAmount = null, actualWeight = null,
+                    carrierId = null, actualWeight = null,
                     cancellation = null, completedAt = null,
                     createdAt = now, updatedAt = now,
                 )
@@ -108,6 +111,70 @@ class OrderCommandServiceTest {
                 .hasMessageContaining("세탁소")
                 .extracting("errorCode").isEqualTo(ErrorCode.LAUNDROMAT_NOT_FOUND)
         }
+
+        @Test
+        fun `활성 빌링키가 없으면 주문 생성이 BILLING_KEY_REQUIRED 로 거부된다`() {
+            userQueryPort.put(1L, 10L, address)
+            laundromatQueryPort.add(100L)
+            serviceAvailabilityQueryPort.markAvailable("GANGNAM")
+            billingQueryPort.setActiveBillingKey(1L, active = false)
+            // 완료된 주문 없음 → 재생 분기 통과 후 빌링 전제조건까지 도달
+            every { idempotencyPort.findCompletedOrderId("retry-key") } returns null
+
+            assertThatThrownBy { sut.createOrder(aCommand().copy(idempotencyKey = "retry-key")) }
+                .isInstanceOf(BusinessException::class.java)
+                .extracting("errorCode").isEqualTo(ErrorCode.BILLING_KEY_REQUIRED)
+
+            // 전제조건 거부 = 부작용 없음(주문 미생성, 이벤트 미발행)
+            verify(exactly = 0) { orderPersistencePort.save(any()) }
+            verify(exactly = 0) { eventPublisher.publish(any(), any(), any(), any(), any()) }
+            // 교정 가능한 거부 → 멱등 슬롯을 소비하지 않아야 카드 등록 후 동일 주문 재시도가 막히지 않는다
+            verify(exactly = 0) { idempotencyPort.reserve(any()) }
+        }
+
+        @Test
+        fun `연체 인보이스가 있으면 주문 생성이 OVERDUE_INVOICE_EXISTS 로 거부된다`() {
+            userQueryPort.put(1L, 10L, address)
+            laundromatQueryPort.add(100L)
+            serviceAvailabilityQueryPort.markAvailable("GANGNAM")
+            billingQueryPort.setOverdueInvoice(1L, overdue = true)
+
+            assertThatThrownBy { sut.createOrder(aCommand()) }
+                .isInstanceOf(BusinessException::class.java)
+                .extracting("errorCode").isEqualTo(ErrorCode.OVERDUE_INVOICE_EXISTS)
+
+            verify(exactly = 0) { orderPersistencePort.save(any()) }
+            verify(exactly = 0) { eventPublisher.publish(any(), any(), any(), any(), any()) }
+        }
+
+        @Test
+        fun `전제조건 통과 시 주문이 정상 생성된다`() {
+            userQueryPort.put(1L, 10L, address)
+            laundromatQueryPort.add(100L)
+            serviceAvailabilityQueryPort.markAvailable("GANGNAM")
+            billingQueryPort.setActiveBillingKey(1L, active = true)
+            billingQueryPort.setOverdueInvoice(1L, overdue = false)
+            val saved = slot<Order>()
+            every { orderPersistencePort.save(capture(saved)) } answers {
+                Order.reconstitute(
+                    id = 42L, customerId = saved.captured.customerId,
+                    status = saved.captured.status, laundromatId = saved.captured.laundromatId,
+                    laundryItemType = saved.captured.laundryItemType,
+                    selectedOptions = saved.captured.selectedOptions,
+                    shippingAddress = saved.captured.shippingAddress,
+                    desiredPickupAt = saved.captured.desiredPickupAt,
+                    desiredDeliveryAt = saved.captured.desiredDeliveryAt,
+                    carrierId = null, actualWeight = null,
+                    cancellation = null, completedAt = null,
+                    createdAt = now, updatedAt = now,
+                )
+            }
+
+            val result = sut.createOrder(aCommand())
+
+            assertThat(result.id).isEqualTo(42L)
+            verify { eventPublisher.publish("Order", "42", "OrderCreatedEvent", any(), any()) }
+        }
     }
 
     @Nested
@@ -120,7 +187,7 @@ class OrderCommandServiceTest {
             laundryItemType = "REGULAR", selectedOptions = listOf(SelectedOption("WASH", "STANDARD")),
             shippingAddress = address, desiredPickupAt = now.plus(2, ChronoUnit.HOURS),
             desiredDeliveryAt = now.plus(6, ChronoUnit.HOURS),
-            carrierId = null, invoiceId = null, totalAmount = null, actualWeight = null,
+            carrierId = null, actualWeight = null,
             cancellation = null, completedAt = null,
             createdAt = now, updatedAt = now,
         )
@@ -164,7 +231,7 @@ class OrderCommandServiceTest {
                     laundromatId = saved.captured.laundromatId, laundryItemType = saved.captured.laundryItemType,
                     selectedOptions = saved.captured.selectedOptions, shippingAddress = saved.captured.shippingAddress,
                     desiredPickupAt = saved.captured.desiredPickupAt, desiredDeliveryAt = saved.captured.desiredDeliveryAt,
-                    carrierId = null, invoiceId = null, totalAmount = null, actualWeight = null,
+                    carrierId = null, actualWeight = null,
                     cancellation = null, completedAt = null,
                     createdAt = now, updatedAt = now,
                 )
@@ -180,17 +247,19 @@ class OrderCommandServiceTest {
     @Nested
     inner class CancelOrder {
 
+        private fun orderAt(status: OrderStatus, carrierId: Long? = null, actualWeight: java.math.BigDecimal? = null) = Order.reconstitute(
+            id = 1L, customerId = 1L, status = status,
+            laundromatId = 10L, laundryItemType = "REGULAR",
+            selectedOptions = listOf(SelectedOption("WASH", "STANDARD")),
+            shippingAddress = address, desiredPickupAt = now, desiredDeliveryAt = now.plus(4, ChronoUnit.HOURS),
+            carrierId = carrierId, actualWeight = actualWeight,
+            cancellation = null, completedAt = null,
+            createdAt = now, updatedAt = now,
+        )
+
         @Test
         fun `CREATED 상태의 주문을 취소하고 이벤트를 발행한다`() {
-            val order = Order.reconstitute(
-                id = 1L, customerId = 1L, status = OrderStatus.CREATED,
-                laundromatId = 10L, laundryItemType = "REGULAR",
-                selectedOptions = listOf(SelectedOption("WASH", "STANDARD")),
-                shippingAddress = address, desiredPickupAt = now, desiredDeliveryAt = now.plus(4, ChronoUnit.HOURS),
-                carrierId = null, invoiceId = null, totalAmount = null, actualWeight = null,
-                cancellation = null, completedAt = null,
-                createdAt = now, updatedAt = now,
-            )
+            val order = orderAt(OrderStatus.CREATED)
             every { orderPersistencePort.findById(1L) } returns order
 
             sut.cancelOrderByCustomer(1L, 1L, "고객 변심")
@@ -201,52 +270,32 @@ class OrderCommandServiceTest {
         }
 
         @Test
-        fun `PICKED_UP 상태의 주문 취소 시 예외가 발생한다`() {
-            val order = Order.reconstitute(
-                id = 1L, customerId = 1L, status = OrderStatus.PICKED_UP,
-                laundromatId = 10L, laundryItemType = "REGULAR",
-                selectedOptions = listOf(SelectedOption("WASH", "STANDARD")),
-                shippingAddress = address, desiredPickupAt = now, desiredDeliveryAt = now.plus(4, ChronoUnit.HOURS),
-                carrierId = 100L, invoiceId = null, totalAmount = null, actualWeight = java.math.BigDecimal("3.0"),
-                cancellation = null, completedAt = null,
-                createdAt = now, updatedAt = now,
-            )
+        fun `PICKED_UP 상태의 주문을 고객이 취소하면 예외가 발생한다`() {
+            val order = orderAt(OrderStatus.PICKED_UP, carrierId = 100L, actualWeight = java.math.BigDecimal("3.0"))
             every { orderPersistencePort.findById(1L) } returns order
 
             assertThatThrownBy { sut.cancelOrderByCustomer(1L, 1L, "취소 시도") }
                 .isInstanceOf(OrderNotCancellableException::class.java)
         }
 
-        private fun paidOrder() = Order.reconstitute(
-            id = 1L, customerId = 1L, status = OrderStatus.PAID,
-            laundromatId = 10L, laundryItemType = "REGULAR",
-            selectedOptions = listOf(SelectedOption("WASH", "STANDARD")),
-            shippingAddress = address, desiredPickupAt = now, desiredDeliveryAt = now.plus(4, ChronoUnit.HOURS),
-            carrierId = 100L, invoiceId = 200L, totalAmount = 18000L, actualWeight = java.math.BigDecimal("5.0"),
-            cancellation = null, completedAt = null,
-            createdAt = now, updatedAt = now,
-        )
-
         @Test
-        fun `PAID 주문을 코디네이터가 취소하면 REFUND_PENDING으로 전이하고 OrderCancelledEvent를 발행한다`() {
-            val order = paidOrder()
+        fun `코디네이터가 PICKED_UP 주문 취소 시 CANCELLED로 전이하고 이벤트를 발행한다`() {
+            val order = orderAt(OrderStatus.PICKED_UP, carrierId = 100L, actualWeight = java.math.BigDecimal("5.0"))
             every { orderPersistencePort.findById(1L) } returns order
             val saved = slot<Order>()
             every { orderPersistencePort.save(capture(saved)) } answers { saved.captured }
 
             sut.cancelOrder(1L, "세탁소 사정으로 취소", "COORDINATOR")
 
-            // 결제 완료 후 취소 = 즉시 CANCELLED 가 아니라 환불 보상 대기 상태로 전이
-            assertThat(saved.captured.status).isEqualTo(OrderStatus.REFUND_PENDING)
-            // 캐스케이드(dispatch/delivery 취소 + 환불) 트리거용 이벤트는 그대로 발행
+            // 수거 후 취소도 즉시 CANCELLED — 환불/과금중단은 OrderCancelledEvent 를 구독하는 결제 모듈 소관
+            assertThat(saved.captured.status).isEqualTo(OrderStatus.CANCELLED)
             verify { eventPublisher.publish("Order", "1", "OrderCancelledEvent", any(), any()) }
             verify { metrics.incrementCounter("carry.order.cancelled", "by" to "COORDINATOR") }
-            // 민감 작업 감사: 변이 전(PAID)→후(REFUND_PENDING) 기록
             verify {
                 auditPort.record(
                     AuditAction.ORDER_CANCEL, "ORDER", "1",
-                    mapOf("status" to "PAID"),
-                    mapOf("status" to "REFUND_PENDING", "reason" to "세탁소 사정으로 취소", "cancelledBy" to "COORDINATOR"),
+                    mapOf("status" to "PICKED_UP"),
+                    mapOf("status" to "CANCELLED", "reason" to "세탁소 사정으로 취소", "cancelledBy" to "COORDINATOR"),
                 )
             }
         }
@@ -254,15 +303,7 @@ class OrderCommandServiceTest {
         @Test
         fun `고객 셀프취소도 감사로그를 기록한다`() {
             // 코디 취소(cancelOrder)만 감사가 남고 셀프취소는 메트릭만 남던 액터별 비대칭 제거
-            val order = Order.reconstitute(
-                id = 1L, customerId = 1L, status = OrderStatus.CREATED,
-                laundromatId = 10L, laundryItemType = "REGULAR",
-                selectedOptions = listOf(SelectedOption("WASH", "STANDARD")),
-                shippingAddress = address, desiredPickupAt = now, desiredDeliveryAt = now.plus(4, ChronoUnit.HOURS),
-                carrierId = null, invoiceId = null, totalAmount = null, actualWeight = null,
-                cancellation = null, completedAt = null,
-                createdAt = now, updatedAt = now,
-            )
+            val order = orderAt(OrderStatus.CREATED)
             every { orderPersistencePort.findById(1L) } returns order
 
             sut.cancelOrderByCustomer(1L, 1L, "고객 변심")
@@ -279,15 +320,7 @@ class OrderCommandServiceTest {
         @Test
         fun `유효하지 않은 취소 주체 문자열은 INVALID_INPUT 예외로 매핑된다`() {
             // raw IllegalArgumentException 은 catch-all 에 걸려 500 — 클라이언트 잘못이므로 400 이어야 한다
-            val order = Order.reconstitute(
-                id = 1L, customerId = 1L, status = OrderStatus.CREATED,
-                laundromatId = 10L, laundryItemType = "REGULAR",
-                selectedOptions = listOf(SelectedOption("WASH", "STANDARD")),
-                shippingAddress = address, desiredPickupAt = now, desiredDeliveryAt = now.plus(4, ChronoUnit.HOURS),
-                carrierId = null, invoiceId = null, totalAmount = null, actualWeight = null,
-                cancellation = null, completedAt = null,
-                createdAt = now, updatedAt = now,
-            )
+            val order = orderAt(OrderStatus.CREATED)
             every { orderPersistencePort.findById(1L) } returns order
 
             assertThatThrownBy { sut.cancelOrder(1L, "취소", "HACKER") }
@@ -296,26 +329,8 @@ class OrderCommandServiceTest {
         }
 
         @Test
-        fun `고객이 PAID 주문을 직접 취소하면 차단된다`() {
-            // 픽업 후 고객 self-cancel 차단 정책 유지 — 환불 분기는 코디ㆍ시스템 전용
-            val order = paidOrder()
-            every { orderPersistencePort.findById(1L) } returns order
-
-            assertThatThrownBy { sut.cancelOrderByCustomer(1L, 1L, "고객 변심") }
-                .isInstanceOf(OrderNotCancellableException::class.java)
-        }
-
-        @Test
         fun `주문 소유자가 아니면 OrderNotOwnedException 이 발생한다`() {
-            val order = Order.reconstitute(
-                id = 1L, customerId = 1L, status = OrderStatus.CREATED,
-                laundromatId = 10L, laundryItemType = "REGULAR",
-                selectedOptions = listOf(SelectedOption("WASH", "STANDARD")),
-                shippingAddress = address, desiredPickupAt = now, desiredDeliveryAt = now.plus(4, ChronoUnit.HOURS),
-                carrierId = null, invoiceId = null, totalAmount = null, actualWeight = null,
-                cancellation = null, completedAt = null,
-                createdAt = now, updatedAt = now,
-            )
+            val order = orderAt(OrderStatus.CREATED)
             every { orderPersistencePort.findById(1L) } returns order
 
             assertThatThrownBy { sut.cancelOrderByCustomer(1L, 999L, "남의 주문 취소 시도") }

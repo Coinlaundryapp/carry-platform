@@ -64,6 +64,11 @@ class Invoice private constructor(
         transitTo(InvoiceStatus.PAID)
     }
 
+    /** 결제 재시도가 소진되지 않은 채 연체 임계를 넘긴 청구서를 미수금으로 확정한다(신규 주문 차단용). */
+    fun markOverdue() {
+        transitTo(InvoiceStatus.OVERDUE)
+    }
+
     fun cancel() {
         transitTo(InvoiceStatus.CANCELLED)
     }

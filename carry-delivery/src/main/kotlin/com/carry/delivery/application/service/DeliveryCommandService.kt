@@ -3,10 +3,8 @@ package com.carry.delivery.application.service
 import com.carry.common.metrics.MetricsPort
 import com.carry.delivery.application.port.inbound.DeliveryCommandUseCase
 import com.carry.delivery.application.port.outbound.DeliveryPersistencePort
-import com.carry.delivery.application.port.outbound.PaymentQueryPort
 import com.carry.delivery.domain.exception.DeliveryNotFoundException
 import com.carry.delivery.domain.exception.DeliveryNotOwnedException
-import com.carry.delivery.domain.exception.OrderNotPaidException
 import com.carry.delivery.domain.model.Delivery
 import com.carry.delivery.domain.vo.DeliveryStatus
 import com.carry.event.delivery.DeliveryCompletedEvent
@@ -23,7 +21,6 @@ import java.time.Duration
 @Service
 class DeliveryCommandService(
     private val deliveryPersistencePort: DeliveryPersistencePort,
-    private val paymentQueryPort: PaymentQueryPort,
     private val eventPublisher: EventPublisherPort,
     private val metrics: MetricsPort,
     private val clock: Clock,
@@ -106,13 +103,10 @@ class DeliveryCommandService(
     override fun completeDelivery(deliveryId: Long, photoIds: List<Long>, requestingCarrierId: Long): Delivery {
         val delivery = findOwnedDelivery(deliveryId, requestingCarrierId)
 
-        // 이미 배달 완료(DELIVERED)면 멱등 no-op → 결제 재확인 없이 현재 상태 반환.
+        // 이미 배달 완료(DELIVERED)면 멱등 no-op → 현재 상태 반환.
         if (delivery.status == DeliveryStatus.DELIVERED) return delivery
 
-        if (!paymentQueryPort.isOrderPaid(delivery.orderId)) {
-            throw OrderNotPaidException(delivery.orderId)
-        }
-
+        // 물리 흐름은 결제를 기다리지 않는다 — 빌링키 자동 청구가 별도 트리거로 병행 진행.
         val transitioned = delivery.completeDelivery(photoIds, clock.instant())
         if (!transitioned) return delivery // 방어적(상태 레이스) — 발행·메트릭 억제.
         val saved = deliveryPersistencePort.save(delivery)

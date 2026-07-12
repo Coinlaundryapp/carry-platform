@@ -267,10 +267,10 @@ tests:
         alertname: SagaStuck
         # exp_alerts 생략 = no fire
   - interval: 30s
-    name: SagaStuck firing (INVOICED 정체 지속)
+    name: SagaStuck firing (PICKED_UP 정체 지속)
     input_series:
       # 30s 간격으로 계속 증가 → increase(30m) > 0 이 36m 시점까지 지속(for: 5m 충족)
-      - series: carry_saga_stuck_total{status="INVOICED"}
+      - series: carry_saga_stuck_total{status="PICKED_UP"}
         values: '0+1x80'
     alert_rule_test:
       - eval_time: 36m
@@ -281,8 +281,8 @@ tests:
               route: business
               team: carry
               service: carry-platform
-              status: 'INVOICED'
+              status: 'PICKED_UP'
             exp_annotations:
-              summary: '정체된 주문 사가가 감지됐습니다 (status=INVOICED)'
-              description: '비종결 중간 상태 status=INVOICED 에 6h+ 정체된 주문이 있습니다 (최근 30분 내 감지, StuckSagaDetector 기준)'
+              summary: '정체된 주문 사가가 감지됐습니다 (status=PICKED_UP)'
+              description: '비종결 중간 상태 status=PICKED_UP 에 24h+ 정체된 주문이 있습니다 (최근 30분 내 감지, StuckSagaDetector 기준)'
               runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/saga-stuck.md'

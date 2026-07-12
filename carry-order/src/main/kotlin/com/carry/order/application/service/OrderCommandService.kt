@@ -12,6 +12,7 @@ import com.carry.event.order.ShippingAddressDto
 import com.carry.event.port.EventPublisherPort
 import com.carry.order.application.port.inbound.CreateOrderCommand
 import com.carry.order.application.port.inbound.OrderCommandUseCase
+import com.carry.order.application.port.outbound.BillingQueryPort
 import com.carry.order.application.port.outbound.IdempotencyPort
 import com.carry.order.application.port.outbound.LaundromatQueryPort
 import com.carry.order.application.port.outbound.OrderPersistencePort
@@ -33,6 +34,7 @@ class OrderCommandService(
     private val userQueryPort: UserQueryPort,
     private val laundromatQueryPort: LaundromatQueryPort,
     private val serviceAvailabilityQueryPort: ServiceAvailabilityQueryPort,
+    private val billingQueryPort: BillingQueryPort,
     private val eventPublisher: EventPublisherPort,
     private val metrics: MetricsPort,
     private val auditPort: AuditPort,
@@ -43,9 +45,23 @@ class OrderCommandService(
     @Transactional
     override fun createOrder(command: CreateOrderCommand): Order {
         val key = command.idempotencyKey
+        // 이미 완료된 동일 키 → 새로 만들지 않고 기존 주문을 재생.
+        // (완료된 주문은 이후 카드가 삭제돼도 유효하므로 빌링 전제조건보다 먼저 반환한다.)
         if (key != null) {
-            // 이미 완료된 동일 키 → 새로 만들지 않고 기존 주문을 재생.
             idempotencyPort.findCompletedOrderId(key)?.let { return findOrder(it) }
+        }
+
+        // 주문 생성 전제조건: 존재하는 주문은 결제 때문에 멈추지 않는다 — 그 대가로 생성 시점에 지불수단을 확보한다.
+        // 교정 가능한 거부(카드 등록 후 동일 주문 재시도)이므로 멱등 예약 슬롯을 소비하기 전에 검사한다 —
+        // 예약 이후에 거부하면 PENDING 슬롯이 남아 정당한 재시도가 IDEMPOTENT_REQUEST_IN_PROGRESS 로 막힌다.
+        if (!billingQueryPort.hasActiveBillingKey(command.customerId)) {
+            throw BusinessException(ErrorCode.BILLING_KEY_REQUIRED, "customerId=${command.customerId}")
+        }
+        if (billingQueryPort.hasOverdueInvoice(command.customerId)) {
+            throw BusinessException(ErrorCode.OVERDUE_INVOICE_EXISTS, "customerId=${command.customerId}")
+        }
+
+        if (key != null) {
             // 선점 실패 = 같은 키가 진행 중(또는 동시 요청 레이스의 패자) → 409.
             if (!idempotencyPort.reserve(key)) {
                 throw BusinessException(
@@ -111,20 +127,14 @@ class OrderCommandService(
         orderPersistencePort.findById(orderId) ?: throw OrderNotFoundException(orderId)
 
     // 내부/코디네이터/시스템 등 다중 액터용 (cancelledBy 명시).
+    // 수거 후 취소도 이 경로를 그대로 탄다 — 결제 환불/과금중단은 OrderCancelledEvent 를 구독하는
+    // carry-payment 모듈의 소관이며, 주문 도메인은 isCancellableBy 가드로 행위자별 취소 가능 여부만 판단한다.
     @Transactional
     override fun cancelOrder(orderId: Long, reason: String, cancelledBy: String) {
         val order = orderPersistencePort.findById(orderId) ?: throw OrderNotFoundException(orderId)
         val by = parseCancelledBy(cancelledBy)
         val beforeStatus = order.status
-        if (order.status == OrderStatus.PAID) {
-            // 결제 완료 후 취소 = 즉시 종료가 아니라 환불 보상 트랜잭션 시작.
-            // 동일한 OrderCancelledEvent 로 dispatch/delivery 캐스케이드와 결제 환불을 함께 트리거한다.
-            order.markRefundPending()
-            orderPersistencePort.save(order)
-            publishOrderCancelled(order, reason, by)
-        } else {
-            doCancel(order, reason, by)
-        }
+        doCancel(order, reason, by)
         recordCancelAudit(orderId, beforeStatus, order, reason, by)
     }
 

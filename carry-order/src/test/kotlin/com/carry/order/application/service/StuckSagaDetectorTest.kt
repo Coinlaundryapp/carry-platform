@@ -21,7 +21,7 @@ class StuckSagaDetectorTest {
     private val metrics = mockk<MetricsPort>(relaxed = true)
     private val now = Instant.parse("2026-06-10T12:00:00Z")
     private val clock = Clock.fixed(now, ZoneOffset.UTC)
-    private val thresholdHours = 6L
+    private val thresholdHours = 24L
     private val sut = StuckSagaDetector(orderPersistencePort, metrics, clock, thresholdHours)
 
     private val address = OrderShippingAddress(
@@ -32,7 +32,7 @@ class StuckSagaDetectorTest {
         id = id, customerId = 1L, status = status, laundromatId = 10L,
         laundryItemType = "REGULAR", selectedOptions = listOf(SelectedOption("WASH", "STANDARD")),
         shippingAddress = address, desiredPickupAt = now, desiredDeliveryAt = now.plus(4, ChronoUnit.HOURS),
-        carrierId = null, invoiceId = null, totalAmount = null, actualWeight = null,
+        carrierId = null, actualWeight = null,
         cancellation = null, completedAt = null,
         createdAt = now.minus(10, ChronoUnit.HOURS), updatedAt = now.minus(10, ChronoUnit.HOURS),
     )
@@ -41,13 +41,13 @@ class StuckSagaDetectorTest {
     fun `정체된 주문 감지 시 상태 태그로 carry_saga_stuck 을 증가시킨다`() {
         every { orderPersistencePort.findByStatusAndUpdatedAtBefore(OrderStatus.DISPATCHED, any()) } returns
             listOf(orderAt(1L, OrderStatus.DISPATCHED))
-        every { orderPersistencePort.findByStatusAndUpdatedAtBefore(OrderStatus.INVOICED, any()) } returns
-            listOf(orderAt(2L, OrderStatus.INVOICED))
+        every { orderPersistencePort.findByStatusAndUpdatedAtBefore(OrderStatus.PICKED_UP, any()) } returns
+            listOf(orderAt(2L, OrderStatus.PICKED_UP))
 
         sut.detectStuckSagas()
 
         verify { metrics.incrementCounter("carry.saga.stuck", "status" to "DISPATCHED") }
-        verify { metrics.incrementCounter("carry.saga.stuck", "status" to "INVOICED") }
+        verify { metrics.incrementCounter("carry.saga.stuck", "status" to "PICKED_UP") }
     }
 
     @Test
@@ -67,8 +67,8 @@ class StuckSagaDetectorTest {
         // 감시 대상은 cutoff 로 조회된다.
         verify { orderPersistencePort.findByStatusAndUpdatedAtBefore(OrderStatus.CREATED, cutoff) }
         verify { orderPersistencePort.findByStatusAndUpdatedAtBefore(OrderStatus.IN_PROGRESS, cutoff) }
-        // 종결·전용 스위퍼 보유 상태는 감시 대상이 아니다(중복 경보 방지).
-        listOf(OrderStatus.COMPLETED, OrderStatus.CANCELLED, OrderStatus.REFUNDED, OrderStatus.PAYMENT_FAILED)
+        // 종결 상태는 감시 대상이 아니다(중복 경보 방지).
+        listOf(OrderStatus.COMPLETED, OrderStatus.CANCELLED)
             .forEach { terminal ->
                 verify(exactly = 0) { orderPersistencePort.findByStatusAndUpdatedAtBefore(terminal, any()) }
             }

@@ -107,5 +107,33 @@ class InvoiceTest {
             assertThatThrownBy { invoice.cancel() }
                 .isInstanceOf(BusinessException::class.java)
         }
+
+        @Test
+        fun `ISSUED 에서 OVERDUE 로 전이할 수 있다`() {
+            val invoice = reconstitutedInvoice(InvoiceStatus.ISSUED)
+            invoice.markOverdue()
+            assertThat(invoice.status).isEqualTo(InvoiceStatus.OVERDUE)
+        }
+
+        @Test
+        fun `OVERDUE 에서 PAID 로 전이할 수 있다`() {
+            val invoice = reconstitutedInvoice(InvoiceStatus.OVERDUE)
+            invoice.markPaid()
+            assertThat(invoice.status).isEqualTo(InvoiceStatus.PAID)
+        }
+
+        @Test
+        fun `OVERDUE 에서 CANCELLED 로 전이할 수 있다`() {
+            val invoice = reconstitutedInvoice(InvoiceStatus.OVERDUE)
+            invoice.cancel()
+            assertThat(invoice.status).isEqualTo(InvoiceStatus.CANCELLED)
+        }
+
+        @Test
+        fun `PAID 에서 OVERDUE 는 불가`() {
+            val invoice = reconstitutedInvoice(InvoiceStatus.PAID)
+            assertThatThrownBy { invoice.markOverdue() }
+                .isInstanceOf(BusinessException::class.java)
+        }
     }
 }

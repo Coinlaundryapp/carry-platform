@@ -34,6 +34,7 @@ class DispatchSagaIntegrationTest : IntegrationTestBase() {
     @Autowired lateinit var dispatchCommandService: DispatchCommandService
     @Autowired lateinit var dispatchSagaHandler: DispatchSagaEventHandler
     @Autowired lateinit var dispatchPersistencePort: DispatchPersistencePort
+    @Autowired lateinit var billingKeyUseCase: com.carry.payment.application.port.inbound.BillingKeyUseCase
     @Autowired lateinit var jdbc: JdbcTemplate
     @Autowired lateinit var objectMapper: ObjectMapper
 
@@ -48,6 +49,7 @@ class DispatchSagaIntegrationTest : IntegrationTestBase() {
         TestFixtures.insertShippingAddress(jdbc)
         TestFixtures.insertCarrierArea(jdbc)
         TestFixtures.insertServiceArea(jdbc)
+        TestFixtures.insertBillingKey(billingKeyUseCase)
     }
 
     @AfterEach
