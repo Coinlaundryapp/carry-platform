@@ -12,6 +12,7 @@ import com.carry.event.order.ShippingAddressDto
 import com.carry.event.port.EventPublisherPort
 import com.carry.order.application.port.inbound.CreateOrderCommand
 import com.carry.order.application.port.inbound.OrderCommandUseCase
+import com.carry.order.application.port.outbound.BillingQueryPort
 import com.carry.order.application.port.outbound.IdempotencyPort
 import com.carry.order.application.port.outbound.LaundromatQueryPort
 import com.carry.order.application.port.outbound.OrderPersistencePort
@@ -33,6 +34,7 @@ class OrderCommandService(
     private val userQueryPort: UserQueryPort,
     private val laundromatQueryPort: LaundromatQueryPort,
     private val serviceAvailabilityQueryPort: ServiceAvailabilityQueryPort,
+    private val billingQueryPort: BillingQueryPort,
     private val eventPublisher: EventPublisherPort,
     private val metrics: MetricsPort,
     private val auditPort: AuditPort,
@@ -53,6 +55,14 @@ class OrderCommandService(
                     "동일한 Idempotency-Key 요청이 이미 진행 중입니다: $key",
                 )
             }
+        }
+
+        // 주문 생성 전제조건: 존재하는 주문은 결제 때문에 멈추지 않는다 — 그 대가로 생성 시점에 지불수단을 확보한다.
+        if (!billingQueryPort.hasActiveBillingKey(command.customerId)) {
+            throw BusinessException(ErrorCode.BILLING_KEY_REQUIRED, "customerId=${command.customerId}")
+        }
+        if (billingQueryPort.hasOverdueInvoice(command.customerId)) {
+            throw BusinessException(ErrorCode.OVERDUE_INVOICE_EXISTS, "customerId=${command.customerId}")
         }
 
         val address = userQueryPort.getShippingAddress(command.customerId, command.shippingAddressId)

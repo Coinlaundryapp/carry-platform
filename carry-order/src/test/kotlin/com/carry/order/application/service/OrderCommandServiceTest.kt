@@ -10,6 +10,7 @@ import com.carry.order.application.port.inbound.CreateOrderCommand
 import com.carry.order.application.port.inbound.SelectedOptionCommand
 import com.carry.order.application.port.outbound.IdempotencyPort
 import com.carry.order.application.port.outbound.OrderPersistencePort
+import com.carry.order.application.port.outbound.contract.FakeBillingQueryPort
 import com.carry.order.application.port.outbound.contract.FakeLaundromatQueryPort
 import com.carry.order.application.port.outbound.contract.FakeServiceAvailabilityQueryPort
 import com.carry.order.application.port.outbound.contract.FakeUserQueryPort
@@ -38,6 +39,8 @@ class OrderCommandServiceTest {
     private val userQueryPort = FakeUserQueryPort()
     private val laundromatQueryPort = FakeLaundromatQueryPort()
     private val serviceAvailabilityQueryPort = FakeServiceAvailabilityQueryPort()
+    // 기본값(활성 빌링키 있음, 연체 없음) = 전제조건 통과 → 기존 createOrder 테스트에 영향 없음
+    private val billingQueryPort = FakeBillingQueryPort()
     private val eventPublisher = mockk<EventPublisherPort>(relaxed = true)
     private val metrics = mockk<MetricsPort>(relaxed = true)
     private val auditPort = mockk<AuditPort>(relaxed = true)
@@ -48,7 +51,7 @@ class OrderCommandServiceTest {
 
     private val sut = OrderCommandService(
         orderPersistencePort, userQueryPort, laundromatQueryPort, serviceAvailabilityQueryPort,
-        eventPublisher, metrics, auditPort, idempotencyPort, clock,
+        billingQueryPort, eventPublisher, metrics, auditPort, idempotencyPort, clock,
     )
 
     private val address = OrderShippingAddress(
@@ -107,6 +110,66 @@ class OrderCommandServiceTest {
                 .isInstanceOf(BusinessException::class.java)
                 .hasMessageContaining("세탁소")
                 .extracting("errorCode").isEqualTo(ErrorCode.LAUNDROMAT_NOT_FOUND)
+        }
+
+        @Test
+        fun `활성 빌링키가 없으면 주문 생성이 BILLING_KEY_REQUIRED 로 거부된다`() {
+            userQueryPort.put(1L, 10L, address)
+            laundromatQueryPort.add(100L)
+            serviceAvailabilityQueryPort.markAvailable("GANGNAM")
+            billingQueryPort.setActiveBillingKey(1L, active = false)
+
+            assertThatThrownBy { sut.createOrder(aCommand()) }
+                .isInstanceOf(BusinessException::class.java)
+                .extracting("errorCode").isEqualTo(ErrorCode.BILLING_KEY_REQUIRED)
+
+            // 전제조건 거부 = 부작용 없음(주문 미생성, 이벤트 미발행)
+            verify(exactly = 0) { orderPersistencePort.save(any()) }
+            verify(exactly = 0) { eventPublisher.publish(any(), any(), any(), any(), any()) }
+        }
+
+        @Test
+        fun `연체 인보이스가 있으면 주문 생성이 OVERDUE_INVOICE_EXISTS 로 거부된다`() {
+            userQueryPort.put(1L, 10L, address)
+            laundromatQueryPort.add(100L)
+            serviceAvailabilityQueryPort.markAvailable("GANGNAM")
+            billingQueryPort.setOverdueInvoice(1L, overdue = true)
+
+            assertThatThrownBy { sut.createOrder(aCommand()) }
+                .isInstanceOf(BusinessException::class.java)
+                .extracting("errorCode").isEqualTo(ErrorCode.OVERDUE_INVOICE_EXISTS)
+
+            verify(exactly = 0) { orderPersistencePort.save(any()) }
+            verify(exactly = 0) { eventPublisher.publish(any(), any(), any(), any(), any()) }
+        }
+
+        @Test
+        fun `전제조건 통과 시 주문이 정상 생성된다`() {
+            userQueryPort.put(1L, 10L, address)
+            laundromatQueryPort.add(100L)
+            serviceAvailabilityQueryPort.markAvailable("GANGNAM")
+            billingQueryPort.setActiveBillingKey(1L, active = true)
+            billingQueryPort.setOverdueInvoice(1L, overdue = false)
+            val saved = slot<Order>()
+            every { orderPersistencePort.save(capture(saved)) } answers {
+                Order.reconstitute(
+                    id = 42L, customerId = saved.captured.customerId,
+                    status = saved.captured.status, laundromatId = saved.captured.laundromatId,
+                    laundryItemType = saved.captured.laundryItemType,
+                    selectedOptions = saved.captured.selectedOptions,
+                    shippingAddress = saved.captured.shippingAddress,
+                    desiredPickupAt = saved.captured.desiredPickupAt,
+                    desiredDeliveryAt = saved.captured.desiredDeliveryAt,
+                    carrierId = null, actualWeight = null,
+                    cancellation = null, completedAt = null,
+                    createdAt = now, updatedAt = now,
+                )
+            }
+
+            val result = sut.createOrder(aCommand())
+
+            assertThat(result.id).isEqualTo(42L)
+            verify { eventPublisher.publish("Order", "42", "OrderCreatedEvent", any(), any()) }
         }
     }
 

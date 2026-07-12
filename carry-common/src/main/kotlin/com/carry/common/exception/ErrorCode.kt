@@ -47,6 +47,8 @@ enum class ErrorCode(
     ORDER_NOT_CANCELLABLE(409, "Order cannot be cancelled in current status"),
     ORDER_NOT_OWNED(403, "Order does not belong to the user"),
     IDEMPOTENT_REQUEST_IN_PROGRESS(409, "A request with the same idempotency key is already in progress"),
+    BILLING_KEY_REQUIRED(409, "Active billing key is required to create an order"),
+    OVERDUE_INVOICE_EXISTS(409, "Customer has an overdue invoice"),
 
     // Payment
     PAYMENT_NOT_FOUND(404, "Payment not found"),
