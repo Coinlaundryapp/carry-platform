@@ -698,7 +698,8 @@ val nextRetryAt: Instant? get() = _nextRetryAt
 
 /** 과금 실패 후 다음 재시도 예약. 백오프: 1h → 4h → 12h → 24h → 이후 24h 고정. */
 fun scheduleRetry(now: Instant) {
-    check(_status == PaymentStatus.FAILED) { "FAILED 상태에서만 재시도를 예약할 수 있습니다" }
+    // 도메인 규약: plain check 대신 checkState(→BusinessException→4xx). Payment.kt 기존 전이 가드와 동일 스타일로.
+    checkState(_status == PaymentStatus.FAILED) { "FAILED 상태에서만 재시도를 예약할 수 있습니다" }
     _retryCount += 1
     _nextRetryAt = now.plus(backoffFor(_retryCount))
 }
