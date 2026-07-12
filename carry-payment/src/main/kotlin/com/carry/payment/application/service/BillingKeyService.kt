@@ -27,6 +27,9 @@ class BillingKeyService(
     override fun register(customerId: Long, authKey: String): BillingKey {
         val existing = billingKeyPersistencePort.findActiveByCustomerId(customerId)
         // customerKey 는 고객 최초 등록 시 1회 생성 — 이후 재등록에도 동일 키 재사용(토스 권장).
+        // ⚠️ 이 재사용은 "활성 키가 항상 존재한다"는 전제 위에서만 안정적이다. 향후 무효화-후-미교체
+        // 경로(Task 8+ 카드 해지 등)가 생기면, 여기서 상태 무관 최신 키(most-recent regardless of status)를
+        // 조회해 customerKey 를 이어받도록 바꿔야 토스 customerKey 안정성 보장이 유지된다.
         val customerKey = existing?.customerKey ?: UUID.randomUUID().toString()
 
         val gateway = paymentGatewayResolver.resolve(PgProvider.TOSS_PAYMENTS)
@@ -34,6 +37,9 @@ class BillingKeyService(
         if (!result.success) {
             throw BusinessException(ErrorCode.BILLING_KEY_ISSUE_FAILED, result.failReason ?: "발급 거절")
         }
+        // success=true 인데 billingKey 가 없으면 정상 발급으로 볼 수 없다 — raw NPE(→500) 대신 발급 실패로 처리.
+        val issuedBillingKey = result.billingKey
+            ?: throw BusinessException(ErrorCode.BILLING_KEY_ISSUE_FAILED, "PG 응답에 billingKey 가 없습니다")
 
         val now = clock.instant()
         // 부분 유니크 인덱스 (customer_id) WHERE status='ACTIVE' 는 statement 단위로 검사된다.

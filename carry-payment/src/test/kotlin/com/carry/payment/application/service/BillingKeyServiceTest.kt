@@ -1,5 +1,6 @@
 package com.carry.payment.application.service
 
+import com.carry.audit.domain.AuditAction
 import com.carry.audit.port.AuditPort
 import com.carry.common.exception.BusinessException
 import com.carry.common.exception.ErrorCode
@@ -48,7 +49,8 @@ class BillingKeyServiceTest {
     fun `최초 등록 시 PG 발급 후 ACTIVE 로 저장한다`() {
         every { billingKeyPersistencePort.findActiveByCustomerId(customerId) } returns null
         every { paymentGatewayResolver.resolve(PgProvider.TOSS_PAYMENTS) } returns paymentGateway
-        every { paymentGateway.issueBillingKey(any()) } returns PgBillingKeyResult(
+        val issueReq = slot<PgBillingKeyRequest>()
+        every { paymentGateway.issueBillingKey(capture(issueReq)) } returns PgBillingKeyResult(
             success = true, billingKey = "new_billing_key", cardCompany = "신한", cardLast4 = "2222",
         )
         val saved = slot<BillingKey>()
@@ -61,6 +63,27 @@ class BillingKeyServiceTest {
         assertThat(result.cardLast4).isEqualTo("2222")
         assertThat(result.customerKey).isNotBlank()
         verify(exactly = 0) { billingKeyPersistencePort.saveAndFlush(any()) }
+        // 최초 등록은 customerKey 를 재사용할 기존 키가 없으므로 새 UUID 가 생성돼 PG 로 전달돼야 한다.
+        assertThat(issueReq.captured.customerKey).isNotBlank()
+        assertThat(issueReq.captured.customerKey).isNotEqualTo("existing-customer-key")
+        // UUID v4 형식(재사용이 아닌 신규 생성) 확인.
+        assertThat(issueReq.captured.customerKey)
+            .matches("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+
+        // 감사 페이로드는 등록 액션과 카드 마스킹 정보(cardLast4)를 담아야 한다.
+        val auditAfter = slot<Any>()
+        verify {
+            auditPort.record(
+                action = AuditAction.BILLING_KEY_REGISTERED,
+                targetType = "BILLING_KEY",
+                targetId = any(),
+                before = any(),
+                after = capture(auditAfter),
+            )
+        }
+        @Suppress("UNCHECKED_CAST")
+        val afterMap = auditAfter.captured as Map<String, Any?>
+        assertThat(afterMap["cardLast4"]).isEqualTo("2222")
     }
 
     @Test
