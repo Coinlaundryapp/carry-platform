@@ -23,7 +23,12 @@ class BillingKeyCryptoConverter(
     keyBase64: String,
 ) : AttributeConverter<String?, String?> {
 
-    private val key = SecretKeySpec(Base64.getDecoder().decode(keyBase64), "AES")
+    private val key = SecretKeySpec(
+        Base64.getDecoder().decode(keyBase64).also {
+            require(it.size == 32) { "billing-key-enc-key must decode to 32 bytes for AES-256 (got ${it.size})" }
+        },
+        "AES",
+    )
     private val random = SecureRandom()
 
     override fun convertToDatabaseColumn(attribute: String?): String? {

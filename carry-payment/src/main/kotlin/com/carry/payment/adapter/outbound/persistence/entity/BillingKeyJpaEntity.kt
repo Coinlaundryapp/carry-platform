@@ -38,6 +38,10 @@ class BillingKeyJpaEntity(
     var invalidatedAt: Instant?,
 ) : BaseEntity() {
 
+    // @Version 의도적 미적용: 상태 전이는 단일 라이터(ACTIVE→INVALID 재등록 경로)이고,
+    // "고객당 활성 키 1개"는 부분 유니크 인덱스가 DB 레벨에서 보장하므로 낙관적 락이 불필요하다.
+    // (PaymentJpaEntity 는 다중 라이터 갱신이라 @Version 을 명시적으로 사용한다.)
+
     fun toDomain(): BillingKey = BillingKey.reconstitute(
         id = id,
         customerId = customerId,

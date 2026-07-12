@@ -1,6 +1,7 @@
 package com.carry.payment.adapter.outbound.persistence.crypto
 
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import java.util.Base64
 
@@ -27,5 +28,12 @@ class BillingKeyCryptoConverterTest {
     fun `null 은 null 로 통과`() {
         assertThat(converter.convertToDatabaseColumn(null)).isNull()
         assertThat(converter.convertToEntityAttribute(null)).isNull()
+    }
+
+    @Test
+    fun `16바이트 키는 AES-256 위반이라 생성 시점에 거부한다`() {
+        val undersizedKey = Base64.getEncoder().encodeToString(ByteArray(16))
+        assertThatThrownBy { BillingKeyCryptoConverter(undersizedKey) }
+            .isInstanceOf(IllegalArgumentException::class.java)
     }
 }
