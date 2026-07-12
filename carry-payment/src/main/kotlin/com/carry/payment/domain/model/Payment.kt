@@ -5,6 +5,7 @@ import com.carry.common.exception.requireInput
 import com.carry.payment.domain.exception.PaymentAlreadyCompletedException
 import com.carry.payment.domain.vo.PaymentStatus
 import com.carry.payment.domain.vo.PgProvider
+import java.time.Duration
 import java.time.Instant
 
 class Payment private constructor(
@@ -18,6 +19,8 @@ class Payment private constructor(
     val amount: Long,
     private var _paidAt: Instant?,
     private var _failReason: String?,
+    private var _retryCount: Int,
+    private var _nextRetryAt: Instant?,
     val createdAt: Instant,
     val updatedAt: Instant,
 ) {
@@ -25,8 +28,17 @@ class Payment private constructor(
     val pgTransactionId get() = _pgTransactionId
     val paidAt get() = _paidAt
     val failReason get() = _failReason
+    val retryCount get() = _retryCount
+    val nextRetryAt get() = _nextRetryAt
 
     companion object {
+        // 의도적 스펙 이탈 기록: 백오프 스케줄은 도메인 규칙(순수 함수)이라 도메인에 상수로 두고,
+        // 스윕 주기·연체 임계만 설정으로 뺀다.
+        private val BACKOFF = listOf(
+            Duration.ofHours(1), Duration.ofHours(4), Duration.ofHours(12), Duration.ofHours(24),
+        )
+        fun backoffFor(retryCount: Int): Duration = BACKOFF.getOrElse(retryCount - 1) { Duration.ofHours(24) }
+
         fun create(
             invoiceId: Long,
             orderId: Long,
@@ -48,6 +60,8 @@ class Payment private constructor(
                 amount = amount,
                 _paidAt = null,
                 _failReason = null,
+                _retryCount = 0,
+                _nextRetryAt = null,
                 createdAt = now,
                 updatedAt = now,
             )
@@ -64,11 +78,13 @@ class Payment private constructor(
             amount: Long,
             paidAt: Instant?,
             failReason: String?,
+            retryCount: Int = 0,
+            nextRetryAt: Instant? = null,
             createdAt: Instant,
             updatedAt: Instant,
         ): Payment = Payment(
             id, invoiceId, orderId, customerId, status, pgProvider,
-            pgTransactionId, amount, paidAt, failReason, createdAt, updatedAt,
+            pgTransactionId, amount, paidAt, failReason, retryCount, nextRetryAt, createdAt, updatedAt,
         )
     }
 
@@ -91,6 +107,19 @@ class Payment private constructor(
     /** PG 취소 성공 후 호출(REFUND_PENDING→REFUNDED). */
     fun markRefunded() {
         transitTo(PaymentStatus.REFUNDED)
+    }
+
+    /** 과금 실패 후 다음 재시도 예약. 백오프: 1h → 4h → 12h → 24h → 이후 24h 고정. */
+    fun scheduleRetry(now: Instant) {
+        checkState(_status == PaymentStatus.FAILED) { "FAILED 상태에서만 재시도를 예약할 수 있습니다" }
+        _retryCount += 1
+        _nextRetryAt = now.plus(backoffFor(_retryCount))
+    }
+
+    /** 스위퍼가 재과금 직전 호출 — FAILED → PENDING 재전이(기존 전이 규칙에 존재). */
+    fun markRetrying() {
+        transitTo(PaymentStatus.PENDING)
+        _nextRetryAt = null
     }
 
     private fun transitTo(target: PaymentStatus) {

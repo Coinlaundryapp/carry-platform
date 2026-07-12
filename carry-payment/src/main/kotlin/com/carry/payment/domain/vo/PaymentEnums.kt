@@ -1,10 +1,12 @@
 package com.carry.payment.domain.vo
 
 enum class InvoiceStatus {
-    ISSUED, PAID, CANCELLED, REFUNDED;
+    ISSUED, PAID, OVERDUE, CANCELLED, REFUNDED;
 
     fun canTransitionTo(target: InvoiceStatus): Boolean = when (this) {
-        ISSUED -> target in listOf(PAID, CANCELLED)
+        ISSUED -> target in listOf(PAID, OVERDUE, CANCELLED)
+        // OVERDUE: 미수금 확정(신규 주문 차단) — 재과금은 계속되므로 PAID 로 회복 가능
+        OVERDUE -> target in listOf(PAID, CANCELLED)
         PAID -> target == REFUNDED
         CANCELLED -> false
         REFUNDED -> false

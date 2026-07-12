@@ -40,6 +40,11 @@ class PaymentJpaEntity(
     var paidAt: Instant?,
 
     var failReason: String?,
+
+    @Column(nullable = false)
+    var retryCount: Int = 0,
+
+    var nextRetryAt: Instant? = null,
 ) : BaseEntity() {
 
     /**
@@ -62,6 +67,8 @@ class PaymentJpaEntity(
         amount = amount,
         paidAt = paidAt,
         failReason = failReason,
+        retryCount = retryCount,
+        nextRetryAt = nextRetryAt,
         createdAt = createdAt,
         updatedAt = updatedAt,
     )
@@ -71,6 +78,8 @@ class PaymentJpaEntity(
         pgTransactionId = payment.pgTransactionId
         paidAt = payment.paidAt
         failReason = payment.failReason
+        retryCount = payment.retryCount
+        nextRetryAt = payment.nextRetryAt
     }
 
     companion object {
@@ -84,6 +93,8 @@ class PaymentJpaEntity(
             amount = payment.amount,
             paidAt = payment.paidAt,
             failReason = payment.failReason,
+            retryCount = payment.retryCount,
+            nextRetryAt = payment.nextRetryAt,
         )
     }
 }
