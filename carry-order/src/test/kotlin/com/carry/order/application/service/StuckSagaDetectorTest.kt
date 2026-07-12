@@ -21,7 +21,7 @@ class StuckSagaDetectorTest {
     private val metrics = mockk<MetricsPort>(relaxed = true)
     private val now = Instant.parse("2026-06-10T12:00:00Z")
     private val clock = Clock.fixed(now, ZoneOffset.UTC)
-    private val thresholdHours = 6L
+    private val thresholdHours = 24L
     private val sut = StuckSagaDetector(orderPersistencePort, metrics, clock, thresholdHours)
 
     private val address = OrderShippingAddress(

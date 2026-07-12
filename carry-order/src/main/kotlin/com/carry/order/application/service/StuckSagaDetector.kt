@@ -21,13 +21,18 @@ import java.time.temporal.ChronoUnit
  * 그럼에도 외부 트리거 부재 등으로 어떤 주문이 중간 상태에 머물 수 있다. 이 디텍터는 그런 정체를
  * `carry.saga.stuck` 메트릭 + 경고 로그로 **가시화**한다(비파괴 — 자동 취소/재발행은 상태별 비즈니스
  * 정책이라 범위 밖). 운영/알럿이 이를 보고 개입하는 진입점이다.
+ *
+ * 감시 대상은 모두 **물리 작업 상태**라 정상 주문도 체류 시간이 길다 — PICKED_UP 은 캐리어가 세탁을
+ * 수동 시작할 때까지, IN_PROGRESS 는 세탁→건조→배달까지 몇 시간이 걸린다. 결제 결합 제거 후에는
+ * 결제 완료 같은 짧은 자동 트리거가 사라졌으므로, 수거→배달이 하루까지 걸리는 현실을 반영해 단일
+ * 임계를 24h 로 둔다(상태별 임계로 쪼개는 복잡도는 의도적으로 회피).
  */
 @Component
 class StuckSagaDetector(
     private val orderPersistencePort: OrderPersistencePort,
     private val metrics: MetricsPort,
     private val clock: Clock,
-    @Value("\${carry.order.stuck-saga-threshold-hours:6}") private val thresholdHours: Long,
+    @Value("\${carry.order.stuck-saga-threshold-hours:24}") private val thresholdHours: Long,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
