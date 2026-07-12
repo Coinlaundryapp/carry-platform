@@ -77,6 +77,16 @@ class StubPgProviderAdapterTest {
     }
 
     @Test
+    fun `billingKey가 fail- 로 시작하면 과금이 거절되고 CHARGE 도 기록되지 않는다`() {
+        val result = adapter.chargeBilling(sampleChargeRequest.copy(billingKey = "fail-billkey"))
+
+        assertThat(result.success).isFalse()
+        assertThat(result.pgTransactionId).isNull()
+        assertThat(result.failReason).isNotBlank()
+        assertThat(adapter.listTransactions(now.minusSeconds(60), now.plusSeconds(60))).isEmpty()
+    }
+
+    @Test
     fun `동일 멱등키 재과금은 CHARGE 를 중복 기록하지 않고 동일 결과를 재생한다`() {
         val first = adapter.chargeBilling(sampleChargeRequest)
         val second = adapter.chargeBilling(sampleChargeRequest)

@@ -54,10 +54,14 @@ class StubPgProviderAdapter(
     }
 
     override fun chargeBilling(request: PgBillingChargeRequest): PgPaymentResult {
+        // 로컬 개발용 결정적 실패 마커: billingKey가 "fail-"로 시작하면 과금 거절(발급의 fail- authKey 규칙과 대칭)
+        if (request.billingKey.startsWith("fail-")) {
+            return PgPaymentResult(success = false, failReason = "STUB: 과금 거절 시뮬레이션")
+        }
         val pgTransactionId = "STUB-${request.orderId}-${request.idempotencyKey}"
         // 멱등: 같은 idempotencyKey 재호출은 기존 성공 결과 반환, CHARGE 중복 기록 없음
         if (transactions.none { it.pgTransactionId == pgTransactionId && it.type == PgTransactionType.CHARGE }) {
-            transactions.add(PgTransactionRecord(pgTransactionId, PgTransactionType.CHARGE, request.amount, clock.instant()))
+            transactions += PgTransactionRecord(pgTransactionId, PgTransactionType.CHARGE, request.amount, clock.instant())
         }
         return PgPaymentResult(success = true, pgTransactionId = pgTransactionId)
     }

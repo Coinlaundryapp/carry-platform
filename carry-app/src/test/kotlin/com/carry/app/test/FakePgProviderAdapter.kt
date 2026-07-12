@@ -17,7 +17,7 @@ import java.util.UUID
 class FakePgProviderAdapter : PgProviderAdapter {
 
     var shouldSucceed: Boolean = true
-    var failReason: String = "결제 실패"
+    var failReason: String = "FAKE: 과금 실패"
 
     /** 성공한 결제·취소가 자동 기록되는 "PG 측 원장". 대사 테스트에서 extraTransactions 로 고아 거래 주입 가능. */
     val recordedTransactions = mutableListOf<PgTransactionRecord>()
@@ -48,7 +48,7 @@ class FakePgProviderAdapter : PgProviderAdapter {
         } else {
             PgPaymentResult(
                 success = false,
-                failReason = "FAKE: 과금 실패",
+                failReason = failReason,
             )
         }
     }
@@ -75,7 +75,7 @@ class FakePgProviderAdapter : PgProviderAdapter {
 
     fun reset() {
         shouldSucceed = true
-        failReason = "결제 실패"
+        failReason = "FAKE: 과금 실패"
         recordedTransactions.clear()
         extraTransactions.clear()
     }

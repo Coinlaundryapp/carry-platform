@@ -21,7 +21,10 @@ data class PgBillingChargeRequest(
     val orderId: Long,
     val amount: Long,
     val orderName: String,
-    /** PG 측 dedup 멱등키 — `charge-{invoiceId}` 로 고정, 재시도에도 동일 값 재전달. */
+    /**
+     * PG 측 dedup 멱등키 — `charge-{invoiceId}` 로 고정, 재시도에도 동일 값 재전달.
+     * 멱등성의 키 단위는 invoice 이며, [orderId] 는 PG 거래 기록의 표시·참조용 데이터일 뿐 dedup 에 관여하지 않는다.
+     */
     val idempotencyKey: String,
 )
 
