@@ -1085,7 +1085,7 @@ git add -A && git commit -m "feat: 주문 취소 시 미과금 인보이스 취�
 **Files:**
 - Modify: `carry-order/src/main/kotlin/com/carry/order/domain/vo/OrderEnums.kt`
 - Modify: `carry-order/src/main/kotlin/com/carry/order/domain/model/Order.kt`
-- Create: `carry-order/src/main/resources/db/migration/V28__order_status_physical_only.sql`
+- Create: `carry-order/src/main/resources/db/migration/V29__order_status_physical_only.sql` (V28은 T6 견고화의 payment_invoice_hardening 이 차지)
 - Modify: `carry-order/src/main/kotlin/com/carry/order/adapter/outbound/persistence/entity/OrderJpaEntity.kt` + 영속성 어댑터 (invoice_id/total_amount 매핑 제거)
 - Modify: `carry-order/src/main/kotlin/com/carry/order/adapter/inbound/rest/dto/OrderWebDto.kt` (`OrderResponse.totalAmount` 제거 — 56·77행)
 - Test: `carry-order/src/test/kotlin/com/carry/order/domain/vo/OrderStatusTest.kt`, `carry-order/src/test/kotlin/com/carry/order/domain/model/OrderTest.kt`
