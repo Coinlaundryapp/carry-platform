@@ -13,6 +13,7 @@ import jakarta.persistence.Enumerated
 import jakarta.persistence.FetchType
 import jakarta.persistence.OneToMany
 import jakarta.persistence.Table
+import jakarta.persistence.Version
 import java.math.BigDecimal
 
 @Entity
@@ -37,6 +38,16 @@ class InvoiceJpaEntity(
     @OneToMany(mappedBy = "invoice", cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.LAZY)
     val lineItems: MutableList<InvoiceLineItemJpaEntity> = mutableListOf(),
 ) : BaseEntity() {
+
+    /**
+     * JPA optimistic locking 카운터. 자동과금(markPaid)과 주문취소(cancel)가 동일 인보이스를
+     * 동시 변경하면 두 번째 commit에서 OptimisticLockingFailureException이 발생해 lost update를 막는다.
+     * PaymentJpaEntity와 동일하게 도메인 모델은 version을 노출하지 않고 엔티티에서만 관리한다.
+     */
+    @Version
+    @Column(nullable = false)
+    var version: Long = 0
+        protected set
 
     fun toDomain(): Invoice = Invoice.reconstitute(
         id = id,

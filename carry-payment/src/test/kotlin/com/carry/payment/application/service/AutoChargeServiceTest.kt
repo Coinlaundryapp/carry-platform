@@ -224,6 +224,46 @@ class AutoChargeServiceTest {
     }
 
     @Test
+    fun `PG 호출이 예외를 던지면 롤백이 아니라 FAILED+백오프로 커밋된다`() {
+        // 예외 전파 시 @Transactional 이 markRetrying/scheduleRetry 를 롤백해 stale nextRetryAt 로 남으면
+        // 스위퍼가 백오프를 건너뛰고 매 틱 재호출한다 — handleFailure 로 흡수해 백오프 진전을 커밋해야 한다.
+        val invoice = anInvoice(InvoiceStatus.ISSUED)
+        every { paymentPersistencePort.findById(5L) } returns aFailedPayment(retryCount = 1)
+        every { invoicePersistencePort.findById(1L) } returns invoice
+        val savedPayments = stubPaymentSaveAssignsId()
+        every { billingKeyPersistencePort.findActiveByCustomerId(100L) } returns aBillingKey()
+        every { paymentGatewayResolver.resolve(PgProvider.TOSS_PAYMENTS) } returns paymentGateway
+        every { paymentGateway.chargeBilling(any()) } throws RuntimeException("circuit breaker OPEN")
+
+        sut.retryCharge(5L) // 예외가 전파되지 않아야 한다
+
+        val finalPayment = savedPayments.last()
+        assertThat(finalPayment.status).isEqualTo(PaymentStatus.FAILED)
+        assertThat(finalPayment.retryCount).isEqualTo(2)
+        // 백오프가 stale(과거 now)이 아니라 미래로 진전됐다: backoffFor(2)=4h
+        assertThat(finalPayment.nextRetryAt).isEqualTo(now.plusSeconds(4 * 3600))
+    }
+
+    @Test
+    fun `PG 가 success=true 인데 거래ID가 null 이면 실패 처리 후 재시도 예약`() {
+        val invoice = anInvoice(InvoiceStatus.ISSUED)
+        every { invoicePersistencePort.findById(1L) } returns invoice
+        every { paymentPersistencePort.findByOrderId(10L) } returns null
+        val savedPayments = stubPaymentSaveAssignsId()
+        every { billingKeyPersistencePort.findActiveByCustomerId(100L) } returns aBillingKey()
+        every { paymentGatewayResolver.resolve(PgProvider.TOSS_PAYMENTS) } returns paymentGateway
+        every { paymentGateway.chargeBilling(any()) } returns PgPaymentResult(success = true, pgTransactionId = null)
+
+        sut.chargeInvoice(1L)
+
+        val finalPayment = savedPayments.last()
+        assertThat(finalPayment.status).isEqualTo(PaymentStatus.FAILED)
+        assertThat(finalPayment.nextRetryAt).isNotNull()
+        verify(exactly = 0) { invoicePersistencePort.save(any()) }
+        verify(exactly = 0) { ledgerPort.record(any()) }
+    }
+
+    @Test
     fun `재시도 실패 - 이벤트 재발행 없이 다음 재시도만 예약`() {
         val invoice = anInvoice(InvoiceStatus.ISSUED)
         every { paymentPersistencePort.findById(5L) } returns aFailedPayment(retryCount = 1)
