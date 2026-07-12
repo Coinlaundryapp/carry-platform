@@ -18,11 +18,11 @@ import com.carry.event.dispatch.DispatchAcceptedEvent
 import com.carry.event.order.OrderCancelledEvent
 import com.carry.event.order.OrderCreatedEvent
 import com.carry.event.payment.InvoiceIssuedEvent
-import com.carry.event.payment.PaymentCompletedEvent
 import com.carry.order.application.port.inbound.CreateOrderCommand
 import com.carry.order.application.port.inbound.OrderSagaEventHandler
 import com.carry.order.application.port.inbound.SelectedOptionCommand
 import com.carry.order.application.service.OrderCommandService
+import com.carry.payment.application.port.inbound.BillingKeyUseCase
 import com.carry.payment.application.port.inbound.PaymentSagaEventHandler
 import com.carry.payment.application.port.outbound.LedgerPort
 import com.carry.payment.application.port.outbound.PgProviderAdapter
@@ -32,7 +32,6 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Import
@@ -43,7 +42,6 @@ import java.math.BigDecimal
  * 정산 원장(P3b) E2E — 실 결제·환불 flow 에서 균형 기입(Σ=0)·분배·역분개를 검증.
  * 분배 모델: 세탁비+배달비 → 캐리어(코인세탁소 현금 투입 변제 + 수고비), 수수료 → 플랫폼.
  */
-@Disabled("Task 14에서 자동과금 경로로 재작성")
 @Import(SagaIntegrationTestConfig::class)
 class SettlementLedgerIntegrationTest : IntegrationTestBase() {
 
@@ -57,6 +55,7 @@ class SettlementLedgerIntegrationTest : IntegrationTestBase() {
     @Autowired lateinit var deliveryPersistencePort: DeliveryPersistencePort
     @Autowired lateinit var paymentSagaHandler: PaymentSagaEventHandler
     @Autowired lateinit var paymentCommandService: PaymentCommandService
+    @Autowired lateinit var billingKeyUseCase: BillingKeyUseCase
     @Autowired lateinit var ledgerPort: LedgerPort
     @Autowired lateinit var pgProviderAdapter: PgProviderAdapter
     @Autowired lateinit var jdbc: JdbcTemplate
@@ -75,6 +74,7 @@ class SettlementLedgerIntegrationTest : IntegrationTestBase() {
         TestFixtures.insertShippingAddress(jdbc)
         TestFixtures.insertCarrierArea(jdbc)
         TestFixtures.insertServiceArea(jdbc)
+        TestFixtures.insertBillingKey(billingKeyUseCase)
     }
 
     @AfterEach
@@ -82,8 +82,8 @@ class SettlementLedgerIntegrationTest : IntegrationTestBase() {
         TestFixtures.truncateAll(jdbc)
     }
 
-    /** 주문 → 배차 → 수거(5.00kg) → 인보이스 → 결제 완료 → 주문 PAID 까지 진행. */
-    private fun progressToPaid(): Long {
+    /** 주문 → 배차 → 수거(5.00kg) → 인보이스 → 자동과금(PaymentSagaHandler.onInvoiceIssued) 까지 진행. */
+    private fun progressToCharged(): Long {
         val order = orderCommandService.createOrder(
             CreateOrderCommand(
                 customerId = TestFixtures.CUSTOMER_ID,
@@ -121,11 +121,11 @@ class SettlementLedgerIntegrationTest : IntegrationTestBase() {
         val pickupEvent = outbox.readOutboxPayload<PickupCompletedEvent>("Delivery", "PickupCompletedEvent", delivery.id.toString())
         orderSagaHandler.onPickupCompleted(pickupEvent)
         paymentSagaHandler.onPickupCompleted(pickupEvent)
-        outbox.readOutboxPayload<InvoiceIssuedEvent>("Payment", "InvoiceIssuedEvent", orderId.toString())
 
-        // TODO(Task 14): requestPayment 제거됨 — AutoChargeService 경로로 재작성 예정. 현재 @Disabled.
-        // order 모듈은 더 이상 INVOICED/PAID 상태를 갖지 않는다(결제 결합 제거) — onInvoiceIssued/onPaymentCompleted 호출 제거.
-        outbox.readOutboxPayload<PaymentCompletedEvent>("Payment", "PaymentCompletedEvent", orderId.toString())
+        // 자동과금: 이 모듈이 자신이 발행한 InvoiceIssuedEvent 를 outbox 에서 읽어 직접 소비한다(자체 소비 리스너).
+        val invoiceIssuedEvent = outbox.readOutboxPayload<InvoiceIssuedEvent>("Payment", "InvoiceIssuedEvent", orderId.toString())
+        paymentSagaHandler.onInvoiceIssued(invoiceIssuedEvent)
+        outbox.assertOutboxContains("Payment", "PaymentCompletedEvent", orderId.toString())
         return orderId
     }
 
@@ -137,7 +137,7 @@ class SettlementLedgerIntegrationTest : IntegrationTestBase() {
 
     @Test
     fun `payment writes a balanced ledger group -- carrier reimbursed, platform keeps fee`() {
-        progressToPaid()
+        progressToCharged()
 
         // 5.00kg: 세탁비 15000 + 배달비 3000 + 수수료 1500 = 총 19500
         assertThat(ledgerRowCount()).isEqualTo(4)
@@ -149,10 +149,12 @@ class SettlementLedgerIntegrationTest : IntegrationTestBase() {
 
     @Test
     fun `refund appends a reversal group -- all balances return to zero`() {
-        val orderId = progressToPaid()
+        val orderId = progressToCharged()
 
-        // PAID 취소 → REFUND_PENDING → 스위퍼 경로(executeRefund)로 PG 취소·REFUNDED
-        orderCommandService.cancelOrder(orderId, "고객 변심", "CUSTOMER")
+        // 자동과금 완료 시점의 주문 상태는 PICKED_UP(수거 후) — 고객은 이 단계에서 취소할 수 없고
+        // 코디네이터만 가능하다(OrderStatus.isCancellableBy). 취소 → REFUND_PENDING → 스위퍼 경로
+        // (executeRefund)로 PG 취소·REFUNDED.
+        orderCommandService.cancelOrder(orderId, "세탁소 사정", "COORDINATOR")
         val cancelEvent = outbox.readOutboxPayload<OrderCancelledEvent>("Order", "OrderCancelledEvent", orderId.toString())
         paymentSagaHandler.onOrderCancelled(cancelEvent)
         paymentCommandService.executeRefund(orderId)

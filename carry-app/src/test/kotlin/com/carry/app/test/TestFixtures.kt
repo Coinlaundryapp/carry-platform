@@ -1,5 +1,6 @@
 package com.carry.app.test
 
+import com.carry.payment.application.port.inbound.BillingKeyUseCase
 import org.springframework.jdbc.core.JdbcTemplate
 import java.time.Instant
 import java.time.LocalDate
@@ -94,6 +95,20 @@ object TestFixtures {
         }
     }
 
+    /**
+     * 주문 생성 전제조건(Task 11)을 충족시키는 빌링키 픽스처 — Fake PG(항상 성공)를 통해
+     * `BillingKeyService.register`를 실 서비스 빈으로 호출한다. mock이 아니라 서비스를 태우는 이유는
+     * 이 경로가 `BillingKeyCryptoConverter`(Hibernate SpringBeanContainer 부팅)와 부분 유니크 인덱스
+     * DDL(customer_id WHERE status='ACTIVE')을 함께 저장→재조회로 검증하기 때문이다.
+     */
+    fun insertBillingKey(
+        billingKeyUseCase: BillingKeyUseCase,
+        customerId: Long = CUSTOMER_ID,
+        authKey: String = "fake-auth-$customerId",
+    ) {
+        billingKeyUseCase.register(customerId, authKey)
+    }
+
     private val KST = ZoneId.of("Asia/Seoul")
 
     // 희망 시각은 **고정 KST 시각**으로 둔다. now.plus(Nh) 방식은 실행 시점의 time-of-day가 그대로 남아,
@@ -126,6 +141,7 @@ object TestFixtures {
             DELETE FROM payment_payments;
             DELETE FROM payment_invoice_line_items;
             DELETE FROM payment_invoices;
+            DELETE FROM customer_billing_keys;
             DELETE FROM order_selected_options;
             DELETE FROM orders;
             DELETE FROM laundromat_media_resources;

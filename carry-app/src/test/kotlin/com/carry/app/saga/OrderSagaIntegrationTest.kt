@@ -35,14 +35,12 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Import
 import org.springframework.jdbc.core.JdbcTemplate
 import java.math.BigDecimal
 
-@Disabled("Task 14에서 자동과금 경로로 재작성")
 @Import(SagaIntegrationTestConfig::class)
 class OrderSagaIntegrationTest : IntegrationTestBase() {
 
@@ -60,6 +58,7 @@ class OrderSagaIntegrationTest : IntegrationTestBase() {
 
     @Autowired lateinit var paymentSagaHandler: PaymentSagaEventHandler
     @Autowired lateinit var paymentCommandService: PaymentCommandService
+    @Autowired lateinit var billingKeyUseCase: com.carry.payment.application.port.inbound.BillingKeyUseCase
 
     @Autowired lateinit var pgProviderAdapter: PgProviderAdapter
     @Autowired lateinit var jdbc: JdbcTemplate
@@ -80,6 +79,7 @@ class OrderSagaIntegrationTest : IntegrationTestBase() {
         TestFixtures.insertShippingAddress(jdbc)
         TestFixtures.insertCarrierArea(jdbc)
         TestFixtures.insertServiceArea(jdbc)
+        TestFixtures.insertBillingKey(billingKeyUseCase)
     }
 
     @AfterEach
@@ -160,9 +160,10 @@ class OrderSagaIntegrationTest : IntegrationTestBase() {
         val pickedUpOrder = orderPersistencePort.findById(orderId)!!
         assertThat(pickedUpOrder.status).isEqualTo(OrderStatus.PICKED_UP)
 
-        // TODO(Task 14): Invoice/결제(자동과금) 단계는 order 모듈에서 결제 결합이 제거되며
-        // carry-payment 소관으로 완전히 분리되었다. AutoChargeService 경로로 재작성 예정 — 현재 @Disabled.
-        // PICKED_UP → IN_PROGRESS 는 이제 결제 완료를 거치지 않고 LaundryStartedEvent 로 직접 전이한다.
+        // Invoice/결제(자동과금)는 order 모듈에서 결제 결합이 제거되며 carry-payment 소관으로 완전히
+        // 분리되었다 — 자동과금 경로 자체(Payment COMPLETED·Invoice PAID·원장 균형)는
+        // AutoChargeSagaIntegrationTest 가 검증한다. 여기서는 물리 흐름 전이만 확인한다:
+        // PICKED_UP → IN_PROGRESS 는 결제 완료를 거치지 않고 LaundryStartedEvent 로 직접 전이한다.
 
         // 12. 세탁 시작
         deliveryCommandService.startWashing(delivery.id!!, listOf(2L), TestFixtures.CARRIER_ID)

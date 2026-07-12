@@ -54,6 +54,7 @@ class ConcurrencyIntegrationTest : IntegrationTestBase() {
     @Autowired lateinit var paymentJpaRepository: PaymentJpaRepository
     @Autowired lateinit var deliveryJpaRepository: DeliveryJpaRepository
     @Autowired lateinit var reviewJpaRepository: ReviewJpaRepository
+    @Autowired lateinit var billingKeyUseCase: com.carry.payment.application.port.inbound.BillingKeyUseCase
     @Autowired lateinit var transactionManager: PlatformTransactionManager
     private val tx by lazy { TransactionTemplate(transactionManager) }
 
@@ -70,6 +71,7 @@ class ConcurrencyIntegrationTest : IntegrationTestBase() {
         TestFixtures.insertCarrierArea(jdbc, carrierA)
         TestFixtures.insertCarrierArea(jdbc, carrierB)
         TestFixtures.insertServiceArea(jdbc)
+        TestFixtures.insertBillingKey(billingKeyUseCase)
     }
 
     @AfterEach
