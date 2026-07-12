@@ -849,7 +849,7 @@ class AutoChargeService(
 
 `PaymentSagaEventHandler` 인바운드 포트에 `fun onInvoiceIssued(event: InvoiceIssuedEvent)` 추가, `PaymentSagaHandler`에 구현(로그 컨텍스트 `SagaLogContext.withOrderId` 래핑 후 `autoChargeService.chargeInvoice(event.invoiceId)` 위임).
 
-`PaymentEventConsumer.kt`에 세 번째 리스너 추가 — 기존 두 리스너와 동일한 구조(`eventConsumerSupport.processIfNotDuplicate("carry-payment-module", envelope.id) { ... }`):
+`PaymentEventConsumer.kt`에 세 번째 리스너 추가 — 기존 두 리스너와 동일한 구조:
 
 ```kotlin
 @KafkaListener(topics = ["carry.Payment.events"], groupId = "carry-payment-module")
