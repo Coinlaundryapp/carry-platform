@@ -8,16 +8,11 @@ import com.carry.event.delivery.PickupCompletedEvent
 import com.carry.event.dispatch.DispatchAcceptedEvent
 import com.carry.event.dispatch.DispatchCancelledEvent
 import com.carry.event.dispatch.DispatchTimeoutEvent
-import com.carry.event.payment.InvoiceIssuedEvent
-import com.carry.event.payment.PaymentCompletedEvent
-import com.carry.event.payment.PaymentFailedEvent
-import com.carry.event.payment.RefundCompletedEvent
 import com.carry.order.application.port.inbound.OrderSagaEventHandler
 import com.carry.order.application.port.outbound.OrderPersistencePort
 import com.carry.order.domain.exception.OrderNotFoundException
 import com.carry.order.domain.model.Order
 import com.carry.order.domain.vo.CancelledBy
-import com.carry.order.domain.vo.OrderStatus
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -49,7 +44,7 @@ class OrderSagaHandler(
         SagaLogContext.withOrderId(event.orderId) {
             log.info("Order saga: onDispatchTimeout dispatchId={}", event.dispatchId)
             val order = findOrder(event.orderId)
-            if (order.isCancellable()) {
+            if (order.status.isCancellableBy(CancelledBy.SYSTEM)) {
                 order.cancel("배차 시간 초과", CancelledBy.SYSTEM, clock.instant())
                 orderPersistencePort.save(order)
             }
@@ -61,7 +56,7 @@ class OrderSagaHandler(
         SagaLogContext.withOrderId(event.orderId) {
             log.info("Order saga: onDispatchCancelled dispatchId={} reason={}", event.dispatchId, event.reason)
             val order = findOrder(event.orderId)
-            if (order.isCancellable()) {
+            if (order.status.isCancellableBy(CancelledBy.COORDINATOR)) {
                 order.cancel(event.reason, CancelledBy.COORDINATOR, clock.instant())
                 orderPersistencePort.save(order)
             }
@@ -76,41 +71,6 @@ class OrderSagaHandler(
             if (skipIfForwardStopped(order, "PickupCompletedEvent")) return@withOrderId
             order.markPickedUp(event.actualWeight)
             orderPersistencePort.save(order)
-        }
-    }
-
-    @Transactional
-    override fun onInvoiceIssued(event: InvoiceIssuedEvent) {
-        SagaLogContext.withOrderId(event.orderId) {
-            log.info("Order saga: onInvoiceIssued invoiceId={} amount={}", event.invoiceId, event.totalAmount)
-            val order = findOrder(event.orderId)
-            if (skipIfForwardStopped(order, "InvoiceIssuedEvent")) return@withOrderId
-            order.markInvoiced(event.invoiceId, event.totalAmount)
-            orderPersistencePort.save(order)
-        }
-    }
-
-    @Transactional
-    override fun onPaymentCompleted(event: PaymentCompletedEvent) {
-        SagaLogContext.withOrderId(event.orderId) {
-            log.info("Order saga: onPaymentCompleted paymentId={}", event.paymentId)
-            val order = findOrder(event.orderId)
-            if (skipIfForwardStopped(order, "PaymentCompletedEvent")) return@withOrderId
-            order.markPaid()
-            orderPersistencePort.save(order)
-        }
-    }
-
-    @Transactional
-    override fun onPaymentFailed(event: PaymentFailedEvent) {
-        SagaLogContext.withOrderId(event.orderId) {
-            log.warn("Order saga: onPaymentFailed paymentId={} reason={}", event.paymentId, event.reason)
-            val order = findOrder(event.orderId)
-            // INVOICED 에서만 결제 실패로 전이 — 이미 PAID/취소/환불된 주문에 늦게 도착한 실패 이벤트는 무시(멱등/순서 안전).
-            if (order.status == OrderStatus.INVOICED) {
-                order.markPaymentFailed()
-                orderPersistencePort.save(order)
-            }
         }
     }
 
@@ -140,22 +100,9 @@ class OrderSagaHandler(
         }
     }
 
-    @Transactional
-    override fun onRefundCompleted(event: RefundCompletedEvent) {
-        SagaLogContext.withOrderId(event.orderId) {
-            log.info("Order saga: onRefundCompleted paymentId={} refundAmount={}", event.paymentId, event.refundAmount)
-            val order = findOrder(event.orderId)
-            // REFUND_PENDING 에서만 환불 완료로 전이(멱등 — 중복 RefundCompletedEvent 무시).
-            if (order.status == OrderStatus.REFUND_PENDING) {
-                order.markRefunded()
-                orderPersistencePort.save(order)
-            }
-        }
-    }
-
     /**
-     * 취소·환불 분기·완료로 forward 진행이 중단된 주문에 늦게 도착한 forward 이벤트를
-     * throw(→DLQ poison) 대신 멱등 no-op 으로 흡수한다(reverse 핸들러 가드와 대칭).
+     * 취소·완료로 forward 진행이 중단된 주문에 늦게 도착한 forward 이벤트를
+     * throw(→DLQ poison) 대신 멱등 no-op 으로 흡수한다.
      * 선행 전이가 아직 반영되지 않은 "이른" 이벤트는 여기서 걸러지지 않고 도메인 가드에서
      * throw 되는데, 이는 의도적이다 — no-op 하면 전이가 영구 유실되므로 Kafka 재시도가 치유한다.
      */

@@ -111,20 +111,14 @@ class OrderCommandService(
         orderPersistencePort.findById(orderId) ?: throw OrderNotFoundException(orderId)
 
     // 내부/코디네이터/시스템 등 다중 액터용 (cancelledBy 명시).
+    // 수거 후 취소도 이 경로를 그대로 탄다 — 결제 환불/과금중단은 OrderCancelledEvent 를 구독하는
+    // carry-payment 모듈의 소관이며, 주문 도메인은 isCancellableBy 가드로 행위자별 취소 가능 여부만 판단한다.
     @Transactional
     override fun cancelOrder(orderId: Long, reason: String, cancelledBy: String) {
         val order = orderPersistencePort.findById(orderId) ?: throw OrderNotFoundException(orderId)
         val by = parseCancelledBy(cancelledBy)
         val beforeStatus = order.status
-        if (order.status == OrderStatus.PAID) {
-            // 결제 완료 후 취소 = 즉시 종료가 아니라 환불 보상 트랜잭션 시작.
-            // 동일한 OrderCancelledEvent 로 dispatch/delivery 캐스케이드와 결제 환불을 함께 트리거한다.
-            order.markRefundPending()
-            orderPersistencePort.save(order)
-            publishOrderCancelled(order, reason, by)
-        } else {
-            doCancel(order, reason, by)
-        }
+        doCancel(order, reason, by)
         recordCancelAudit(orderId, beforeStatus, order, reason, by)
     }
 

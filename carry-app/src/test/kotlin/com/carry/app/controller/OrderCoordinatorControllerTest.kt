@@ -57,7 +57,7 @@ class OrderCoordinatorControllerTest {
     private val now: Instant = Instant.now()
 
     private fun anOrder() = Order.reconstitute(
-        id = 1L, customerId = 7L, status = OrderStatus.PAID,
+        id = 1L, customerId = 7L, status = OrderStatus.IN_PROGRESS,
         laundromatId = 10L, laundryItemType = "REGULAR",
         selectedOptions = listOf(SelectedOption("WASH", "STANDARD")),
         shippingAddress = OrderShippingAddress(
@@ -65,7 +65,7 @@ class OrderCoordinatorControllerTest {
             37.5, 127.0, "홍길동", "01012345678", null, "GANGNAM",
         ),
         desiredPickupAt = now, desiredDeliveryAt = now.plus(4, ChronoUnit.HOURS),
-        carrierId = null, invoiceId = null, totalAmount = 15000L, actualWeight = null,
+        carrierId = null, actualWeight = null,
         cancellation = null, completedAt = null, createdAt = now, updatedAt = now,
     )
 
@@ -124,17 +124,17 @@ class OrderCoordinatorControllerTest {
 
     @Test
     fun `코디네이터가 주문 목록을 상태 필터로 조회하면 200과 목록을 반환한다`() {
-        every { orderQueryUseCase.getOrdersForCoordinator(OrderStatus.PAID, null, 20) } returns listOf(anOrder())
+        every { orderQueryUseCase.getOrdersForCoordinator(OrderStatus.IN_PROGRESS, null, 20) } returns listOf(anOrder())
 
-        mockMvc.get("/api/v2/coordinator/orders?status=PAID") {
+        mockMvc.get("/api/v2/coordinator/orders?status=IN_PROGRESS") {
             with(roleAuth("COORDINATOR"))
         }.andExpect {
             status { isOk() }
             jsonPath("$.data[0].id") { value(1) }
-            jsonPath("$.data[0].status") { value("PAID") }
+            jsonPath("$.data[0].status") { value("IN_PROGRESS") }
         }
 
-        verify { orderQueryUseCase.getOrdersForCoordinator(OrderStatus.PAID, null, 20) }
+        verify { orderQueryUseCase.getOrdersForCoordinator(OrderStatus.IN_PROGRESS, null, 20) }
     }
 
     @Test

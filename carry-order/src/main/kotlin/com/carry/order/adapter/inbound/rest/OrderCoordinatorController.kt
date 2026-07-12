@@ -67,7 +67,7 @@ class OrderCoordinatorController(
 
     @Operation(
         summary = "주문 취소 (코디네이터)",
-        description = "코디네이터가 주문을 취소한다. 결제 완료(PAID) 주문은 즉시 종료가 아니라 환불 보상 트랜잭션을 시작한다.",
+        description = "코디네이터가 주문을 취소한다. 수거 후 취소 시 결제 모듈이 환불/과금중단을 처리한다.",
     )
     @ApiResponses(
         value = [

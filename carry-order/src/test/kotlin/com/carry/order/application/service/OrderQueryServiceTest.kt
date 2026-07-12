@@ -31,7 +31,7 @@ class OrderQueryServiceTest {
         laundromatId = 10L, laundryItemType = "REGULAR",
         selectedOptions = listOf(SelectedOption("WASH", "STANDARD")),
         shippingAddress = address, desiredPickupAt = now, desiredDeliveryAt = now.plus(4, ChronoUnit.HOURS),
-        carrierId = null, invoiceId = null, totalAmount = null, actualWeight = null,
+        carrierId = null, actualWeight = null,
         cancellation = null, completedAt = null,
         createdAt = now, updatedAt = now,
     )
@@ -64,9 +64,9 @@ class OrderQueryServiceTest {
 
     @Test
     fun `코디네이터 목록 조회는 상태 필터를 그대로 위임한다`() {
-        every { orderPersistencePort.findForCoordinator(OrderStatus.PAID, null, 20) } returns listOf(anOrder(7L))
+        every { orderPersistencePort.findForCoordinator(OrderStatus.IN_PROGRESS, null, 20) } returns listOf(anOrder(7L))
 
-        val orders = sut.getOrdersForCoordinator(OrderStatus.PAID, null, 20)
+        val orders = sut.getOrdersForCoordinator(OrderStatus.IN_PROGRESS, null, 20)
 
         assertThat(orders).hasSize(1)
     }

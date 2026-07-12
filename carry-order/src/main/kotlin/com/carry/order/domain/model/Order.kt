@@ -22,8 +22,6 @@ class Order private constructor(
     val desiredPickupAt: Instant,
     val desiredDeliveryAt: Instant,
     private var _carrierId: Long?,
-    private var _invoiceId: Long?,
-    private var _totalAmount: Long?,
     private var _actualWeight: BigDecimal?,
     private var _cancellation: OrderCancellation?,
     private var _completedAt: Instant?,
@@ -32,8 +30,6 @@ class Order private constructor(
 ) {
     val status get() = _status
     val carrierId get() = _carrierId
-    val invoiceId get() = _invoiceId
-    val totalAmount get() = _totalAmount
     val actualWeight get() = _actualWeight
     val cancellation get() = _cancellation
     val completedAt get() = _completedAt
@@ -63,8 +59,6 @@ class Order private constructor(
                 desiredPickupAt = desiredPickupAt,
                 desiredDeliveryAt = desiredDeliveryAt,
                 _carrierId = null,
-                _invoiceId = null,
-                _totalAmount = null,
                 _actualWeight = null,
                 _cancellation = null,
                 _completedAt = null,
@@ -84,8 +78,6 @@ class Order private constructor(
             desiredPickupAt: Instant,
             desiredDeliveryAt: Instant,
             carrierId: Long?,
-            invoiceId: Long?,
-            totalAmount: Long?,
             actualWeight: BigDecimal?,
             cancellation: OrderCancellation?,
             completedAt: Instant?,
@@ -94,7 +86,7 @@ class Order private constructor(
         ): Order = Order(
             id, customerId, status, laundromatId, laundryItemType,
             selectedOptions, shippingAddress, desiredPickupAt, desiredDeliveryAt,
-            carrierId, invoiceId, totalAmount, actualWeight,
+            carrierId, actualWeight,
             cancellation, completedAt, createdAt, updatedAt,
         )
     }
@@ -109,28 +101,6 @@ class Order private constructor(
         _actualWeight = actualWeight
     }
 
-    fun markInvoiced(invoiceId: Long, totalAmount: Long) {
-        transitTo(OrderStatus.INVOICED)
-        _invoiceId = invoiceId
-        _totalAmount = totalAmount
-    }
-
-    fun markPaid() {
-        transitTo(OrderStatus.PAID)
-    }
-
-    fun markPaymentFailed() {
-        transitTo(OrderStatus.PAYMENT_FAILED)
-    }
-
-    fun markRefundPending() {
-        transitTo(OrderStatus.REFUND_PENDING)
-    }
-
-    fun markRefunded() {
-        transitTo(OrderStatus.REFUNDED)
-    }
-
     fun markInProgress() {
         transitTo(OrderStatus.IN_PROGRESS)
     }
@@ -141,14 +111,12 @@ class Order private constructor(
     }
 
     fun cancel(reason: String, by: CancelledBy, now: Instant) {
-        if (!_status.isCancellable()) {
+        if (!_status.isCancellableBy(by)) {
             throw OrderNotCancellableException(id, _status)
         }
         _status = OrderStatus.CANCELLED
         _cancellation = OrderCancellation(reason, by, now)
     }
-
-    fun isCancellable(): Boolean = _status.isCancellable()
 
     private fun transitTo(target: OrderStatus) {
         if (!_status.canTransitionTo(target)) {

@@ -26,8 +26,13 @@ class OrderStatusTest {
     }
 
     @Test
-    fun `PICKED_UP에서 CANCELLED로 전이할 수 없다`() {
-        assertThat(OrderStatus.PICKED_UP.canTransitionTo(OrderStatus.CANCELLED)).isFalse()
+    fun `PICKED_UP에서 CANCELLED로 전이할 수 있다`() {
+        assertThat(OrderStatus.PICKED_UP.canTransitionTo(OrderStatus.CANCELLED)).isTrue()
+    }
+
+    @Test
+    fun `IN_PROGRESS에서 CANCELLED로 전이할 수 있다`() {
+        assertThat(OrderStatus.IN_PROGRESS.canTransitionTo(OrderStatus.CANCELLED)).isTrue()
     }
 
     @Test
@@ -38,73 +43,10 @@ class OrderStatusTest {
     }
 
     @Test
-    fun `CREATED, DISPATCHED, PAYMENT_FAILED만 취소 가능하다`() {
-        assertThat(OrderStatus.CREATED.isCancellable()).isTrue()
-        assertThat(OrderStatus.DISPATCHED.isCancellable()).isTrue()
-        assertThat(OrderStatus.PAYMENT_FAILED.isCancellable()).isTrue()
-        assertThat(OrderStatus.PICKED_UP.isCancellable()).isFalse()
-        assertThat(OrderStatus.INVOICED.isCancellable()).isFalse()
-        assertThat(OrderStatus.PAID.isCancellable()).isFalse()
-        assertThat(OrderStatus.REFUND_PENDING.isCancellable()).isFalse()
-        assertThat(OrderStatus.REFUNDED.isCancellable()).isFalse()
-    }
-
-    @Test
-    fun `INVOICED에서 PAYMENT_FAILED로 전이할 수 있다`() {
-        assertThat(OrderStatus.INVOICED.canTransitionTo(OrderStatus.PAYMENT_FAILED)).isTrue()
-    }
-
-    @Test
-    fun `PAYMENT_FAILED에서 PAID로 재결제 전이할 수 있다`() {
-        assertThat(OrderStatus.PAYMENT_FAILED.canTransitionTo(OrderStatus.PAID)).isTrue()
-    }
-
-    @Test
-    fun `PAYMENT_FAILED에서 CANCELLED로 전이할 수 있다`() {
-        assertThat(OrderStatus.PAYMENT_FAILED.canTransitionTo(OrderStatus.CANCELLED)).isTrue()
-    }
-
-    @Test
-    fun `PAID에서 REFUND_PENDING으로 전이할 수 있다`() {
-        assertThat(OrderStatus.PAID.canTransitionTo(OrderStatus.REFUND_PENDING)).isTrue()
-    }
-
-    @Test
-    fun `REFUND_PENDING에서 REFUNDED로 전이할 수 있다`() {
-        assertThat(OrderStatus.REFUND_PENDING.canTransitionTo(OrderStatus.REFUNDED)).isTrue()
-    }
-
-    @Test
-    fun `REFUNDED에서는 어떤 상태로도 전이할 수 없다`() {
+    fun `CANCELLED에서는 어떤 상태로도 전이할 수 없다`() {
         OrderStatus.entries.forEach { target ->
-            assertThat(OrderStatus.REFUNDED.canTransitionTo(target)).isFalse()
+            assertThat(OrderStatus.CANCELLED.canTransitionTo(target)).isFalse()
         }
-    }
-
-    @Test
-    fun `INVOICED에서 PAYMENT_FAILED를 거치지 않고도 PAID로 전이할 수 있다`() {
-        assertThat(OrderStatus.INVOICED.canTransitionTo(OrderStatus.PAID)).isTrue()
-    }
-
-    @Test
-    fun `취소·환불 분기·완료 상태는 forward 사가가 비활성이다`() {
-        // 늦게 도착한 forward 이벤트를 멱등 no-op 으로 처리할지 판정하는 술어
-        assertThat(OrderStatus.CANCELLED.isForwardActive()).isFalse()
-        assertThat(OrderStatus.REFUND_PENDING.isForwardActive()).isFalse()
-        assertThat(OrderStatus.REFUNDED.isForwardActive()).isFalse()
-        assertThat(OrderStatus.COMPLETED.isForwardActive()).isFalse()
-    }
-
-    @Test
-    fun `진행 중 상태는 forward 사가가 활성이다`() {
-        // PAYMENT_FAILED 는 재결제로 forward 재개가 가능하므로 활성
-        assertThat(OrderStatus.CREATED.isForwardActive()).isTrue()
-        assertThat(OrderStatus.DISPATCHED.isForwardActive()).isTrue()
-        assertThat(OrderStatus.PICKED_UP.isForwardActive()).isTrue()
-        assertThat(OrderStatus.INVOICED.isForwardActive()).isTrue()
-        assertThat(OrderStatus.PAYMENT_FAILED.isForwardActive()).isTrue()
-        assertThat(OrderStatus.PAID.isForwardActive()).isTrue()
-        assertThat(OrderStatus.IN_PROGRESS.isForwardActive()).isTrue()
     }
 
     @Test
@@ -112,9 +54,7 @@ class OrderStatusTest {
         val happyPath = listOf(
             OrderStatus.CREATED to OrderStatus.DISPATCHED,
             OrderStatus.DISPATCHED to OrderStatus.PICKED_UP,
-            OrderStatus.PICKED_UP to OrderStatus.INVOICED,
-            OrderStatus.INVOICED to OrderStatus.PAID,
-            OrderStatus.PAID to OrderStatus.IN_PROGRESS,
+            OrderStatus.PICKED_UP to OrderStatus.IN_PROGRESS,
             OrderStatus.IN_PROGRESS to OrderStatus.COMPLETED,
         )
         happyPath.forEach { (from, to) ->
@@ -122,5 +62,51 @@ class OrderStatusTest {
                 .withFailMessage("$from → $to should be valid")
                 .isTrue()
         }
+    }
+
+    @Test
+    fun `비종결 상태는 모두 CANCELLED로 전이할 수 있다`() {
+        listOf(OrderStatus.CREATED, OrderStatus.DISPATCHED, OrderStatus.PICKED_UP, OrderStatus.IN_PROGRESS)
+            .forEach { from ->
+                assertThat(from.canTransitionTo(OrderStatus.CANCELLED))
+                    .withFailMessage("$from → CANCELLED should be valid")
+                    .isTrue()
+            }
+    }
+
+    @Test
+    fun `고객은 CREATED, DISPATCHED 상태에서만 취소할 수 있다`() {
+        assertThat(OrderStatus.CREATED.isCancellableBy(CancelledBy.CUSTOMER)).isTrue()
+        assertThat(OrderStatus.DISPATCHED.isCancellableBy(CancelledBy.CUSTOMER)).isTrue()
+        assertThat(OrderStatus.PICKED_UP.isCancellableBy(CancelledBy.CUSTOMER)).isFalse()
+        assertThat(OrderStatus.IN_PROGRESS.isCancellableBy(CancelledBy.CUSTOMER)).isFalse()
+        assertThat(OrderStatus.COMPLETED.isCancellableBy(CancelledBy.CUSTOMER)).isFalse()
+        assertThat(OrderStatus.CANCELLED.isCancellableBy(CancelledBy.CUSTOMER)).isFalse()
+    }
+
+    @Test
+    fun `코디네이터 시스템은 완료 전까지 모든 진행 상태에서 취소할 수 있다`() {
+        listOf(CancelledBy.COORDINATOR, CancelledBy.SYSTEM).forEach { by ->
+            assertThat(OrderStatus.CREATED.isCancellableBy(by)).isTrue()
+            assertThat(OrderStatus.DISPATCHED.isCancellableBy(by)).isTrue()
+            assertThat(OrderStatus.PICKED_UP.isCancellableBy(by)).isTrue()
+            assertThat(OrderStatus.IN_PROGRESS.isCancellableBy(by)).isTrue()
+            assertThat(OrderStatus.COMPLETED.isCancellableBy(by)).isFalse()
+            assertThat(OrderStatus.CANCELLED.isCancellableBy(by)).isFalse()
+        }
+    }
+
+    @Test
+    fun `COMPLETED, CANCELLED 만 forward 사가가 비활성이다`() {
+        assertThat(OrderStatus.COMPLETED.isForwardActive()).isFalse()
+        assertThat(OrderStatus.CANCELLED.isForwardActive()).isFalse()
+    }
+
+    @Test
+    fun `진행 중 상태는 forward 사가가 활성이다`() {
+        assertThat(OrderStatus.CREATED.isForwardActive()).isTrue()
+        assertThat(OrderStatus.DISPATCHED.isForwardActive()).isTrue()
+        assertThat(OrderStatus.PICKED_UP.isForwardActive()).isTrue()
+        assertThat(OrderStatus.IN_PROGRESS.isForwardActive()).isTrue()
     }
 }

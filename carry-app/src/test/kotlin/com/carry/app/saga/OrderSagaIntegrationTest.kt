@@ -20,8 +20,6 @@ import com.carry.event.dispatch.DispatchAcceptedEvent
 import com.carry.event.order.OrderCreatedEvent
 import com.carry.event.order.SelectedOptionDto
 import com.carry.event.order.ShippingAddressDto
-import com.carry.event.payment.InvoiceIssuedEvent
-import com.carry.event.payment.PaymentCompletedEvent
 import com.carry.event.delivery.DeliveryCompletedEvent
 import com.carry.event.delivery.LaundryStartedEvent
 import com.carry.order.application.port.inbound.CreateOrderCommand
@@ -162,34 +160,9 @@ class OrderSagaIntegrationTest : IntegrationTestBase() {
         val pickedUpOrder = orderPersistencePort.findById(orderId)!!
         assertThat(pickedUpOrder.status).isEqualTo(OrderStatus.PICKED_UP)
 
-        // 8. PaymentSagaHandler: PickupCompletedEvent → Invoice 생성 + InvoiceIssuedEvent
-        paymentSagaHandler.onPickupCompleted(pickupEvent)
-        outbox.assertOutboxContains("Payment", "InvoiceIssuedEvent", orderId.toString())
-
-        // 9. OrderSagaHandler: InvoiceIssuedEvent → Order INVOICED
-        val invoiceEvent = outbox.readOutboxPayload<InvoiceIssuedEvent>("Payment", "InvoiceIssuedEvent", orderId.toString())
-        orderSagaHandler.onInvoiceIssued(invoiceEvent)
-
-        val invoicedOrder = orderPersistencePort.findById(orderId)!!
-        assertThat(invoicedOrder.status).isEqualTo(OrderStatus.INVOICED)
-        assertThat(invoicedOrder.invoiceId).isEqualTo(invoiceEvent.invoiceId)
-        assertThat(invoicedOrder.totalAmount).isEqualTo(invoiceEvent.totalAmount)
-
-        // Invoice 금액 검증: 5kg * 3000원 = 15000 + 배달비 3000 + 수수료 1500 = 19500
-        assertThat(invoiceEvent.totalAmount).isEqualTo(19500L)
-        assertThat(invoiceEvent.lineItems).hasSize(3)
-
-        // 10. 결제 요청 → PaymentCompletedEvent
-        // TODO(Task 14): requestPayment 제거됨 — AutoChargeService 경로로 재작성 예정. 현재 @Disabled.
-        fakePg.shouldSucceed = true
-        outbox.assertOutboxContains("Payment", "PaymentCompletedEvent", orderId.toString())
-
-        // 11. OrderSagaHandler: PaymentCompletedEvent → Order PAID
-        val paymentEvent = outbox.readOutboxPayload<PaymentCompletedEvent>("Payment", "PaymentCompletedEvent", orderId.toString())
-        orderSagaHandler.onPaymentCompleted(paymentEvent)
-
-        val paidOrder = orderPersistencePort.findById(orderId)!!
-        assertThat(paidOrder.status).isEqualTo(OrderStatus.PAID)
+        // TODO(Task 14): Invoice/결제(자동과금) 단계는 order 모듈에서 결제 결합이 제거되며
+        // carry-payment 소관으로 완전히 분리되었다. AutoChargeService 경로로 재작성 예정 — 현재 @Disabled.
+        // PICKED_UP → IN_PROGRESS 는 이제 결제 완료를 거치지 않고 LaundryStartedEvent 로 직접 전이한다.
 
         // 12. 세탁 시작
         deliveryCommandService.startWashing(delivery.id!!, listOf(2L), TestFixtures.CARRIER_ID)

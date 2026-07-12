@@ -1,16 +1,12 @@
 package com.carry.order.application.service
 
+import com.carry.common.metrics.MetricsPort
 import com.carry.event.delivery.DeliveryCompletedEvent
 import com.carry.event.delivery.LaundryStartedEvent
 import com.carry.event.delivery.PickupCompletedEvent
 import com.carry.event.delivery.SelectedOptionSnapshot
 import com.carry.event.dispatch.DispatchAcceptedEvent
 import com.carry.event.dispatch.DispatchTimeoutEvent
-import com.carry.event.payment.InvoiceIssuedEvent
-import com.carry.event.payment.PaymentCompletedEvent
-import com.carry.event.payment.PaymentFailedEvent
-import com.carry.event.payment.RefundCompletedEvent
-import com.carry.common.metrics.MetricsPort
 import com.carry.order.application.port.outbound.OrderPersistencePort
 import com.carry.order.domain.model.Order
 import com.carry.order.domain.vo.CancelledBy
@@ -46,7 +42,7 @@ class OrderSagaHandlerTest {
         laundryItemType = "REGULAR", selectedOptions = listOf(SelectedOption("WASH", "STANDARD")),
         shippingAddress = address, desiredPickupAt = now, desiredDeliveryAt = now.plus(4, ChronoUnit.HOURS),
         carrierId = if (status >= OrderStatus.DISPATCHED) 100L else null,
-        invoiceId = null, totalAmount = null, actualWeight = null,
+        actualWeight = null,
         cancellation = null, completedAt = null,
         createdAt = now, updatedAt = now,
     )
@@ -91,61 +87,14 @@ class OrderSagaHandlerTest {
     }
 
     @Test
-    fun `InvoiceIssuedEvent 수신 시 INVOICED로 전이한다`() {
-        val order = orderAt(OrderStatus.PICKED_UP)
-        every { orderPersistencePort.findById(1L) } returns order
+    fun `LaundryStartedEvent 수신 시 PICKED_UP에서 IN_PROGRESS로 전이한다`() {
+        every { orderPersistencePort.findById(1L) } returns orderAt(OrderStatus.PICKED_UP)
         val saved = slot<Order>()
         every { orderPersistencePort.save(capture(saved)) } answers { saved.captured }
 
-        sut.onInvoiceIssued(InvoiceIssuedEvent(200L, 1L, 15000L, emptyList()))
+        sut.onLaundryStarted(LaundryStartedEvent(10L, 1L))
 
-        assertThat(saved.captured.status).isEqualTo(OrderStatus.INVOICED)
-        assertThat(saved.captured.invoiceId).isEqualTo(200L)
-        assertThat(saved.captured.totalAmount).isEqualTo(15000L)
-    }
-
-    @Test
-    fun `PaymentCompletedEvent 수신 시 PAID로 전이한다`() {
-        val order = orderAt(OrderStatus.INVOICED)
-        every { orderPersistencePort.findById(1L) } returns order
-        val saved = slot<Order>()
-        every { orderPersistencePort.save(capture(saved)) } answers { saved.captured }
-
-        sut.onPaymentCompleted(PaymentCompletedEvent(300L, 1L, 200L, 15000L))
-
-        assertThat(saved.captured.status).isEqualTo(OrderStatus.PAID)
-    }
-
-    @Test
-    fun `PaymentFailedEvent 수신 시 INVOICED에서 PAYMENT_FAILED로 전이한다`() {
-        every { orderPersistencePort.findById(1L) } returns orderAt(OrderStatus.INVOICED)
-        val saved = slot<Order>()
-        every { orderPersistencePort.save(capture(saved)) } answers { saved.captured }
-
-        sut.onPaymentFailed(PaymentFailedEvent(300L, 1L, "잔액 부족"))
-
-        assertThat(saved.captured.status).isEqualTo(OrderStatus.PAYMENT_FAILED)
-    }
-
-    @Test
-    fun `PaymentFailedEvent가 INVOICED가 아닌 주문에 도착하면 무시한다`() {
-        // 이미 PAID 된 주문에 늦게 도착한 실패 이벤트 — 멱등/순서 안전
-        every { orderPersistencePort.findById(1L) } returns orderAt(OrderStatus.PAID)
-
-        sut.onPaymentFailed(PaymentFailedEvent(300L, 1L, "잔액 부족"))
-
-        verify(exactly = 0) { orderPersistencePort.save(any()) }
-    }
-
-    @Test
-    fun `RefundCompletedEvent 수신 시 REFUND_PENDING에서 REFUNDED로 전이한다`() {
-        every { orderPersistencePort.findById(1L) } returns orderAt(OrderStatus.REFUND_PENDING)
-        val saved = slot<Order>()
-        every { orderPersistencePort.save(capture(saved)) } answers { saved.captured }
-
-        sut.onRefundCompleted(RefundCompletedEvent(300L, 1L, 19500L))
-
-        assertThat(saved.captured.status).isEqualTo(OrderStatus.REFUNDED)
+        assertThat(saved.captured.status).isEqualTo(OrderStatus.IN_PROGRESS)
     }
 
     @Test
@@ -163,7 +112,6 @@ class OrderSagaHandlerTest {
     @Test
     fun `취소된 주문에 늦게 도착한 forward 이벤트는 throw 없이 무시한다`() {
         // 취소 선커밋 vs 픽업 race — 늦은 forward 이벤트가 throw 되면 DLQ poison 이 된다.
-        // reverse 핸들러(onPaymentFailed/onRefundCompleted)의 가드 패턴과 대칭으로 멱등 no-op.
         every { orderPersistencePort.findById(1L) } returns orderAt(OrderStatus.CANCELLED)
 
         sut.onDispatchAccepted(DispatchAcceptedEvent(10L, 1L, 100L, 10L))
@@ -171,8 +119,6 @@ class OrderSagaHandlerTest {
             10L, 1L, 100L, 1L, BigDecimal("5.0"), "REGULAR", "SOLO", "NEW",
             listOf(SelectedOptionSnapshot("WASH", "STANDARD")),
         ))
-        sut.onInvoiceIssued(InvoiceIssuedEvent(200L, 1L, 15000L, emptyList()))
-        sut.onPaymentCompleted(PaymentCompletedEvent(300L, 1L, 200L, 15000L))
         sut.onLaundryStarted(LaundryStartedEvent(10L, 1L))
         sut.onDeliveryCompleted(DeliveryCompletedEvent(10L, 1L, 100L))
 
@@ -180,9 +126,8 @@ class OrderSagaHandlerTest {
     }
 
     @Test
-    fun `환불 분기로 빠진 주문에 도착한 forward 이벤트는 무시한다`() {
-        // PAID 취소 → REFUND_PENDING 인 주문에 늦은 LaundryStartedEvent — forward 재개 불가
-        every { orderPersistencePort.findById(1L) } returns orderAt(OrderStatus.REFUND_PENDING)
+    fun `완료된 주문에 도착한 forward 이벤트는 무시한다`() {
+        every { orderPersistencePort.findById(1L) } returns orderAt(OrderStatus.COMPLETED)
 
         sut.onLaundryStarted(LaundryStartedEvent(10L, 1L))
 
@@ -205,12 +150,12 @@ class OrderSagaHandlerTest {
 
     @Test
     fun `이른 forward 이벤트는 여전히 throw 하여 재시도로 치유한다`() {
-        // cross-topic 순서 미보장: InvoiceIssuedEvent 가 PickupCompletedEvent 보다 먼저 소비될 수 있다.
+        // cross-topic 순서 미보장: LaundryStartedEvent 가 PickupCompletedEvent 보다 먼저 소비될 수 있다.
         // 이 경우 no-op 하면 전이가 영구 유실되므로 throw → Kafka 재시도(1s×3)가 자가치유한다.
         every { orderPersistencePort.findById(1L) } returns orderAt(OrderStatus.DISPATCHED)
 
         org.assertj.core.api.Assertions.assertThatThrownBy {
-            sut.onInvoiceIssued(InvoiceIssuedEvent(200L, 1L, 15000L, emptyList()))
+            sut.onLaundryStarted(LaundryStartedEvent(10L, 1L))
         }.isInstanceOf(com.carry.order.domain.exception.InvalidOrderStatusTransitionException::class.java)
     }
 
@@ -222,7 +167,7 @@ class OrderSagaHandlerTest {
             id = 1L, customerId = 1L, status = OrderStatus.IN_PROGRESS, laundromatId = 10L,
             laundryItemType = "REGULAR", selectedOptions = listOf(SelectedOption("WASH", "STANDARD")),
             shippingAddress = address, desiredPickupAt = createdAt, desiredDeliveryAt = now,
-            carrierId = 100L, invoiceId = null, totalAmount = null, actualWeight = null,
+            carrierId = 100L, actualWeight = null,
             cancellation = null, completedAt = null,
             createdAt = createdAt, updatedAt = createdAt,
         )

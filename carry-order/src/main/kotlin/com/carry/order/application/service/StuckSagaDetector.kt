@@ -16,7 +16,7 @@ import java.time.temporal.ChronoUnit
  *
  * 본 시스템의 사가 상태는 각 애그리거트에 분산 저장되고(ADR-0004), 재시작 복원력은 Outbox 내구성 +
  * Kafka 오프셋 재배달 + 멱등 소비(ADR-0002)로 이미 보장된다. 알려진 정체 원인은 전용 스위퍼가
- * 종결한다(배차 미수락 → DispatchTimeoutSweeper, 재결제 시한 → PaymentRetryDeadlineSweeper).
+ * 종결한다(배차 미수락 → DispatchTimeoutSweeper).
  *
  * 그럼에도 외부 트리거 부재 등으로 어떤 주문이 중간 상태에 머물 수 있다. 이 디텍터는 그런 정체를
  * `carry.saga.stuck` 메트릭 + 경고 로그로 **가시화**한다(비파괴 — 자동 취소/재발행은 상태별 비즈니스
@@ -48,17 +48,13 @@ class StuckSagaDetector(
 
     companion object {
         /**
-         * 감시 대상 = 비종결 중간 상태. 종결(COMPLETED/CANCELLED/REFUNDED)과,
-         * 전용 스위퍼가 종결을 책임지는 PAYMENT_FAILED 는 제외해 중복 경보를 피한다.
+         * 감시 대상 = 비종결 중간 상태. 종결(COMPLETED/CANCELLED)은 제외해 중복 경보를 피한다.
          */
         val WATCHED_STATUSES = listOf(
             OrderStatus.CREATED,
             OrderStatus.DISPATCHED,
             OrderStatus.PICKED_UP,
-            OrderStatus.INVOICED,
-            OrderStatus.PAID,
             OrderStatus.IN_PROGRESS,
-            OrderStatus.REFUND_PENDING,
         )
     }
 }

@@ -121,13 +121,11 @@ class SettlementLedgerIntegrationTest : IntegrationTestBase() {
         val pickupEvent = outbox.readOutboxPayload<PickupCompletedEvent>("Delivery", "PickupCompletedEvent", delivery.id.toString())
         orderSagaHandler.onPickupCompleted(pickupEvent)
         paymentSagaHandler.onPickupCompleted(pickupEvent)
-        val invoiceEvent = outbox.readOutboxPayload<InvoiceIssuedEvent>("Payment", "InvoiceIssuedEvent", orderId.toString())
-        orderSagaHandler.onInvoiceIssued(invoiceEvent)
+        outbox.readOutboxPayload<InvoiceIssuedEvent>("Payment", "InvoiceIssuedEvent", orderId.toString())
 
         // TODO(Task 14): requestPayment 제거됨 — AutoChargeService 경로로 재작성 예정. 현재 @Disabled.
-        orderSagaHandler.onPaymentCompleted(
-            outbox.readOutboxPayload<PaymentCompletedEvent>("Payment", "PaymentCompletedEvent", orderId.toString())
-        )
+        // order 모듈은 더 이상 INVOICED/PAID 상태를 갖지 않는다(결제 결합 제거) — onInvoiceIssued/onPaymentCompleted 호출 제거.
+        outbox.readOutboxPayload<PaymentCompletedEvent>("Payment", "PaymentCompletedEvent", orderId.toString())
         return orderId
     }
 

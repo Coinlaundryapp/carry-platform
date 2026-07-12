@@ -53,7 +53,7 @@ class OrderTest {
         id = 1L, customerId = 1L, status = status, laundromatId = 10L,
         laundryItemType = "REGULAR", selectedOptions = options,
         shippingAddress = address, desiredPickupAt = pickupAt, desiredDeliveryAt = deliveryAt,
-        carrierId = null, invoiceId = null, totalAmount = null, actualWeight = null,
+        carrierId = null, actualWeight = null,
         cancellation = null, completedAt = null,
         createdAt = now, updatedAt = now,
     )
@@ -113,12 +113,10 @@ class OrderTest {
         }
 
         @Test
-        fun `청구서 발행 시 invoiceId와 totalAmount가 기록된다`() {
+        fun `수거 완료 후 세탁 시작 시 IN_PROGRESS로 전이한다`() {
             val order = reconstitutedOrder(OrderStatus.PICKED_UP)
-            order.markInvoiced(200L, 15000L)
-            assertThat(order.status).isEqualTo(OrderStatus.INVOICED)
-            assertThat(order.invoiceId).isEqualTo(200L)
-            assertThat(order.totalAmount).isEqualTo(15000L)
+            order.markInProgress()
+            assertThat(order.status).isEqualTo(OrderStatus.IN_PROGRESS)
         }
 
         @Test
@@ -126,8 +124,6 @@ class OrderTest {
             val order = reconstitutedOrder(OrderStatus.CREATED)
             order.markDispatched(100L)
             order.markPickedUp(BigDecimal("3.0"))
-            order.markInvoiced(200L, 12000L)
-            order.markPaid()
             order.markInProgress()
             order.markCompleted(now)
             assertThat(order.status).isEqualTo(OrderStatus.COMPLETED)
@@ -146,7 +142,7 @@ class OrderTest {
     inner class Cancel {
 
         @Test
-        fun `CREATED 상태에서 취소할 수 있다`() {
+        fun `CREATED 상태에서 고객이 취소할 수 있다`() {
             val order = reconstitutedOrder(OrderStatus.CREATED)
             order.cancel("고객 요청", CancelledBy.CUSTOMER, now)
             assertThat(order.status).isEqualTo(OrderStatus.CANCELLED)
@@ -156,71 +152,40 @@ class OrderTest {
         }
 
         @Test
-        fun `DISPATCHED 상태에서 취소할 수 있다`() {
+        fun `DISPATCHED 상태에서 고객이 취소할 수 있다`() {
             val order = reconstitutedOrder(OrderStatus.DISPATCHED)
-            order.cancel("코디네이터 취소", CancelledBy.COORDINATOR, now)
+            order.cancel("고객 요청", CancelledBy.CUSTOMER, now)
             assertThat(order.status).isEqualTo(OrderStatus.CANCELLED)
         }
 
         @Test
-        fun `PICKED_UP 이후에는 취소할 수 없다`() {
+        fun `PICKED_UP 상태에서 고객이 취소하면 거부된다`() {
             val order = reconstitutedOrder(OrderStatus.PICKED_UP)
             assertThatThrownBy { order.cancel("취소 시도", CancelledBy.CUSTOMER, now) }
                 .isInstanceOf(OrderNotCancellableException::class.java)
         }
 
         @Test
-        fun `PAYMENT_FAILED 상태에서 취소할 수 있다`() {
-            val order = reconstitutedOrder(OrderStatus.PAYMENT_FAILED)
-            order.cancel("재결제 시한 초과", CancelledBy.SYSTEM, now)
+        fun `PICKED_UP 상태에서도 코디네이터는 취소할 수 있다`() {
+            val order = reconstitutedOrder(OrderStatus.PICKED_UP)
+            order.cancel("세탁소 사정", CancelledBy.COORDINATOR, now)
+            assertThat(order.status).isEqualTo(OrderStatus.CANCELLED)
+            assertThat(order.cancellation?.by).isEqualTo(CancelledBy.COORDINATOR)
+        }
+
+        @Test
+        fun `IN_PROGRESS 상태에서도 시스템은 취소할 수 있다`() {
+            val order = reconstitutedOrder(OrderStatus.IN_PROGRESS)
+            order.cancel("운영 사유", CancelledBy.SYSTEM, now)
             assertThat(order.status).isEqualTo(OrderStatus.CANCELLED)
             assertThat(order.cancellation?.by).isEqualTo(CancelledBy.SYSTEM)
         }
-    }
-
-    @Nested
-    inner class Compensation {
 
         @Test
-        fun `INVOICED에서 결제 실패 시 PAYMENT_FAILED로 전이한다`() {
-            val order = reconstitutedOrder(OrderStatus.INVOICED)
-            order.markPaymentFailed()
-            assertThat(order.status).isEqualTo(OrderStatus.PAYMENT_FAILED)
-        }
-
-        @Test
-        fun `PAYMENT_FAILED가 아닌 상태에서 결제 실패 처리하면 예외가 발생한다`() {
-            val order = reconstitutedOrder(OrderStatus.PAID)
-            assertThatThrownBy { order.markPaymentFailed() }
-                .isInstanceOf(InvalidOrderStatusTransitionException::class.java)
-        }
-
-        @Test
-        fun `PAYMENT_FAILED에서 재결제 성공 시 PAID로 전이한다`() {
-            val order = reconstitutedOrder(OrderStatus.PAYMENT_FAILED)
-            order.markPaid()
-            assertThat(order.status).isEqualTo(OrderStatus.PAID)
-        }
-
-        @Test
-        fun `PAID에서 환불 보상 시작 시 REFUND_PENDING으로 전이한다`() {
-            val order = reconstitutedOrder(OrderStatus.PAID)
-            order.markRefundPending()
-            assertThat(order.status).isEqualTo(OrderStatus.REFUND_PENDING)
-        }
-
-        @Test
-        fun `REFUND_PENDING에서 환불 완료 시 REFUNDED로 전이한다`() {
-            val order = reconstitutedOrder(OrderStatus.REFUND_PENDING)
-            order.markRefunded()
-            assertThat(order.status).isEqualTo(OrderStatus.REFUNDED)
-        }
-
-        @Test
-        fun `PAID가 아닌 상태에서 환불 보상 시작하면 예외가 발생한다`() {
-            val order = reconstitutedOrder(OrderStatus.INVOICED)
-            assertThatThrownBy { order.markRefundPending() }
-                .isInstanceOf(InvalidOrderStatusTransitionException::class.java)
+        fun `COMPLETED 상태에서는 누구도 취소할 수 없다`() {
+            val order = reconstitutedOrder(OrderStatus.COMPLETED)
+            assertThatThrownBy { order.cancel("취소 시도", CancelledBy.SYSTEM, now) }
+                .isInstanceOf(OrderNotCancellableException::class.java)
         }
     }
 }

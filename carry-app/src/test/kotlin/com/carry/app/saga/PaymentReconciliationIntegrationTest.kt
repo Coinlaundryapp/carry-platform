@@ -128,10 +128,10 @@ class PaymentReconciliationIntegrationTest : IntegrationTestBase() {
         val pickupEvent = outbox.readOutboxPayload<PickupCompletedEvent>("Delivery", "PickupCompletedEvent", delivery.id.toString())
         orderSagaHandler.onPickupCompleted(pickupEvent)
         paymentSagaHandler.onPickupCompleted(pickupEvent)
-        val invoiceEvent = outbox.readOutboxPayload<InvoiceIssuedEvent>("Payment", "InvoiceIssuedEvent", orderId.toString())
-        orderSagaHandler.onInvoiceIssued(invoiceEvent)
+        outbox.readOutboxPayload<InvoiceIssuedEvent>("Payment", "InvoiceIssuedEvent", orderId.toString())
 
         // TODO(Task 14): requestPayment 제거됨 — AutoChargeService 경로로 재작성 예정. 현재 @Disabled.
+        // order 모듈은 더 이상 INVOICED/PAID 상태를 갖지 않는다(결제 결합 제거) — onInvoiceIssued/onPaymentCompleted 호출 제거.
         return orderId
     }
 
@@ -172,9 +172,7 @@ class PaymentReconciliationIntegrationTest : IntegrationTestBase() {
         // "PG 성공·로컬 markRefunded 직전 실패" 윈도 재현 — 스위퍼의 PG 재호출을 기다리지 않고
         // 대사가 PG 원장에서 취소 확정을 확인해 로컬만 REFUNDED 로 수렴한다(P2b 환불 화해).
         val orderId = progressToPaid()
-        orderSagaHandler.onPaymentCompleted(
-            outbox.readOutboxPayload<PaymentCompletedEvent>("Payment", "PaymentCompletedEvent", orderId.toString())
-        )
+        outbox.readOutboxPayload<PaymentCompletedEvent>("Payment", "PaymentCompletedEvent", orderId.toString())
 
         // PAID 주문 취소 → 환불 보상 시작(payment REFUND_PENDING, PG 호출 없음)
         orderCommandService.cancelOrder(orderId, "고객 변심", "CUSTOMER")
