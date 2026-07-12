@@ -430,11 +430,12 @@ class BillingKeyJpaEntity(
 
 `BillingKeyJpaRepository`: `findFirstByCustomerIdAndStatus(customerId: Long, status: BillingKeyStatus): BillingKeyJpaEntity?`, `existsByCustomerIdAndStatus(customerId: Long, status: BillingKeyStatus): Boolean`.
 
-`BillingKeyPersistencePort`:
+`BillingKeyPersistencePort` (재등록 flush 순서 강제를 위해 `saveAndFlush` 포함 — 근거는 Task 4 register 주석):
 
 ```kotlin
 interface BillingKeyPersistencePort {
     fun save(billingKey: BillingKey): BillingKey
+    fun saveAndFlush(billingKey: BillingKey): BillingKey
     fun findActiveByCustomerId(customerId: Long): BillingKey?
     fun existsActiveByCustomerId(customerId: Long): Boolean
 }
@@ -525,9 +526,12 @@ class BillingKeyService(
         }
 
         val now = clock.instant()
+        // ⚠️ 부분 유니크 인덱스 (customer_id) WHERE status='ACTIVE' 는 statement 단위로 검사된다.
+        // Hibernate 기본 flush 순서는 INSERT→UPDATE 라, 무효화(UPDATE)와 신규(INSERT)를 한 flush 에
+        // 묶으면 새 ACTIVE 행 INSERT 가 먼저 나가 제약 위반이 난다. saveAndFlush 로 무효화를 먼저 확정한다.
         existing?.let {
             it.invalidate(now)
-            billingKeyPersistencePort.save(it)
+            billingKeyPersistencePort.saveAndFlush(it)  // 포트에 saveAndFlush 추가 — 어댑터는 repository.saveAndFlush 위임
         }
         val saved = billingKeyPersistencePort.save(
             BillingKey.create(customerId, customerKey, result.billingKey!!,
@@ -1365,9 +1369,9 @@ git add -A && git commit -m "feat: BillingQueryPort 배선 + 환불 완료 알�
 - Modify: `carry-app/src/test/kotlin/com/carry/app/saga/OrderSagaIntegrationTest.kt`, `OrderCancellationSagaIntegrationTest.kt`, `SettlementLedgerIntegrationTest.kt`
 - Modify: `carry-app/src/test/kotlin/com/carry/app/test/TestFixtures.kt` (빌링키 삽입 헬퍼 추가)
 
-- [ ] **Step 1: TestFixtures 에 빌링키 픽스처 추가**
+- [ ] **Step 1: TestFixtures 에 빌링키 픽스처 추가 + 컨버터 실 Hibernate 왕복 검증**
 
-`insertBillingKey(customerId)` 헬퍼 — `BillingKeyService.register`를 fake PG로 호출하거나 JdbcTemplate 직접 삽입(기존 픽스처 스타일 준용, 암호문은 컨버터 경유 필요하므로 서비스 호출 방식 권장).
+`insertBillingKey(customerId)` 헬퍼 — `BillingKeyService.register`를 fake PG로 호출(암호문이 컨버터 경유해야 하므로 서비스 호출 방식). 이 픽스처가 Testcontainers PostgreSQL로 저장→재조회를 실제로 태우므로, `BillingKeyCryptoConverter`가 Hibernate SpringBeanContainer로 부팅·주입되는지(단위 테스트가 우회한 경로)와 부분 유니크 인덱스 DDL이 함께 검증된다. 재등록 왕복(저장→invalidate→재등록→활성 키 1개 유지) 단언을 최소 1개 포함.
 
 - [ ] **Step 2: 시나리오 ⓐ 해피 패스 (AutoChargeSagaIntegrationTest)**
 
