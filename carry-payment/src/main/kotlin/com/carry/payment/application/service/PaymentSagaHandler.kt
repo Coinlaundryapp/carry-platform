@@ -3,6 +3,7 @@ package com.carry.payment.application.service
 import com.carry.common.logging.SagaLogContext
 import com.carry.event.delivery.PickupCompletedEvent
 import com.carry.event.order.OrderCancelledEvent
+import com.carry.event.payment.InvoiceIssuedEvent
 import com.carry.payment.application.port.inbound.PaymentCommandUseCase
 import com.carry.payment.application.port.inbound.PaymentSagaEventHandler
 import com.carry.payment.application.port.outbound.OrderStateQueryPort
@@ -18,6 +19,7 @@ class PaymentSagaHandler(
     private val paymentPersistencePort: PaymentPersistencePort,
     private val paymentCommandUseCase: PaymentCommandUseCase,
     private val orderStateQueryPort: OrderStateQueryPort,
+    private val autoChargeService: AutoChargeService,
 ) : PaymentSagaEventHandler {
 
     private val log = LoggerFactory.getLogger(javaClass)
@@ -50,6 +52,14 @@ class PaymentSagaHandler(
             } else {
                 log.info("Payment saga: onOrderCancelled — 환불 대상 결제 없음, skip")
             }
+        }
+    }
+
+    @Transactional
+    override fun onInvoiceIssued(event: InvoiceIssuedEvent) {
+        SagaLogContext.withOrderId(event.orderId) {
+            log.info("Payment saga: onInvoiceIssued invoiceId={}", event.invoiceId)
+            autoChargeService.chargeInvoice(event.invoiceId)
         }
     }
 }

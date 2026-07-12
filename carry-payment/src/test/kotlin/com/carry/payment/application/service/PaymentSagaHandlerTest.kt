@@ -2,6 +2,7 @@ package com.carry.payment.application.service
 
 import com.carry.event.delivery.PickupCompletedEvent
 import com.carry.event.order.OrderCancelledEvent
+import com.carry.event.payment.InvoiceIssuedEvent
 import com.carry.payment.application.port.inbound.PaymentCommandUseCase
 import com.carry.payment.application.port.outbound.OrderStateQueryPort
 import com.carry.payment.application.port.outbound.PaymentPersistencePort
@@ -21,8 +22,11 @@ class PaymentSagaHandlerTest {
     private val paymentPersistencePort = mockk<PaymentPersistencePort>(relaxed = true)
     private val paymentCommandUseCase = mockk<PaymentCommandUseCase>(relaxed = true)
     private val orderStateQueryPort = mockk<OrderStateQueryPort>()
+    private val autoChargeService = mockk<AutoChargeService>(relaxed = true)
 
-    private val sut = PaymentSagaHandler(invoiceService, paymentPersistencePort, paymentCommandUseCase, orderStateQueryPort)
+    private val sut = PaymentSagaHandler(
+        invoiceService, paymentPersistencePort, paymentCommandUseCase, orderStateQueryPort, autoChargeService,
+    )
 
     private val now = Instant.now()
 
@@ -85,5 +89,12 @@ class PaymentSagaHandlerTest {
         sut.onOrderCancelled(OrderCancelledEvent(10L, "재결제 시한 초과", "SYSTEM"))
 
         verify(exactly = 0) { paymentCommandUseCase.markRefundPending(any()) }
+    }
+
+    @Test
+    fun `onInvoiceIssued 는 autoChargeService의 chargeInvoice 에 위임한다`() {
+        sut.onInvoiceIssued(InvoiceIssuedEvent(invoiceId = 200L, orderId = 10L, totalAmount = 18000L, lineItems = emptyList()))
+
+        verify { autoChargeService.chargeInvoice(200L) }
     }
 }
