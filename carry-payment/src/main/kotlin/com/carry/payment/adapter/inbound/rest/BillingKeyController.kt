@@ -27,6 +27,7 @@ class BillingKeyController(
 ) {
 
     @Operation(
+        operationId = "registerBillingKey",
         summary = "빌링키 등록",
         description = "PG SDK 카드 등록창 결과(authKey)로 자동결제 수단을 등록합니다. " +
             "이미 등록된 카드가 있으면 기존 키를 무효화하고 새 키로 교체합니다.",

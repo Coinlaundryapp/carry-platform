@@ -72,7 +72,7 @@ class LaundromatController(
         return ResponseEntity.ok(ApiResponse.success(LaundromatResponse.from(laundromat)))
     }
 
-    @Operation(summary = "세탁소 등록")
+    @Operation(operationId = "registerLaundromat", summary = "세탁소 등록")
     @ApiResponses(
         value = [
             SwaggerApiResponse(responseCode = "201", description = "세탁소 등록 성공"),
