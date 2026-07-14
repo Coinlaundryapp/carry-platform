@@ -34,19 +34,19 @@ class AuthService(
     private val log = LoggerFactory.getLogger(javaClass)
 
     override fun devLogin(role: UserRole): TokenPair {
-        // 역할별 결정적 합성 신원 — 같은 역할 재호출 시 같은 사용자(unique idx: oauth_provider+oauth_id).
+        // 역할별 결정적 합성 신원 — 같은 역할 재호출 시 같은 사용자(unique idx: user_oauth_accounts(provider, oauth_id)).
         val slug = role.name.lowercase()
         val oauthInfo = OAuthInfo(OAuthProvider.DEV, "dev:$slug")
         val user = userPersistencePort.findByOAuthInfo(oauthInfo)
             ?: userPersistencePort.save(
                 User.create(
                     email = Email("dev-$slug@carry.local"),
+                    emailVerified = false,
                     name = "dev-$slug",
                     phone = Phone("01000000000"),
                     role = role,
-                    oauthInfo = oauthInfo,
                 ),
-            )
+            ).also { userPersistencePort.linkOAuthAccount(it.id!!, oauthInfo) }
         if (!user.isActive) throw InactiveUserException()
         log.info("dev-login 발급 (role={}, userId={})", role, user.id)
         return issueTokens(user)
@@ -56,6 +56,7 @@ class AuthService(
         provider: OAuthProvider,
         oauthId: String,
         email: String,
+        emailVerified: Boolean,
         name: String,
         phone: String,
     ): User {
@@ -65,11 +66,11 @@ class AuthService(
             ?: userPersistencePort.save(
                 User.create(
                     email = Email(email),
+                    emailVerified = emailVerified,
                     name = name,
                     phone = Phone(phone),
-                    oauthInfo = oauthInfo,
                 ),
-            )
+            ).also { userPersistencePort.linkOAuthAccount(it.id!!, oauthInfo) }
     }
 
     @Transactional(readOnly = true)
@@ -90,7 +91,7 @@ class AuthService(
 
     override fun completeSignup(signupToken: String, name: String, phone: String, email: String): TokenPair {
         val identity = authTokenPort.parseSignupToken(signupToken) ?: throw AuthTokenInvalidException()
-        val user = loginOrRegister(identity.provider, identity.oauthId, email, name, phone)
+        val user = loginOrRegister(identity.provider, identity.oauthId, email, false, name, phone)
         if (!user.isActive) throw InactiveUserException()
         return issueTokens(user)
     }

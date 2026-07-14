@@ -16,6 +16,7 @@ interface AuthUseCase {
         provider: OAuthProvider,
         oauthId: String,
         email: String,
+        emailVerified: Boolean,
         name: String,
         phone: String,
     ): User

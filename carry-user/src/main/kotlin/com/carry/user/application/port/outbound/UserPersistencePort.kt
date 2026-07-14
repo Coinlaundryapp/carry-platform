@@ -14,5 +14,7 @@ interface UserPersistencePort {
 
     fun findByOAuthInfo(oauthInfo: OAuthInfo): User?
 
+    fun linkOAuthAccount(userId: Long, oauthInfo: OAuthInfo)
+
     fun existsByEmail(email: Email): Boolean
 }

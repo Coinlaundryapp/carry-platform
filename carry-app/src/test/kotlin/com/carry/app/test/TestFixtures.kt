@@ -18,24 +18,40 @@ object TestFixtures {
     fun insertCustomer(jdbc: JdbcTemplate, id: Long = CUSTOMER_ID) {
         jdbc.update(
             """
-            INSERT INTO user_users (id, email, name, phone, role, oauth_provider, oauth_id, is_active)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO user_users (id, email, email_verified, name, phone, role, is_active)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT (id) DO NOTHING
             """,
-            id, "customer$id@test.com", "테스트고객$id", "010-1234-5678",
-            "CUSTOMER", "KAKAO", "kakao_$id", true,
+            id, "customer$id@test.com", false, "테스트고객$id", "010-1234-5678",
+            "CUSTOMER", true,
+        )
+        jdbc.update(
+            """
+            INSERT INTO user_oauth_accounts (user_id, provider, oauth_id)
+            VALUES (?, ?, ?)
+            ON CONFLICT (provider, oauth_id) DO NOTHING
+            """,
+            id, "KAKAO", "kakao_$id",
         )
     }
 
     fun insertCarrier(jdbc: JdbcTemplate, id: Long = CARRIER_ID) {
         jdbc.update(
             """
-            INSERT INTO user_users (id, email, name, phone, role, oauth_provider, oauth_id, is_active)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO user_users (id, email, email_verified, name, phone, role, is_active)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT (id) DO NOTHING
             """,
-            id, "carrier$id@test.com", "테스트캐리어$id", "010-9876-5432",
-            "CARRIER", "KAKAO", "kakao_carrier_$id", true,
+            id, "carrier$id@test.com", false, "테스트캐리어$id", "010-9876-5432",
+            "CARRIER", true,
+        )
+        jdbc.update(
+            """
+            INSERT INTO user_oauth_accounts (user_id, provider, oauth_id)
+            VALUES (?, ?, ?)
+            ON CONFLICT (provider, oauth_id) DO NOTHING
+            """,
+            id, "KAKAO", "kakao_carrier_$id",
         )
     }
 
@@ -148,6 +164,7 @@ object TestFixtures {
             DELETE FROM laundromat_options;
             DELETE FROM laundromat_laundromats;
             DELETE FROM user_shipping_addresses;
+            DELETE FROM user_oauth_accounts;
             DELETE FROM user_users;
             """
         )

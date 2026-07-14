@@ -19,7 +19,9 @@ import com.carry.user.domain.vo.OAuthInfo
 import com.carry.user.domain.vo.OAuthProvider
 import com.carry.user.domain.vo.Phone
 import com.carry.user.domain.vo.UserRole
+import io.mockk.Runs
 import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
@@ -45,10 +47,10 @@ class AuthServiceTest {
     ) = User.reconstitute(
         id = id,
         email = Email("u@example.com"),
+        emailVerified = false,
         name = "유저",
         phone = Phone("01012345678"),
         role = role,
-        oauthInfo = OAuthInfo(OAuthProvider.KAKAO, oauthId),
         isActive = active,
         createdAt = Instant.now(),
         updatedAt = Instant.now(),
@@ -70,32 +72,31 @@ class AuthServiceTest {
             val saved = slot<User>()
             every { userPersistencePort.save(capture(saved)) } answers {
                 User.reconstitute(
-                    id = 7L, email = saved.captured.email, name = saved.captured.name,
-                    phone = saved.captured.phone, role = saved.captured.role, oauthInfo = saved.captured.oauthInfo,
+                    id = 7L, email = saved.captured.email, emailVerified = saved.captured.emailVerified,
+                    name = saved.captured.name, phone = saved.captured.phone, role = saved.captured.role,
                     isActive = true, createdAt = Instant.now(), updatedAt = Instant.now(),
                 )
             }
+            every { userPersistencePort.linkOAuthAccount(7L, devInfo) } just Runs
             stubTokenIssuance(7L)
 
             val tokens = sut.devLogin(UserRole.CARRIER)
 
             // 생성된 사용자는 요청 역할을 갖는다 — loginOrRegister가 못 하던 핵심 속성
             assertThat(saved.captured.role).isEqualTo(UserRole.CARRIER)
-            assertThat(saved.captured.oauthInfo).isEqualTo(devInfo)
             assertThat(tokens.accessToken).isEqualTo("access")
             // access 토큰은 그 역할로 발급된다
             verify(exactly = 1) { authTokenPort.issueAccessToken(7L, UserRole.CARRIER) }
+            verify(exactly = 1) { userPersistencePort.linkOAuthAccount(7L, devInfo) }
         }
 
         @Test
         fun `같은 역할로 다시 호출하면 기존 dev 사용자를 재사용한다 — 중복 생성 없음`() {
-            val existing = user(id = 3L, oauthId = "dev:coordinator", role = UserRole.COORDINATOR).let {
-                User.reconstitute(
-                    id = 3L, email = it.email, name = it.name, phone = it.phone, role = UserRole.COORDINATOR,
-                    oauthInfo = OAuthInfo(OAuthProvider.DEV, "dev:coordinator"), isActive = true,
-                    createdAt = Instant.now(), updatedAt = Instant.now(),
-                )
-            }
+            val existing = User.reconstitute(
+                id = 3L, email = Email("u@example.com"), emailVerified = false, name = "유저",
+                phone = Phone("01012345678"), role = UserRole.COORDINATOR, isActive = true,
+                createdAt = Instant.now(), updatedAt = Instant.now(),
+            )
             every {
                 userPersistencePort.findByOAuthInfo(OAuthInfo(OAuthProvider.DEV, "dev:coordinator"))
             } returns existing
@@ -104,6 +105,7 @@ class AuthServiceTest {
             sut.devLogin(UserRole.COORDINATOR)
 
             verify(exactly = 0) { userPersistencePort.save(any()) }
+            verify(exactly = 0) { userPersistencePort.linkOAuthAccount(any(), any()) }
             verify(exactly = 1) { authTokenPort.issueAccessToken(3L, UserRole.COORDINATOR) }
         }
     }
@@ -118,7 +120,7 @@ class AuthServiceTest {
                 userPersistencePort.findByOAuthInfo(OAuthInfo(OAuthProvider.KAKAO, "kakao-123"))
             } returns existingUser
 
-            val result = sut.loginOrRegister(OAuthProvider.KAKAO, "kakao-123", "u@example.com", "유저", "01012345678")
+            val result = sut.loginOrRegister(OAuthProvider.KAKAO, "kakao-123", "u@example.com", false, "유저", "01012345678")
 
             assertThat(result.id).isEqualTo(1L)
             verify(exactly = 0) { userPersistencePort.save(any()) }
@@ -132,16 +134,18 @@ class AuthServiceTest {
             val saved = slot<User>()
             every { userPersistencePort.save(capture(saved)) } answers {
                 User.reconstitute(
-                    id = 2L, email = saved.captured.email, name = saved.captured.name,
-                    phone = saved.captured.phone, role = saved.captured.role, oauthInfo = saved.captured.oauthInfo,
+                    id = 2L, email = saved.captured.email, emailVerified = saved.captured.emailVerified,
+                    name = saved.captured.name, phone = saved.captured.phone, role = saved.captured.role,
                     isActive = true, createdAt = Instant.now(), updatedAt = Instant.now(),
                 )
             }
+            every { userPersistencePort.linkOAuthAccount(2L, OAuthInfo(OAuthProvider.KAKAO, "kakao-new")) } just Runs
 
-            val result = sut.loginOrRegister(OAuthProvider.KAKAO, "kakao-new", "new@example.com", "신규", "01098765432")
+            val result = sut.loginOrRegister(OAuthProvider.KAKAO, "kakao-new", "new@example.com", false, "신규", "01098765432")
 
             assertThat(result.id).isEqualTo(2L)
             verify(exactly = 1) { userPersistencePort.save(any()) }
+            verify(exactly = 1) { userPersistencePort.linkOAuthAccount(2L, OAuthInfo(OAuthProvider.KAKAO, "kakao-new")) }
         }
     }
 
@@ -205,6 +209,7 @@ class AuthServiceTest {
                 SignupIdentity(OAuthProvider.KAKAO, "kakao-new", "new@example.com", "새닉")
             every { userPersistencePort.findByOAuthInfo(OAuthInfo(OAuthProvider.KAKAO, "kakao-new")) } returns null
             every { userPersistencePort.save(any()) } returns user(id = 5L, oauthId = "kakao-new")
+            every { userPersistencePort.linkOAuthAccount(5L, OAuthInfo(OAuthProvider.KAKAO, "kakao-new")) } just Runs
             every { authTokenPort.issueAccessToken(5L, UserRole.CUSTOMER) } returns "acc"
             every { authTokenPort.issueRefreshToken(5L) } returns IssuedRefreshToken("ref", "sess-5", "jti-5")
 

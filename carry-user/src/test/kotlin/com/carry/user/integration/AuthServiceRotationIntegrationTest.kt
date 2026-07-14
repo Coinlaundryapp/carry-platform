@@ -42,10 +42,10 @@ class AuthServiceRotationIntegrationTest {
     private val user = User.reconstitute(
         id = 1L,
         email = Email("u@example.com"),
+        emailVerified = false,
         name = "유저",
         phone = Phone("01012345678"),
         role = UserRole.CUSTOMER,
-        oauthInfo = OAuthInfo(OAuthProvider.KAKAO, "kakao-1"),
         isActive = true,
         createdAt = Instant.now(),
         updatedAt = Instant.now(),
