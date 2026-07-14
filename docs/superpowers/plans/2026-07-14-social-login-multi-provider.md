@@ -26,6 +26,7 @@
 **Files:**
 - Modify: `carry-user/src/main/kotlin/com/carry/user/domain/vo/OAuthInfo.kt`
 - Modify: `carry-user/src/main/kotlin/com/carry/user/application/port/outbound/OAuthProfileClient.kt`
+- Modify: `carry-user/src/main/kotlin/com/carry/user/adapter/outbound/auth/KakaoOAuthClient.kt` (is_email_verified 매핑)
 - Test: `carry-user/src/test/kotlin/com/carry/user/domain/vo/OAuthInfoTest.kt`
 
 - [ ] **Step 1: OAuthProvider에 NAVER/GOOGLE 추가**
