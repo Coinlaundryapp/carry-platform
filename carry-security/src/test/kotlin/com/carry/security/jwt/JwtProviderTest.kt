@@ -114,6 +114,17 @@ class JwtProviderTest {
         assertThat(claims).isNotNull
         assertThat(claims!!.email).isNull()
         assertThat(claims.nickname).isNull()
+        // emailVerified 미지정(4-arg) → 기본값 false로 왕복
+        assertThat(claims.emailVerified).isFalse()
+    }
+
+    @Test
+    fun `SIGNUP 토큰의 emailVerified가 왕복 보존된다`() {
+        val verified = sut.createSignupToken("GOOGLE", "g-1", "v@x.com", "닉", emailVerified = true)
+        val unverified = sut.createSignupToken("GOOGLE", "g-2", "u@x.com", "닉", emailVerified = false)
+
+        assertThat(sut.parseSignupToken(verified)!!.emailVerified).isTrue()
+        assertThat(sut.parseSignupToken(unverified)!!.emailVerified).isFalse()
     }
 
     @Test
