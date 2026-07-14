@@ -37,6 +37,7 @@ class KakaoOAuthClient(
             oauthId = oauthId.toString(),
             email = response.kakaoAccount?.email,
             nickname = response.kakaoAccount?.profile?.nickname,
+            emailVerified = response.kakaoAccount?.isEmailVerified ?: false,
         )
     }
 
@@ -48,6 +49,7 @@ class KakaoOAuthClient(
     data class KakaoAccount(
         val email: String? = null,
         val profile: KakaoProfile? = null,
+        @JsonProperty("is_email_verified") val isEmailVerified: Boolean? = null,
     )
 
     data class KakaoProfile(

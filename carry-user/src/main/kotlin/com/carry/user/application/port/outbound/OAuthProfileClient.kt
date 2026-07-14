@@ -8,6 +8,7 @@ data class OAuthProfile(
     val oauthId: String,
     val email: String?,
     val nickname: String?,
+    val emailVerified: Boolean = false,
 )
 
 /**
