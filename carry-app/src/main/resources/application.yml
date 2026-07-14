@@ -75,6 +75,16 @@ kakao:
     # prod에서 이 값이 실 Kakao가 아니면 KakaoBaseUrlGuard가 부팅을 막는다.
     base-url: ${KAKAO_API_BASE_URL:https://kapi.kakao.com}
 
+naver:
+  api:
+    # prod에서 실 Naver가 아니면 NaverBaseUrlGuard가 부팅을 막는다.
+    base-url: ${NAVER_API_BASE_URL:https://openapi.naver.com}
+
+google:
+  api:
+    # prod에서 실 Google이 아니면 GoogleBaseUrlGuard가 부팅을 막는다.
+    base-url: ${GOOGLE_API_BASE_URL:https://openidconnect.googleapis.com}
+
 cloud:
   aws:
     region:
