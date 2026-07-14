@@ -91,10 +91,4 @@ class GoogleOAuthClientTest {
     fun `supports는 GOOGLE을 반환한다`() {
         assertThat(sut.supports()).isEqualTo(com.carry.user.domain.vo.OAuthProvider.GOOGLE)
     }
-
-    @Test
-    fun `fetchKakaoProfile은 미지원 예외를 던진다`() {
-        assertThatThrownBy { sut.fetchKakaoProfile("test-at") }
-            .isInstanceOf(UnsupportedOperationException::class.java)
-    }
 }

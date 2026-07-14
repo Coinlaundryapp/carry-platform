@@ -14,8 +14,6 @@ class OAuthProfileClientResolverTest {
         override fun supports(): OAuthProvider = provider
         override fun fetchProfile(accessToken: String): OAuthProfile =
             OAuthProfile(oauthId = "id", email = null, nickname = null)
-        override fun fetchKakaoProfile(accessToken: String): OAuthProfile =
-            throw UnsupportedOperationException()
     }
 
     private val kakao = FakeClient(OAuthProvider.KAKAO)

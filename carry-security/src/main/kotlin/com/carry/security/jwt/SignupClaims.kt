@@ -8,4 +8,5 @@ data class SignupClaims(
     val oauthId: String,
     val email: String?,
     val nickname: String?,
+    val emailVerified: Boolean,
 )

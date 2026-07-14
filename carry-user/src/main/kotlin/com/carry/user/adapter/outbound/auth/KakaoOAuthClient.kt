@@ -20,9 +20,7 @@ class KakaoOAuthClient(
 
     override fun supports(): OAuthProvider = OAuthProvider.KAKAO
 
-    override fun fetchProfile(accessToken: String): OAuthProfile = fetchKakaoProfile(accessToken)
-
-    override fun fetchKakaoProfile(accessToken: String): OAuthProfile {
+    override fun fetchProfile(accessToken: String): OAuthProfile {
         val response = try {
             restClient.get()
                 .uri("/v2/user/me")

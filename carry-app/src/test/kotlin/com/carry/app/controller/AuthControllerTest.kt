@@ -5,6 +5,7 @@ import com.carry.user.application.port.inbound.LoginResult
 import com.carry.user.application.port.inbound.Prefill
 import com.carry.user.application.port.inbound.TokenPair
 import com.carry.user.domain.exception.AuthTokenInvalidException
+import com.carry.user.domain.vo.OAuthProvider
 import com.ninjasquad.springmockk.MockkBean
 import io.mockk.every
 import io.mockk.verify
@@ -40,12 +41,12 @@ class AuthControllerTest {
 
     @Test
     fun `기존 유저 로그인은 200과 토큰을 반환한다`() {
-        every { authUseCase.loginWithKakao("kakao-at") } returns
+        every { authUseCase.login(OAuthProvider.KAKAO, "kakao-at") } returns
             LoginResult.Registered(TokenPair("acc", "ref"))
 
         mockMvc.post("/api/v2/auth/login") {
             contentType = MediaType.APPLICATION_JSON
-            content = """{"kakaoAccessToken": "kakao-at"}"""
+            content = """{"provider": "KAKAO", "accessToken": "kakao-at"}"""
         }.andExpect {
             status { isOk() }
             jsonPath("$.data.status") { value("REGISTERED") }
@@ -56,12 +57,12 @@ class AuthControllerTest {
 
     @Test
     fun `신규 유저 로그인은 200과 가입 토큰을 반환한다`() {
-        every { authUseCase.loginWithKakao("kakao-at") } returns
+        every { authUseCase.login(OAuthProvider.KAKAO, "kakao-at") } returns
             LoginResult.RegistrationRequired("signup-token", Prefill("new@example.com", "새닉"))
 
         mockMvc.post("/api/v2/auth/login") {
             contentType = MediaType.APPLICATION_JSON
-            content = """{"kakaoAccessToken": "kakao-at"}"""
+            content = """{"provider": "KAKAO", "accessToken": "kakao-at"}"""
         }.andExpect {
             status { isOk() }
             jsonPath("$.data.status") { value("REGISTRATION_REQUIRED") }
@@ -74,7 +75,17 @@ class AuthControllerTest {
     fun `로그인 토큰이 비면 400을 반환한다`() {
         mockMvc.post("/api/v2/auth/login") {
             contentType = MediaType.APPLICATION_JSON
-            content = """{"kakaoAccessToken": ""}"""
+            content = """{"provider": "KAKAO", "accessToken": ""}"""
+        }.andExpect {
+            status { isBadRequest() }
+        }
+    }
+
+    @Test
+    fun `알 수 없는 provider면 400을 반환한다`() {
+        mockMvc.post("/api/v2/auth/login") {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"provider": "FACEBOOK", "accessToken": "at"}"""
         }.andExpect {
             status { isBadRequest() }
         }

@@ -22,7 +22,4 @@ interface OAuthProfileClient {
     fun supports(): OAuthProvider
 
     fun fetchProfile(accessToken: String): OAuthProfile
-
-    /** @deprecated Task 4에서 제거. 그 전까지 AuthService가 Kakao 전용으로 사용. */
-    fun fetchKakaoProfile(accessToken: String): OAuthProfile
 }

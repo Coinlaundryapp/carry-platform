@@ -96,10 +96,4 @@ class NaverOAuthClientTest {
     fun `supports는 NAVER를 반환한다`() {
         assertThat(sut.supports()).isEqualTo(com.carry.user.domain.vo.OAuthProvider.NAVER)
     }
-
-    @Test
-    fun `fetchKakaoProfile은 미지원 예외를 던진다`() {
-        assertThatThrownBy { sut.fetchKakaoProfile("test-at") }
-            .isInstanceOf(UnsupportedOperationException::class.java)
-    }
 }

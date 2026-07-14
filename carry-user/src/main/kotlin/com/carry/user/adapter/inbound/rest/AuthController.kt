@@ -1,5 +1,7 @@
 package com.carry.user.adapter.inbound.rest
 
+import com.carry.common.exception.BusinessException
+import com.carry.common.exception.ErrorCode
 import com.carry.common.response.ApiResponse
 import com.carry.user.adapter.inbound.rest.dto.LoginRequest
 import com.carry.user.adapter.inbound.rest.dto.LoginResponse
@@ -7,6 +9,7 @@ import com.carry.user.adapter.inbound.rest.dto.RefreshRequest
 import com.carry.user.adapter.inbound.rest.dto.SignupRequest
 import com.carry.user.adapter.inbound.rest.dto.TokenResponse
 import com.carry.user.application.port.inbound.AuthUseCase
+import com.carry.user.domain.vo.OAuthProvider
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
@@ -17,19 +20,24 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 
-@Tag(name = "Auth", description = "인증 API (Kakao 로그인 / 2-step 가입 / 토큰 재발급)")
+@Tag(name = "Auth", description = "인증 API (소셜 로그인 / 2-step 가입 / 토큰 재발급)")
 @RestController
 @RequestMapping("/api/v2/auth")
 class AuthController(
     private val authUseCase: AuthUseCase,
 ) {
 
-    @Operation(summary = "Kakao 로그인", description = "Kakao access token을 검증한다. 기존 유저면 토큰, 신규면 가입 토큰을 반환한다.")
+    @Operation(summary = "소셜 로그인", description = "provider access token을 검증한다. 기존 유저면 토큰, 신규면 가입 토큰을 반환한다.")
     @PostMapping("/login")
     fun login(
         @Valid @RequestBody request: LoginRequest,
     ): ResponseEntity<ApiResponse<LoginResponse>> {
-        val result = authUseCase.loginWithKakao(request.kakaoAccessToken)
+        val provider = try {
+            OAuthProvider.valueOf(request.provider)
+        } catch (e: IllegalArgumentException) {
+            throw BusinessException(ErrorCode.INVALID_INPUT, "알 수 없는 provider: ${request.provider}")
+        }
+        val result = authUseCase.login(provider, request.accessToken)
         return ResponseEntity.ok(ApiResponse.success(LoginResponse.from(result)))
     }
 

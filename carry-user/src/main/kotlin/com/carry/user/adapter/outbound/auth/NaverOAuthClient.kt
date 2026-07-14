@@ -44,10 +44,6 @@ class NaverOAuthClient(
         )
     }
 
-    /** @deprecated Task 4에서 fetchKakaoProfile 자체가 인터페이스에서 제거된다. Naver는 처음부터 미지원. */
-    override fun fetchKakaoProfile(accessToken: String): OAuthProfile =
-        throw UnsupportedOperationException("Naver는 fetchKakaoProfile 미지원")
-
     data class NaverMeResponse(
         val resultcode: String? = null,
         val message: String? = null,
