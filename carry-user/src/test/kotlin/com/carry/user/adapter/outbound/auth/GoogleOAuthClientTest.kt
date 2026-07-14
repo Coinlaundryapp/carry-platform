@@ -6,6 +6,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpMethod
+import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.test.web.client.MockRestServiceServer
 import org.springframework.test.web.client.match.MockRestRequestMatchers.header
@@ -14,50 +15,55 @@ import org.springframework.test.web.client.match.MockRestRequestMatchers.request
 import org.springframework.test.web.client.response.MockRestResponseCreators.withServerError
 import org.springframework.test.web.client.response.MockRestResponseCreators.withStatus
 import org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess
-import org.springframework.http.HttpStatus
 import org.springframework.web.client.RestClient
 
-class KakaoOAuthClientTest {
+class GoogleOAuthClientTest {
 
-    private val builder = RestClient.builder().baseUrl("https://kapi.kakao.com")
+    private val builder = RestClient.builder().baseUrl("https://openidconnect.googleapis.com")
     private val server = MockRestServiceServer.bindTo(builder).build()
-    private val sut = KakaoOAuthClient(builder.build())
+    private val sut = GoogleOAuthClient(builder.build())
 
     @Test
-    fun `user_me 응답을 OAuthProfile로 매핑한다`() {
-        server.expect(requestTo("https://kapi.kakao.com/v2/user/me"))
+    fun `userinfo 응답을 OAuthProfile로 매핑한다`() {
+        server.expect(requestTo("https://openidconnect.googleapis.com/v1/userinfo"))
             .andExpect(method(HttpMethod.GET))
             .andExpect(header("Authorization", "Bearer test-at"))
             .andRespond(
                 withSuccess(
-                    """{"id":123456789,"kakao_account":{"email":"a@b.com","profile":{"nickname":"닉네임"}}}""",
+                    """{"sub":"g-123","email":"u@g.com","email_verified":true,"name":"Gil"}""",
                     MediaType.APPLICATION_JSON,
                 ),
             )
 
         val profile = sut.fetchProfile("test-at")
 
-        assertThat(profile.oauthId).isEqualTo("123456789")
-        assertThat(profile.email).isEqualTo("a@b.com")
-        assertThat(profile.nickname).isEqualTo("닉네임")
+        assertThat(profile.oauthId).isEqualTo("g-123")
+        assertThat(profile.email).isEqualTo("u@g.com")
+        assertThat(profile.nickname).isEqualTo("Gil")
+        assertThat(profile.emailVerified).isTrue()
     }
 
     @Test
-    fun `email_nickname이 없으면 null로 매핑한다`() {
-        server.expect(requestTo("https://kapi.kakao.com/v2/user/me"))
-            .andRespond(withSuccess("""{"id":999}""", MediaType.APPLICATION_JSON))
+    fun `email_verified가 없으면 false로 매핑한다`() {
+        server.expect(requestTo("https://openidconnect.googleapis.com/v1/userinfo"))
+            .andRespond(
+                withSuccess("""{"sub":"g-999"}""", MediaType.APPLICATION_JSON),
+            )
 
         val profile = sut.fetchProfile("test-at")
 
-        assertThat(profile.oauthId).isEqualTo("999")
+        assertThat(profile.oauthId).isEqualTo("g-999")
         assertThat(profile.email).isNull()
         assertThat(profile.nickname).isNull()
+        assertThat(profile.emailVerified).isFalse()
     }
 
     @Test
-    fun `id가 없으면 토큰 무효로 간주한다`() {
-        server.expect(requestTo("https://kapi.kakao.com/v2/user/me"))
-            .andRespond(withSuccess("""{"kakao_account":{"email":"a@b.com"}}""", MediaType.APPLICATION_JSON))
+    fun `sub가 없으면 토큰 무효로 간주한다`() {
+        server.expect(requestTo("https://openidconnect.googleapis.com/v1/userinfo"))
+            .andRespond(
+                withSuccess("""{"email":"u@g.com"}""", MediaType.APPLICATION_JSON),
+            )
 
         assertThatThrownBy { sut.fetchProfile("test-at") }
             .isInstanceOf(OAuthTokenInvalidException::class.java)
@@ -65,7 +71,7 @@ class KakaoOAuthClientTest {
 
     @Test
     fun `401이면 토큰 무효 예외를 던진다`() {
-        server.expect(requestTo("https://kapi.kakao.com/v2/user/me"))
+        server.expect(requestTo("https://openidconnect.googleapis.com/v1/userinfo"))
             .andRespond(withStatus(HttpStatus.UNAUTHORIZED))
 
         assertThatThrownBy { sut.fetchProfile("bad") }
@@ -74,10 +80,15 @@ class KakaoOAuthClientTest {
 
     @Test
     fun `5xx면 제공자 장애 예외를 던진다`() {
-        server.expect(requestTo("https://kapi.kakao.com/v2/user/me"))
+        server.expect(requestTo("https://openidconnect.googleapis.com/v1/userinfo"))
             .andRespond(withServerError())
 
         assertThatThrownBy { sut.fetchProfile("test-at") }
             .isInstanceOf(OAuthProviderUnavailableException::class.java)
+    }
+
+    @Test
+    fun `supports는 GOOGLE을 반환한다`() {
+        assertThat(sut.supports()).isEqualTo(com.carry.user.domain.vo.OAuthProvider.GOOGLE)
     }
 }

@@ -45,11 +45,18 @@ class JwtProvider(
      * 2-step 가입의 1단계 토큰. 서버가 검증한 OAuth 신원을 담되 유저(userId)는 아직 없다.
      * subject = oauthId. 탈취 시 임의 프로필로 가입 시도가 가능하므로 수명을 짧게 둔다.
      */
-    fun createSignupToken(provider: String, oauthId: String, email: String?, nickname: String?): String {
+    fun createSignupToken(
+        provider: String,
+        oauthId: String,
+        email: String?,
+        nickname: String?,
+        emailVerified: Boolean = false,
+    ): String {
         val builder = JWT.create()
             .withSubject(oauthId)
             .withClaim(CLAIM_PURPOSE, PURPOSE_SIGNUP)
             .withClaim(CLAIM_PROVIDER, provider)
+            .withClaim(CLAIM_EMAIL_VERIFIED, emailVerified)
             .withIssuedAt(Date())
             .withExpiresAt(Date(System.currentTimeMillis() + jwtProperties.signupTokenExpiration))
         if (email != null) builder.withClaim(CLAIM_EMAIL, email)
@@ -90,6 +97,7 @@ class JwtProvider(
             oauthId = oauthId,
             email = decoded.getClaim(CLAIM_EMAIL).asString(),
             nickname = decoded.getClaim(CLAIM_NICKNAME).asString(),
+            emailVerified = decoded.getClaim(CLAIM_EMAIL_VERIFIED).asBoolean() ?: false,
         )
     }
 
@@ -110,6 +118,7 @@ class JwtProvider(
         private const val CLAIM_PROVIDER = "provider"
         private const val CLAIM_EMAIL = "email"
         private const val CLAIM_NICKNAME = "nickname"
+        private const val CLAIM_EMAIL_VERIFIED = "email_verified"
         private const val PURPOSE_ACCESS = "ACCESS"
         private const val PURPOSE_REFRESH = "REFRESH"
         private const val PURPOSE_SIGNUP = "SIGNUP"

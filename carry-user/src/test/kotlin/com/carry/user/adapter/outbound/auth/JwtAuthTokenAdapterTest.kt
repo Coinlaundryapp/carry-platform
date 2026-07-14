@@ -66,6 +66,17 @@ class JwtAuthTokenAdapterTest {
         assertThat(identity.oauthId).isEqualTo("kakao-9")
         assertThat(identity.email).isEqualTo("e@x.com")
         assertThat(identity.nickname).isEqualTo("닉")
+        // emailVerified 미지정(4-arg) → 기본값 false로 왕복
+        assertThat(identity.emailVerified).isFalse()
+    }
+
+    @Test
+    fun `signup 토큰의 emailVerified=true가 왕복 보존된다`() {
+        val token = sut.issueSignupToken(OAuthProvider.NAVER, "naver-9", "v@x.com", "닉", emailVerified = true)
+
+        val identity = sut.parseSignupToken(token)
+        assertThat(identity).isNotNull
+        assertThat(identity!!.emailVerified).isTrue()
     }
 
     @Test

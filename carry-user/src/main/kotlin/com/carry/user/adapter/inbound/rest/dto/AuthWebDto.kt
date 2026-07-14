@@ -6,9 +6,11 @@ import com.fasterxml.jackson.annotation.JsonInclude
 import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.constraints.NotBlank
 
-@Schema(description = "Kakao 로그인 요청")
+@Schema(description = "소셜 로그인 요청")
 data class LoginRequest(
-    @Schema(description = "Kakao access token") @field:NotBlank val kakaoAccessToken: String,
+    @Schema(description = "OAuth provider", example = "KAKAO", allowableValues = ["KAKAO", "NAVER", "GOOGLE"])
+    @field:NotBlank val provider: String,
+    @Schema(description = "provider access token") @field:NotBlank val accessToken: String,
 )
 
 @Schema(description = "회원가입 완료 요청")

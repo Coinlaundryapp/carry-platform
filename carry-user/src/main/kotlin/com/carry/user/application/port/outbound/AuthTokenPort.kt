@@ -10,6 +10,7 @@ data class SignupIdentity(
     val oauthId: String,
     val email: String?,
     val nickname: String?,
+    val emailVerified: Boolean,
 )
 
 /**
@@ -45,7 +46,13 @@ interface AuthTokenPort {
     /** 회전. 기존 [sessionId]를 유지하고 jti만 새로 생성해 refresh 토큰을 발급한다. */
     fun issueRefreshToken(userId: Long, sessionId: String): IssuedRefreshToken
 
-    fun issueSignupToken(provider: OAuthProvider, oauthId: String, email: String?, nickname: String?): String
+    fun issueSignupToken(
+        provider: OAuthProvider,
+        oauthId: String,
+        email: String?,
+        nickname: String?,
+        emailVerified: Boolean = false,
+    ): String
 
     /** purpose=REFRESH 토큰만 수용. userId·sessionId·jti 복원, 그 외 null. */
     fun parseRefreshToken(token: String): RefreshTokenClaims?

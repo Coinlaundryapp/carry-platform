@@ -5,8 +5,10 @@ import com.carry.user.application.service.AuthService
 import com.carry.security.jwt.JwtProvider
 import com.carry.user.adapter.outbound.auth.InMemoryRefreshTokenStore
 import com.carry.user.adapter.outbound.auth.JwtAuthTokenAdapter
+import com.carry.user.adapter.outbound.auth.OAuthProfileClientResolver
 import com.carry.user.application.port.outbound.OAuthProfile
 import com.carry.user.application.port.outbound.OAuthProfileClient
+import com.carry.user.application.port.outbound.OAuthProfileResolver
 import com.carry.user.application.port.outbound.UserPersistencePort
 import com.carry.user.domain.exception.AuthTokenInvalidException
 import com.carry.user.domain.exception.RefreshTokenReuseException
@@ -36,27 +38,31 @@ class AuthServiceRotationIntegrationTest {
     private val authTokenPort = JwtAuthTokenAdapter(jwtProvider)
     private val store = InMemoryRefreshTokenStore(graceMillis = 10_000)
     private val userPersistencePort = mockk<UserPersistencePort>()
-    private val oAuthProfileClient = mockk<OAuthProfileClient>()
-    private val sut = AuthService(userPersistencePort, oAuthProfileClient, authTokenPort, store)
+    private val oAuthProfileClient = mockk<OAuthProfileClient>().also {
+        // resolve()가 생성 시점에 supports()를 1회 호출해 매핑을 만들므로, sut 생성 전에 스텁해야 한다.
+        every { it.supports() } returns OAuthProvider.KAKAO
+    }
+    private val oAuthProfileClientResolver: OAuthProfileResolver = OAuthProfileClientResolver(listOf(oAuthProfileClient))
+    private val sut = AuthService(userPersistencePort, oAuthProfileClientResolver, authTokenPort, store)
 
     private val user = User.reconstitute(
         id = 1L,
         email = Email("u@example.com"),
+        emailVerified = false,
         name = "유저",
         phone = Phone("01012345678"),
         role = UserRole.CUSTOMER,
-        oauthInfo = OAuthInfo(OAuthProvider.KAKAO, "kakao-1"),
         isActive = true,
         createdAt = Instant.now(),
         updatedAt = Instant.now(),
     )
 
     private fun login(): String {
-        every { oAuthProfileClient.fetchKakaoProfile("kakao-at") } returns
+        every { oAuthProfileClient.fetchProfile("kakao-at") } returns
             OAuthProfile(oauthId = "kakao-1", email = "u@example.com", nickname = "유저")
         every { userPersistencePort.findByOAuthInfo(OAuthInfo(OAuthProvider.KAKAO, "kakao-1")) } returns user
         every { userPersistencePort.findById(1L) } returns user
-        return ((sut.loginWithKakao("kakao-at")) as com.carry.user.application.port.inbound.LoginResult.Registered)
+        return ((sut.login(OAuthProvider.KAKAO, "kakao-at")) as com.carry.user.application.port.inbound.LoginResult.Registered)
             .tokens.refreshToken
     }
 

@@ -3,7 +3,6 @@ package com.carry.user.domain.model
 import com.carry.common.exception.requireInput
 import com.carry.common.exception.checkState
 import com.carry.user.domain.vo.Email
-import com.carry.user.domain.vo.OAuthInfo
 import com.carry.user.domain.vo.Phone
 import com.carry.user.domain.vo.UserRole
 import java.time.Instant
@@ -11,10 +10,10 @@ import java.time.Instant
 class User private constructor(
     val id: Long?,
     val email: Email,
+    val emailVerified: Boolean,
     private var _name: String,
     private var _phone: Phone,
     val role: UserRole,
-    val oauthInfo: OAuthInfo,
     private var _active: Boolean,
     val createdAt: Instant?,
     val updatedAt: Instant?,
@@ -38,19 +37,19 @@ class User private constructor(
     companion object {
         fun create(
             email: Email,
+            emailVerified: Boolean,
             name: String,
             phone: Phone,
             role: UserRole = UserRole.CUSTOMER,
-            oauthInfo: OAuthInfo,
         ): User {
             requireInput(name.isNotBlank()) { "이름은 비어있을 수 없습니다" }
             return User(
                 id = null,
                 email = email,
+                emailVerified = emailVerified,
                 _name = name,
                 _phone = phone,
                 role = role,
-                oauthInfo = oauthInfo,
                 _active = true,
                 createdAt = null,
                 updatedAt = null,
@@ -60,20 +59,20 @@ class User private constructor(
         fun reconstitute(
             id: Long,
             email: Email,
+            emailVerified: Boolean,
             name: String,
             phone: Phone,
             role: UserRole,
-            oauthInfo: OAuthInfo,
             isActive: Boolean,
             createdAt: Instant,
             updatedAt: Instant,
         ): User = User(
             id = id,
             email = email,
+            emailVerified = emailVerified,
             _name = name,
             _phone = phone,
             role = role,
-            oauthInfo = oauthInfo,
             _active = isActive,
             createdAt = createdAt,
             updatedAt = updatedAt,

@@ -5,8 +5,6 @@ import com.carry.user.application.port.outbound.UserPersistencePort
 import com.carry.user.domain.exception.UserNotFoundException
 import com.carry.user.domain.model.User
 import com.carry.user.domain.vo.Email
-import com.carry.user.domain.vo.OAuthInfo
-import com.carry.user.domain.vo.OAuthProvider
 import com.carry.user.domain.vo.Phone
 import com.carry.user.domain.vo.UserRole
 import io.mockk.every
@@ -27,10 +25,10 @@ class UserCommandServiceTest {
     private fun aUser(isActive: Boolean = true) = User.reconstitute(
         id = 1L,
         email = Email("test@example.com"),
+        emailVerified = false,
         name = "홍길동",
         phone = Phone("01012345678"),
         role = UserRole.CUSTOMER,
-        oauthInfo = OAuthInfo(OAuthProvider.KAKAO, "kakao-123"),
         isActive = isActive,
         createdAt = Instant.now(),
         updatedAt = Instant.now(),

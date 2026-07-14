@@ -19,8 +19,9 @@ class UserQueryPortAdapterIntegrationTest : IntegrationTestBase() {
 
     @AfterEach
     fun tearDown() {
-        // FK: user_shipping_addresses.user_id → user_users(id) → 자식 먼저 삭제
+        // FK: 자식 먼저 삭제. user_shipping_addresses·user_oauth_accounts 모두 user_users(id)를 참조한다.
         jdbcTemplate.update("DELETE FROM user_shipping_addresses WHERE id = ?", SMOKE_ADDRESS_ID)
+        jdbcTemplate.update("DELETE FROM user_oauth_accounts WHERE user_id = ?", SMOKE_USER_ID)
         jdbcTemplate.update("DELETE FROM user_users WHERE id = ?", SMOKE_USER_ID)
     }
 

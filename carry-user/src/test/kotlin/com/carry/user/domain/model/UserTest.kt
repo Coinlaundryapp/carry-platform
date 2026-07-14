@@ -2,8 +2,6 @@ package com.carry.user.domain.model
 
 import com.carry.common.exception.BusinessException
 import com.carry.user.domain.vo.Email
-import com.carry.user.domain.vo.OAuthInfo
-import com.carry.user.domain.vo.OAuthProvider
 import com.carry.user.domain.vo.Phone
 import com.carry.user.domain.vo.UserRole
 import org.assertj.core.api.Assertions.assertThat
@@ -21,10 +19,10 @@ class UserTest {
         role: UserRole = UserRole.CUSTOMER,
     ): User = User.create(
         email = Email(email),
+        emailVerified = false,
         name = name,
         phone = Phone(phone),
         role = role,
-        oauthInfo = OAuthInfo(OAuthProvider.KAKAO, "kakao-123"),
     )
 
     private fun reconstitutedUser(
@@ -32,10 +30,10 @@ class UserTest {
     ): User = User.reconstitute(
         id = 1L,
         email = Email("test@example.com"),
+        emailVerified = false,
         name = "홍길동",
         phone = Phone("01012345678"),
         role = UserRole.CUSTOMER,
-        oauthInfo = OAuthInfo(OAuthProvider.KAKAO, "kakao-123"),
         isActive = isActive,
         createdAt = Instant.now(),
         updatedAt = Instant.now(),
@@ -75,9 +73,9 @@ class UserTest {
         fun `기본 역할은 CUSTOMER이다`() {
             val user = User.create(
                 email = Email("test@example.com"),
+                emailVerified = false,
                 name = "홍길동",
                 phone = Phone("01012345678"),
-                oauthInfo = OAuthInfo(OAuthProvider.KAKAO, "kakao-123"),
             )
             assertThat(user.role).isEqualTo(UserRole.CUSTOMER)
         }

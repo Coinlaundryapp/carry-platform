@@ -1,6 +1,6 @@
 -- Gatling 부하 시드 데이터.
 -- 컬럼 권위: carry-app/src/test/kotlin/com/carry/app/test/TestFixtures.kt
---           + 각 모듈 db/migration (carry-user V2/V14, carry-laundromat V3,
+--           + 각 모듈 db/migration (carry-user V2/V14/V30, carry-laundromat V3,
 --             carry-service-availability V13, carry-order V5/V15/V17, carry-dispatch V6/V18).
 -- 적용 순서: bootRun(local 프로파일)으로 Flyway가 스키마를 빌드한 뒤 psql로 주입(#143 이후 Flyway 관리).
 -- 멱등성: 재실행 가능하도록 ON CONFLICT DO NOTHING / 사전 정리 + 말미 시퀀스 setval.
@@ -14,13 +14,21 @@ DELETE FROM orders WHERE customer_id = 1;
 -- created_at/updated_at은 생략 가능하나, 명시 now()를 그대로 둔다 — 무해하고 의도가 명확하다).
 
 -- ── 사용자: customer(1), carrier(2) ──
-INSERT INTO user_users (id, email, name, phone, role, oauth_provider, oauth_id, is_active, created_at, updated_at)
-VALUES (1, 'customer1@test.com', '테스트고객1', '010-1234-5678', 'CUSTOMER', 'KAKAO', 'kakao_1', true, now(), now())
+INSERT INTO user_users (id, email, email_verified, name, phone, role, is_active, created_at, updated_at)
+VALUES (1, 'customer1@test.com', false, '테스트고객1', '010-1234-5678', 'CUSTOMER', true, now(), now())
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO user_users (id, email, name, phone, role, oauth_provider, oauth_id, is_active, created_at, updated_at)
-VALUES (2, 'carrier2@test.com', '테스트캐리어2', '010-9876-5432', 'CARRIER', 'KAKAO', 'kakao_carrier_2', true, now(), now())
+INSERT INTO user_users (id, email, email_verified, name, phone, role, is_active, created_at, updated_at)
+VALUES (2, 'carrier2@test.com', false, '테스트캐리어2', '010-9876-5432', 'CARRIER', true, now(), now())
 ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO user_oauth_accounts (user_id, provider, oauth_id, created_at, updated_at)
+VALUES (1, 'KAKAO', 'kakao_1', now(), now())
+ON CONFLICT (provider, oauth_id) DO NOTHING;
+
+INSERT INTO user_oauth_accounts (user_id, provider, oauth_id, created_at, updated_at)
+VALUES (2, 'KAKAO', 'kakao_carrier_2', now(), now())
+ON CONFLICT (provider, oauth_id) DO NOTHING;
 
 -- ── 세탁소(1) ──
 INSERT INTO laundromat_laundromats (id, name, road_address, latitude, longitude, created_at, updated_at)

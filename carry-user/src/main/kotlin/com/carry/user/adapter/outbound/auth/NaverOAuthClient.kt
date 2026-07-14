@@ -5,28 +5,28 @@ import com.carry.user.application.port.outbound.OAuthProfileClient
 import com.carry.user.domain.exception.OAuthProviderUnavailableException
 import com.carry.user.domain.exception.OAuthTokenInvalidException
 import com.carry.user.domain.vo.OAuthProvider
-import com.fasterxml.jackson.annotation.JsonProperty
 import org.springframework.web.client.RestClient
 import org.springframework.web.client.RestClientException
 import org.springframework.web.client.RestClientResponseException
 
 /**
- * Kakao access token을 `GET /v2/user/me`로 검증해 프로필을 얻는 어댑터.
- * client secret 불요(user/me는 베어러 토큰만). RestClient는 KakaoClientConfig에서 base-url로 구성.
+ * Naver access token을 `GET /v1/nid/me`로 검증해 프로필을 얻는 어댑터.
+ * Naver는 이메일 인증 여부를 제공하지 않으므로 emailVerified는 항상 false로 고정한다.
+ * RestClient는 NaverClientConfig에서 base-url로 구성.
  */
-class KakaoOAuthClient(
+class NaverOAuthClient(
     private val restClient: RestClient,
 ) : OAuthProfileClient {
 
-    override fun supports(): OAuthProvider = OAuthProvider.KAKAO
+    override fun supports(): OAuthProvider = OAuthProvider.NAVER
 
     override fun fetchProfile(accessToken: String): OAuthProfile {
         val response = try {
             restClient.get()
-                .uri("/v2/user/me")
+                .uri("/v1/nid/me")
                 .header("Authorization", "Bearer $accessToken")
                 .retrieve()
-                .body(KakaoUserResponse::class.java)
+                .body(NaverMeResponse::class.java)
         } catch (e: RestClientResponseException) {
             if (e.statusCode.value() == 401) throw OAuthTokenInvalidException()
             throw OAuthProviderUnavailableException(e)
@@ -35,27 +35,24 @@ class KakaoOAuthClient(
             throw OAuthProviderUnavailableException(e)
         }
 
-        val oauthId = response?.id ?: throw OAuthTokenInvalidException()
+        val oauthId = response?.response?.id ?: throw OAuthTokenInvalidException()
         return OAuthProfile(
-            oauthId = oauthId.toString(),
-            email = response.kakaoAccount?.email,
-            nickname = response.kakaoAccount?.profile?.nickname,
-            emailVerified = response.kakaoAccount?.isEmailVerified ?: false,
+            oauthId = oauthId,
+            email = response.response.email,
+            nickname = response.response.name,
+            emailVerified = false,
         )
     }
 
-    data class KakaoUserResponse(
-        val id: Long? = null,
-        @JsonProperty("kakao_account") val kakaoAccount: KakaoAccount? = null,
+    data class NaverMeResponse(
+        val resultcode: String? = null,
+        val message: String? = null,
+        val response: NaverProfileResponse? = null,
     )
 
-    data class KakaoAccount(
+    data class NaverProfileResponse(
+        val id: String? = null,
         val email: String? = null,
-        val profile: KakaoProfile? = null,
-        @JsonProperty("is_email_verified") val isEmailVerified: Boolean? = null,
-    )
-
-    data class KakaoProfile(
-        val nickname: String? = null,
+        val name: String? = null,
     )
 }

@@ -3,8 +3,6 @@ package com.carry.user.adapter.outbound.persistence.entity
 import com.carry.infra.persistence.BaseEntity
 import com.carry.user.domain.model.User
 import com.carry.user.domain.vo.Email
-import com.carry.user.domain.vo.OAuthInfo
-import com.carry.user.domain.vo.OAuthProvider
 import com.carry.user.domain.vo.Phone
 import com.carry.user.domain.vo.UserRole
 import jakarta.persistence.Column
@@ -19,6 +17,9 @@ class UserJpaEntity(
     @Column(nullable = false, unique = true)
     val email: String,
 
+    @Column(name = "email_verified", nullable = false)
+    val emailVerified: Boolean = false,
+
     @Column(nullable = false)
     var name: String,
 
@@ -29,13 +30,6 @@ class UserJpaEntity(
     @Column(nullable = false)
     val role: UserRole = UserRole.CUSTOMER,
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "oauth_provider", nullable = false)
-    val oauthProvider: OAuthProvider,
-
-    @Column(name = "oauth_id", nullable = false)
-    val oauthId: String,
-
     @Column(name = "is_active", nullable = false)
     var isActive: Boolean = true,
 ) : BaseEntity() {
@@ -43,10 +37,10 @@ class UserJpaEntity(
     fun toDomain(): User = User.reconstitute(
         id = id,
         email = Email(email),
+        emailVerified = emailVerified,
         name = name,
         phone = Phone(phone),
         role = role,
-        oauthInfo = OAuthInfo(oauthProvider, oauthId),
         isActive = isActive,
         createdAt = createdAt,
         updatedAt = updatedAt,
@@ -61,11 +55,10 @@ class UserJpaEntity(
     companion object {
         fun fromDomain(user: User): UserJpaEntity = UserJpaEntity(
             email = user.email.value,
+            emailVerified = user.emailVerified,
             name = user.name,
             phone = user.phone.value,
             role = user.role,
-            oauthProvider = user.oauthInfo.provider,
-            oauthId = user.oauthInfo.id,
             isActive = user.isActive,
         )
     }

@@ -34,8 +34,14 @@ class JwtAuthTokenAdapter(
         return IssuedRefreshToken(token, sessionId, jti)
     }
 
-    override fun issueSignupToken(provider: OAuthProvider, oauthId: String, email: String?, nickname: String?): String =
-        jwtProvider.createSignupToken(provider.name, oauthId, email, nickname)
+    override fun issueSignupToken(
+        provider: OAuthProvider,
+        oauthId: String,
+        email: String?,
+        nickname: String?,
+        emailVerified: Boolean,
+    ): String =
+        jwtProvider.createSignupToken(provider.name, oauthId, email, nickname, emailVerified)
 
     override fun parseRefreshToken(token: String): RefreshTokenClaims? {
         val claims = jwtProvider.parseRefreshToken(token) ?: return null
@@ -45,6 +51,6 @@ class JwtAuthTokenAdapter(
     override fun parseSignupToken(token: String): SignupIdentity? {
         val claims = jwtProvider.parseSignupToken(token) ?: return null
         val provider = runCatching { OAuthProvider.valueOf(claims.provider) }.getOrNull() ?: return null
-        return SignupIdentity(provider, claims.oauthId, claims.email, claims.nickname)
+        return SignupIdentity(provider, claims.oauthId, claims.email, claims.nickname, claims.emailVerified)
     }
 }
