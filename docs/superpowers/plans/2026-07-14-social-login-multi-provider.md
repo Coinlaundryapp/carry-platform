@@ -41,18 +41,18 @@ enum class OAuthProvider {
 }
 ```
 
-- [ ] **Step 2: OAuthProfile에 emailVerified 추가**
+- [ ] **Step 2: OAuthProfile에 emailVerified 추가 (기본값 false)**
 
 `OAuthProfileClient.kt`:
 ```kotlin
 data class OAuthProfile(
     val oauthId: String,
     val email: String?,
-    val emailVerified: Boolean,
     val nickname: String?,
+    val emailVerified: Boolean = false,   // 기본값 — 기존 3-arg 생성부(AuthServiceTest 등)가 그대로 컴파일
 )
 ```
-(인터페이스는 Task 3에서 일반화 — 이 태스크는 데이터 형태만.)
+(인터페이스는 Task 3에서 일반화 — 이 태스크는 데이터 형태만. **기본값 false가 핵심**: `AuthServiceTest`·`AuthServiceRotationIntegrationTest`의 `OAuthProfile(oauthId, email, nickname)` 3-arg 호출을 깨지 않는다.)
 
 - [ ] **Step 3: 컴파일 확인**
 
@@ -83,9 +83,13 @@ git commit -m "feat: OAuthProvider에 NAVER/GOOGLE + OAuthProfile.emailVerified"
 - Modify: `carry-user/.../adapter/outbound/persistence/repository/UserJpaRepository.kt`
 - Modify: `carry-user/.../adapter/outbound/persistence/UserPersistenceAdapter.kt`
 - Modify: `carry-user/.../application/port/outbound/UserPersistencePort.kt`
-- Modify: `carry-user/.../application/service/AuthService.kt` (devLogin·loginOrRegister·loginWithKakao 호출부 정리)
+- Modify: `carry-user/.../application/service/AuthService.kt` (devLogin·loginOrRegister·loginWithKakao·**completeSignup** 호출부 정리)
+- Modify: `carry-user/.../application/port/inbound/AuthUseCase.kt` (loginOrRegister emailVerified)
 - Create: `carry-user/src/main/resources/db/migration/V30__user_oauth_accounts_and_email_verified.sql`
-- Test: `carry-user/.../domain/model/UserTest.kt`, `AuthServiceTest.kt`
+- Modify(픽스처): `carry-app/src/test/.../TestFixtures.kt`(insertCustomer/insertCarrier — user_oauth_accounts로), `carry-loadtest/.../seed.sql`(INSERT user_users → user_oauth_accounts + email_verified)
+- Test: `carry-user/.../domain/model/UserTest.kt`, `AuthServiceTest.kt`, **`UserCommandServiceTest.kt`**, **`UserQueryServiceTest.kt`**, **`integration/AuthServiceRotationIntegrationTest.kt`**
+
+⚠️ **호출부 추적**: `User.create`/`reconstitute`·`findByOAuthInfo` 변경은 위 5개 테스트 + carry-app TestFixtures + carry-loadtest seed를 전부 깬다. 같은 커밋에서 모두 수정한다.
 
 - [ ] **Step 1: User 애그리거트 변경**
 
@@ -165,14 +169,14 @@ interface UserPersistencePort {
 - [ ] **Step 5: AuthService 호출부 정리(컴파일 유지)**
 
 `User.create`/`loginOrRegister`/`devLogin`이 `oauthInfo`를 넘기던 부분 수정:
-- `loginOrRegister(provider, oauthId, email, name, phone, emailVerified)`: `findByOAuthInfo(OAuthInfo(provider, oauthId))` → 있으면 반환; 없으면 `User.create(Email(email), emailVerified, name, Phone(phone))` save 후 `linkOAuthAccount(saved.id!!, OAuthInfo(provider, oauthId))`. (연동 로직 본체는 Task 4에서 완성 — 여기선 컴파일 유지 최소 수정. emailVerified 파라미터 추가.)
-- `devLogin`: `User.create(email, emailVerified=false, name, phone, role)` save 후 `linkOAuthAccount(saved.id!!, OAuthInfo(DEV, "dev:$slug"))`. 조회는 `findByOAuthInfo(OAuthInfo(DEV, "dev:$slug"))` 유지.
-- `loginWithKakao`: `OAuthProfile`에 emailVerified가 생겼으니 `loginOrRegister(...)`/signup 토큰 호출 시 전달(Task 4에서 일반화).
-- `AuthUseCase.loginOrRegister` 시그니처에 emailVerified 추가.
+- `AuthUseCase.loginOrRegister`·`AuthService.loginOrRegister` 시그니처에 `emailVerified: Boolean` 추가. 본문: `findByOAuthInfo(OAuthInfo(provider, oauthId))` → 있으면 반환; 없으면 `User.create(Email(email), emailVerified, name, Phone(phone))` save 후 `linkOAuthAccount(saved.id!!, OAuthInfo(provider, oauthId))`. (연동 로직 본체는 Task 4 — 여기선 컴파일 유지 최소 수정.)
+- `devLogin`: `User.create(Email(...), emailVerified=false, name, Phone(...), role)` save 후 `linkOAuthAccount(saved.id!!, OAuthInfo(DEV, "dev:$slug"))`. 조회는 `findByOAuthInfo(OAuthInfo(DEV, "dev:$slug"))` 유지.
+- **`completeSignup`(loginOrRegister 호출부)**: 새 `emailVerified` 인자를 넘겨야 함 — Task 2에선 `emailVerified = false`로 고정 전달(전체 로직은 Task 4). 컴파일 유지 목적.
+- `loginWithKakao`는 이 태스크에서 **4-arg signup 토큰 호출 그대로**(emailVerified 전파는 Task 4). 즉 `loginWithKakao` 시그니처 무변경.
 
 - [ ] **Step 6: 테스트 갱신**
 
-`UserTest`: `User.create`/`reconstitute`가 oauthInfo 대신 emailVerified를 받도록 갱신. `AuthServiceTest`: `findByOAuthInfo`/`save`/`linkOAuthAccount` mockk 스텁 갱신(`linkOAuthAccount`는 relaxed 또는 `every {...} just Runs`). `User.reconstitute` 헬퍼 시그니처 갱신.
+`UserTest`: `User.create`/`reconstitute`가 oauthInfo 대신 emailVerified를 받도록 갱신. `AuthServiceTest`·`UserCommandServiceTest`·`UserQueryServiceTest`·`AuthServiceRotationIntegrationTest`: 이들이 만드는 `User.reconstitute(..., oauthInfo=...)` 헬퍼를 `emailVerified` 시그니처로 전부 갱신, `findByOAuthInfo`/`save`/`linkOAuthAccount` mockk 스텁 갱신(`linkOAuthAccount`는 `every {...} just Runs`). carry-app `TestFixtures`·carry-loadtest `seed.sql`은 `user_users`에서 oauth 컬럼을 빼고 `email_verified` 넣은 뒤 `user_oauth_accounts`에 신원 행 삽입.
 
 - [ ] **Step 7: 검증 + Commit**
 
@@ -191,12 +195,15 @@ git add carry-user/ && git commit -m "refactor!: 신원을 user_oauth_accounts�
 - Create: `carry-user/.../adapter/outbound/auth/GoogleOAuthClient.kt` + `GoogleProperties.kt` + `GoogleClientConfig.kt` + `GoogleBaseUrlGuard.kt`
 - Test: `carry-user/.../adapter/outbound/auth/NaverOAuthClientTest.kt`, `GoogleOAuthClientTest.kt`, `OAuthProfileClientResolverTest.kt`
 
-- [ ] **Step 1: 포트 일반화**
+⚠️ **컴파일 유지 전략**: 이 태스크는 인터페이스에 `supports()`/`fetchProfile()`을 **추가**만 하고 기존 `fetchKakaoProfile`은 **남긴다**(AuthService·KakaoOAuthClientTest가 아직 그걸 씀). 실제 스왑·`fetchKakaoProfile` 제거·`login` 리네임은 Task 4에서 한꺼번에(원자적).
+
+- [ ] **Step 1: 포트에 메서드 추가(기존 유지)**
 
 ```kotlin
 interface OAuthProfileClient {
     fun supports(): OAuthProvider
     fun fetchProfile(accessToken: String): OAuthProfile
+    fun fetchKakaoProfile(accessToken: String): OAuthProfile   // Task 4에서 제거 — 그때까지 유지
 }
 ```
 (provider별 빈이 자신을 `supports()`로 선언. Resolver가 provider→client 맵.)
@@ -212,9 +219,9 @@ class OAuthProfileClientResolver(clients: List<OAuthProfileClient>) {
 }
 ```
 
-- [ ] **Step 3: Kakao 어댑터 맞춤**
+- [ ] **Step 3: Kakao 어댑터에 새 메서드 추가(기존 유지)**
 
-`KakaoOAuthClient`: `fetchKakaoProfile` → `override fun supports() = OAuthProvider.KAKAO` + `override fun fetchProfile(accessToken)`(본문 동일, `is_email_verified` 매핑 유지). `KakaoClientConfig`의 빈 타입은 `OAuthProfileClient` 그대로(List 주입에 포함).
+`KakaoOAuthClient`: `override fun supports() = OAuthProvider.KAKAO` + `override fun fetchProfile(accessToken)` 추가(기존 `fetchKakaoProfile` 본문을 `fetchProfile`이 호출하거나 동일 구현; `fetchKakaoProfile`은 Task 4까지 유지). `KakaoClientConfig` 빈 타입 `OAuthProfileClient` 그대로(Resolver의 List 주입에 포함).
 
 - [ ] **Step 4: Naver 클라이언트 (TDD)**
 
@@ -238,21 +245,27 @@ git add carry-user/ && git commit -m "feat: OAuthProfileClient 일반화 + Naver
 
 ### Task 4: AuthService.login 일반화 + 이메일 연동 + 가입 충돌
 
+⚠️ **이 태스크는 원자적**: `login` 리네임 + resolver 스왑 + `fetchKakaoProfile` 제거 + AuthController/DTO + carry-app AuthControllerTest를 **한 커밋**에. 중간 커밋 컴파일 깨짐 방지.
+
 **Files:**
-- Modify: `carry-user/.../application/service/AuthService.kt`
-- Modify: `carry-user/.../application/port/inbound/AuthUseCase.kt`
-- Modify: `carry-security/.../jwt/JwtProvider.kt` + `SignupClaims.kt`
-- Modify: `carry-user/.../adapter/outbound/auth/JwtAuthTokenAdapter.kt` + `application/port/outbound/AuthTokenPort.kt` (SignupIdentity)
-- Create: `carry-user/.../domain/exception/EmailAlreadyExistsException` (UserExceptions.kt에 추가)
+- Modify: `carry-user/.../application/service/AuthService.kt` (생성자 `oAuthProfileClient`→`oAuthProfileClientResolver`, `loginWithKakao`→`login`, completeSignup 연동 로직)
+- Modify: `carry-user/.../application/port/inbound/AuthUseCase.kt` (loginWithKakao→login)
+- Modify: `carry-user/.../application/port/outbound/OAuthProfileClient.kt` (`fetchKakaoProfile` 제거)
+- Modify: `carry-user/.../adapter/outbound/auth/KakaoOAuthClient.kt` (`fetchKakaoProfile` 제거) + `carry-user/.../adapter/outbound/auth/KakaoOAuthClientTest.kt`(→ `fetchProfile` 호출로)
+- Modify: `carry-user/.../adapter/inbound/rest/AuthController.kt` + `dto/AuthWebDto.kt` (LoginRequest {provider, accessToken})
+- Modify: `carry-app/src/test/.../AuthControllerTest.kt` (mock `login(...)`, body `{provider, accessToken}`)
+- Modify: `carry-security/.../jwt/JwtProvider.kt`(createSignupToken/parseSignupToken emailVerified, **기본값 false**) + `SignupClaims.kt` + `carry-security/.../JwtProviderTest.kt`(기본값이라 무변경이면 스킵, 명시 호출 있으면 갱신)
+- Modify: `carry-user/.../adapter/outbound/auth/JwtAuthTokenAdapter.kt` + `application/port/outbound/AuthTokenPort.kt` (SignupIdentity.emailVerified, issueSignupToken emailVerified 기본값)
+- Modify: `carry-user/.../domain/exception/UserExceptions.kt` (EmailAlreadyExistsException)
 - Test: `AuthServiceTest.kt`, `JwtAuthTokenAdapterTest.kt`
 
 - [ ] **Step 1: signup 토큰에 emailVerified 클레임 (carry-security)**
 
-`JwtProvider.createSignupToken(provider, oauthId, email, nickname, emailVerified: Boolean)` — `withClaim("email_verified", emailVerified)`. `parseSignupToken` → `SignupClaims(..., emailVerified = decoded.getClaim("email_verified").asBoolean() ?: false)`. `SignupClaims`에 `emailVerified: Boolean` 추가. companion에 `CLAIM_EMAIL_VERIFIED="email_verified"`.
+`JwtProvider.createSignupToken(provider, oauthId, email, nickname, emailVerified: Boolean = false)` — **기본값 false**(기존 4-arg 호출·`JwtProviderTest`가 안 깨짐) — `withClaim("email_verified", emailVerified)`. `parseSignupToken` → `SignupClaims(..., emailVerified = decoded.getClaim("email_verified").asBoolean() ?: false)`. `SignupClaims`에 `emailVerified: Boolean` 추가. companion에 `CLAIM_EMAIL_VERIFIED="email_verified"`.
 
 - [ ] **Step 2: 포트 전파**
 
-`AuthTokenPort.SignupIdentity`에 `emailVerified: Boolean`. `issueSignupToken(provider, oauthId, email, nickname, emailVerified)`. `JwtAuthTokenAdapter`: `issueSignupToken`·`parseSignupToken`이 emailVerified 전달.
+`AuthTokenPort.SignupIdentity`에 `emailVerified: Boolean`. `issueSignupToken(provider, oauthId, email, nickname, emailVerified: Boolean = false)`(기본값). `JwtAuthTokenAdapter`: `issueSignupToken`·`parseSignupToken`이 emailVerified 전달.
 
 - [ ] **Step 3: 실패 테스트 (AuthServiceTest 3분기)**
 
@@ -267,9 +280,8 @@ git add carry-user/ && git commit -m "feat: OAuthProfileClient 일반화 + Naver
 
 - [ ] **Step 4: login 구현**
 
-`AuthUseCase.loginWithKakao` → `login(provider: OAuthProvider, accessToken: String): LoginResult`. `AuthService`:
+`AuthUseCase.loginWithKakao` → `login(provider: OAuthProvider, accessToken: String): LoginResult`. `AuthService` — ⚠️ **`@Transactional(readOnly=true)` 오버라이드 삭제**(연동이 write. 클래스 기본 `@Transactional` 상속):
 ```kotlin
-@Transactional(readOnly = true)
 override fun login(provider: OAuthProvider, accessToken: String): LoginResult {
     val profile = oAuthProfileClientResolver.resolve(provider).fetchProfile(accessToken)
     userPersistencePort.findByOAuthInfo(OAuthInfo(provider, profile.oauthId))?.let {
@@ -292,7 +304,7 @@ override fun login(provider: OAuthProvider, accessToken: String): LoginResult {
 ```
 ⚠️ 연동은 write라 `@Transactional(readOnly=true)` 제거(클래스 기본 @Transactional 상속 — readOnly 오버라이드 삭제).
 
-`completeSignup`: `parseSignupToken` → `identity`. `identity.emailVerified`면 폼 email 무시하고 `identity.email` 사용(고정) + `emailVerified=true`; 아니면 폼 email + `existsByEmail(email)` true → `EmailAlreadyExistsException()`, false → `emailVerified=false`. → `loginOrRegister(provider, oauthId, effectiveEmail, name, phone, effectiveEmailVerified)`.
+`completeSignup`: `parseSignupToken` → `identity`. `effectiveEmail`·`effectiveEmailVerified` 결정 — `identity.emailVerified && identity.email != null`이면 폼 email 무시하고 `identity.email` 고정 + verified=true; 아니면 폼 email + verified=false. ⚠️ **충돌 가드는 두 분기 모두**(검증 이메일이라도 기존에 email_verified=false 유저가 그 주소를 점유하면 UNIQUE 위반 500이 남): `User.create` 전에 `existsByEmail(effectiveEmail)`가 true면 `EmailAlreadyExistsException()`. → `loginOrRegister(provider, oauthId, effectiveEmail, name, phone, effectiveEmailVerified)`.
 
 `EmailAlreadyExistsException`: `UserExceptions.kt`에 `class EmailAlreadyExistsException : BusinessException(ErrorCode.CONFLICT, "이미 사용 중인 이메일입니다")`.
 
@@ -305,18 +317,14 @@ Run: `./gradlew :carry-user:test :carry-security:test` → failures=0.
 git add carry-user/ carry-security/ && git commit -m "feat: login provider 일반화 + 검증된 이메일 연동(탈취 방지) + 가입 이메일 충돌 409"
 ```
 
-### Task 5: AuthController 계약 변경 + application.yml
+### Task 5: application.yml provider base-url
+
+(AuthController/LoginRequest 계약 변경은 Task 4에서 원자적으로 완료됨. 이 태스크는 설정만.)
 
 **Files:**
-- Modify: `carry-user/.../adapter/inbound/rest/AuthController.kt` + `dto/AuthWebDto.kt`
 - Modify: `carry-platform/carry-app/src/main/resources/application.yml`
-- Create: `carry-user` 통합/컨트롤러 테스트가 있으면 갱신(없으면 스킵)
 
-- [ ] **Step 1: LoginRequest·컨트롤러**
-
-`AuthWebDto.LoginRequest`: `{kakaoAccessToken}` → `{ @field:NotBlank provider: String, @field:NotBlank accessToken: String }`. `AuthController.login`: `val provider = OAuthProvider.valueOf(request.provider)`(잘못된 값 → INVALID_INPUT) → `authUseCase.login(provider, request.accessToken)`. Swagger 설명 갱신(3사).
-
-- [ ] **Step 2: application.yml**
+- [ ] **Step 1: application.yml**
 
 ```yaml
 naver:
@@ -326,19 +334,20 @@ google:
   api:
     base-url: ${GOOGLE_API_BASE_URL:https://openidconnect.googleapis.com}
 ```
+(기존 `kakao.api.base-url` 유지. Naver/Google `*BaseUrlGuard`가 prod에서 실 URL을 강제 — Task 3.)
 
-- [ ] **Step 3: 검증 + Commit**
+- [ ] **Step 2: 검증 + Commit**
 
-Run: `./gradlew :carry-user:test` → failures=0. `./gradlew :carry-user:compileKotlin` 성공.
+Run: `./gradlew :carry-app:compileKotlin` 성공(설정만이라 컴파일 영향 없음, yml 로딩 확인).
 ```
-git add carry-user/ carry-app/src/main/resources/application.yml && git commit -m "feat: /v2/auth/login {provider, accessToken} 계약 + naver/google base-url"
+git add carry-app/src/main/resources/application.yml && git commit -m "feat: naver/google api base-url 설정"
 ```
 
 ### Task 6: 백엔드 전체 검증 + PR
 
 - [ ] **Step 1: 전체 빌드·테스트**
 
-Run: `./gradlew :carry-user:test :carry-security:test :carry-app:compileKotlin` → 전 모듈 XML failures=0. (전체 `clean build`는 무거우면 위 모듈 + `:carry-app:test`만.)
+Run: `./gradlew :carry-user:test :carry-security:test :carry-app:test` → 전 모듈 XML failures=0. ⚠️ **`:carry-app:test` 필수**(AuthControllerTest·TestFixtures·V30 마이그레이션이 실제 부팅·DB에서 검증되는 지점 — Testcontainers). Docker 미기동이면 BLOCKED 보고.
 
 - [ ] **Step 2: PR**
 
@@ -358,43 +367,47 @@ PR 본문: 스펙 링크, 신원 모델 변경(V30·user_oauth_accounts), 연동
 
 **Files:**
 - Modify: `apps/customer-web/src/shared/config/env.ts`
-- Modify: `apps/customer-web/src/features/auth/api/auth.ts`
+- Modify: `apps/customer-web/src/features/auth/api/auth.ts` (providers + jwt/session 콜백 + **module augmentation**)
 - Modify: `apps/customer-web/src/features/auth/api/token.ts` (+ test)
+- Modify: `apps/customer-web/src/test/mocks/handlers.ts` (로그인 기본 핸들러 분기)
 - Test: `apps/customer-web/src/features/auth/api/token.test.ts`
 
 - [ ] **Step 1: env server 스키마**
 
-`env.ts` `server`에 `AUTH_KAKAO_ID`, `AUTH_KAKAO_SECRET`, `AUTH_NAVER_ID`, `AUTH_NAVER_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`(전부 string). `NEXT_PUBLIC_KAKAO_REST_API_KEY`/`NEXT_PUBLIC_KAKAO_REDIRECT_URL`은 Task 10에서 제거하므로 여기선 유지.
+`env.ts` `server`에 `AUTH_KAKAO_ID`, `AUTH_KAKAO_SECRET`, `AUTH_NAVER_ID`, `AUTH_NAVER_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`(전부 string). `NEXT_PUBLIC_KAKAO_REST_API_KEY`/`NEXT_PUBLIC_KAKAO_REDIRECT_URL`은 Task 8에서 제거하므로 여기선 유지. (기존 `NEXT_PUBLIC_NAVER_ID`는 **네이버 지도** ncpClientId라 무관 — 건드리지 않음.)
 
-- [ ] **Step 2: token.ts 계약**
+- [ ] **Step 2: token.ts 계약 + 공유 MSW 핸들러**
 
-`loginWithKakao`(또는 신설 `loginWithProvider`)가 `POST /api/v2/auth/login`에 `{ provider, accessToken }` 전송. 기존 `{ kakaoAccessToken }` 제거. `token.test.ts`의 요청 본문 단언 갱신(MSW로 body 검사하면 그에 맞게). WebView 카카오 경로도 `provider:'KAKAO'` 전달.
+`loginWithKakao`(또는 신설 `loginWithProvider`)가 `POST /api/v2/auth/login`에 `{ provider, accessToken }` 전송. 기존 `{ kakaoAccessToken }` 제거. WebView 카카오도 `provider:'KAKAO'` 전달. ⚠️ **공유 핸들러 갱신 필수**: `src/test/mocks/handlers.ts`의 로그인 기본 핸들러가 `body.kakaoAccessToken`로 분기 중 → `body.accessToken`/`body.provider`로 변경(안 바꾸면 REGISTERED 테스트가 400). `token.test.ts` 요청 본문 단언 갱신.
 
-- [ ] **Step 3: NextAuth 빌트인 provider**
+- [ ] **Step 3: NextAuth 빌트인 provider + module augmentation + 게이트 안전**
 
-`auth.ts`: 기존 Credentials 유지 + `Kakao`·`Naver`·`Google`(`@auth/core/providers/{kakao,naver,google}`) 추가, clientId/secret은 env. `jwt` 콜백:
+`auth.ts`: 기존 Credentials 유지 + `Kakao`·`Naver`·`Google`(`@auth/core/providers/{kakao,naver,google}`) 추가(clientId/secret은 NextAuth v5가 `AUTH_*_ID/SECRET` env를 자동 판독). **`declare module 'next-auth'`의 `Session`·`JWT`에 `signupToken?: string` 추가**(안 하면 `token.signupToken`/`session.signupToken` 접근이 tsc 실패).
+`jwt` 콜백:
 ```ts
 async jwt({ token, user, account }) {
   if (account && account.provider !== 'credentials') {
-    // 빌트인 OAuth: provider 토큰을 백엔드와 교환
     const res = await exchangeOAuth(account.provider, account.access_token!);
-    if (res.status === 'REGISTERED') { token.accessToken = res.accessToken; token.refreshToken = res.refreshToken; }
-    else { token.signupToken = res.signupToken; /* accessToken 비움 */ }
+    if (res.status === 'REGISTERED') { token.accessToken = res.accessToken; token.refreshToken = res.refreshToken; token.signupToken = undefined; }
+    else { token.signupToken = res.signupToken; token.accessToken = ''; }
     return token;
   }
-  if (user) { token.accessToken = user.accessToken; token.refreshToken = user.refreshToken; } // credentials 경로 기존
-  // 만료 시 refreshAccessToken (기존 로직)
-  ...
+  if (user) { token.accessToken = (user as any).accessToken; token.refreshToken = (user as any).refreshToken; }
+  // ⚠️ 가입 대기 세션(signupToken 있고 accessToken 빈 문자열) 단락 — 만료검사 전에 반환.
+  // isJwtExpired('')는 decodeJwt('')에서 throw하므로 이 가드가 없으면 매 요청 예외.
+  if (token.signupToken && !token.accessToken) return token;
+  if (token.accessToken && isJwtExpired(token.accessToken as string)) { /* refreshAccessToken 기존 로직 */ }
+  return token;
 }
 ```
-`exchangeOAuth`(token.ts): `POST /api/v2/auth/login {provider, accessToken}` → `LoginResponse`. session 콜백에 `signupToken` 노출(가입 게이트용).
+`exchangeOAuth`(token.ts): `POST /api/v2/auth/login {provider, accessToken}` → `LoginResponse`. session 콜백에 `session.signupToken = token.signupToken` 노출(게이트용).
 
 - [ ] **Step 4: 검증 + Commit**
 
-Run: `pnpm --filter customer-web test token` → PASS. `tsc --noEmit` clean.
+Run: `pnpm --filter customer-web test token` → PASS. `tsc --noEmit` clean(module augmentation 확인).
 ```
-git add apps/customer-web/src/features/auth/ apps/customer-web/src/shared/config/env.ts
-git commit -m "feat: NextAuth 카카오·네이버·구글 OAuth provider + 백엔드 교환, login 계약 {provider,accessToken}"
+git add apps/customer-web/src/features/auth/ apps/customer-web/src/shared/config/env.ts apps/customer-web/src/test/mocks/handlers.ts
+git commit -m "feat: NextAuth 카카오·네이버·구글 OAuth provider + 백엔드 교환·가입게이트 세션, login 계약 {provider,accessToken}"
 ```
 
 ### Task 8: 로그인 버튼 3종 + 죽은 Kakao 플러밍 제거
@@ -411,9 +424,9 @@ git commit -m "feat: NextAuth 카카오·네이버·구글 OAuth provider + 백�
 
 로그인 페이지: 브라우저에서 카카오·네이버·구글 버튼 각각 `signIn('kakao'|'naver'|'google')`. WebView는 카카오 네이티브 브릿지 유지(`KakaoLoginButton`의 WebView 분기). 공용 `SocialLoginButton({ provider })` 권장. 각 provider 브랜드 색/아이콘은 기존 디자인 시스템 수준.
 
-- [ ] **Step 2: 죽은 플러밍 제거**
+- [ ] **Step 2: 죽은 플러밍 제거 + WebView 폴백**
 
-`login/page.tsx`의 수동 Kakao authorize URL 구성 + `KakaoLoginButton`의 브라우저 `<Link href={oauthUrl}>` 분기 제거(브라우저는 `signIn('kakao')`). `/api/kakao/route.ts` 삭제. `env.ts`에서 `NEXT_PUBLIC_KAKAO_REST_API_KEY`/`NEXT_PUBLIC_KAKAO_REDIRECT_URL` 제거(다른 사용처 grep 확인).
+`login/page.tsx`의 수동 Kakao authorize URL 구성 + `KakaoLoginButton`의 브라우저 `<Link href={oauthUrl}>` 분기 제거(브라우저는 `signIn('kakao')`). ⚠️ `KakaoLoginButton`의 WebView 브릿지 실패 폴백이 현재 `window.location.href = oauthUrl`인데 `oauthUrl`을 제거하므로 **대체 폴백 지정**: 브릿지 실패 시 `signIn('kakao')`(웹 OAuth로 폴백) 또는 에러 토스트. `/api/kakao/route.ts` 삭제. `env.ts`에서 `NEXT_PUBLIC_KAKAO_REST_API_KEY`/`NEXT_PUBLIC_KAKAO_REDIRECT_URL` 제거(`NEXT_PUBLIC_NAVER_ID`는 지도용이라 유지; 다른 사용처 grep 확인).
 
 - [ ] **Step 3: 검증 + Commit**
 
@@ -431,7 +444,7 @@ git add -A apps/customer-web/ && git commit -m "feat: 로그인 카카오·네�
 
 - [ ] **Step 1: 게이트**
 
-세션에 `signupToken`은 있고 `accessToken`은 없으면 `/signup`으로 유도(미들웨어 또는 보호 레이아웃). 로그인 완료(accessToken 있음)면 통과.
+세션에 `signupToken`은 있고 `accessToken`은 없으면 `/signup`으로 유도(미들웨어 또는 보호 레이아웃). 로그인 완료(accessToken 있음)면 통과. ⚠️ **미들웨어 matcher/제외**: 현재 `middleware.ts`는 `export { auth as middleware }`로 matcher가 없어 전 경로에서 돈다. `/signup` 리다이렉트가 무한루프가 안 되도록 `/signup`·`/api/auth/*`·정적 자산(`_next`, 이미지)을 matcher/조건으로 제외한다.
 
 - [ ] **Step 2: 가입 폼**
 
