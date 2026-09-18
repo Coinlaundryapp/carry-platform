@@ -1,6 +1,8 @@
 package com.carry.payment.domain.model
 
 import com.carry.common.exception.BusinessException
+import com.carry.common.exception.ErrorCode
+import com.carry.payment.domain.exception.PaymentAlreadyCompletedException
 import com.carry.payment.domain.vo.PaymentStatus
 import com.carry.payment.domain.vo.PgProvider
 import org.assertj.core.api.Assertions.assertThat
@@ -98,17 +100,24 @@ class PaymentTest {
         }
 
         @Test
-        fun `FAILED 상태에서 다시 PENDING으로 전이할 수 없다 - markCompleted 불가`() {
+        fun `FAILED 에서 markCompleted 로 바로 완료할 수 없다 - 재과금은 markRetrying 경유`() {
+            // 이전 테스트명은 "FAILED 에서 다시 PENDING 으로 전이할 수 없다" 였는데 전이표와 반대였다 —
+            // FAILED → PENDING 은 허용되며 그 경로가 markRetrying 이다(아래 markRetrying 테스트).
+            // 실제로 막히는 것은 PENDING 을 건너뛴 FAILED → COMPLETED 다.
             val payment = reconstitutedPayment(PaymentStatus.FAILED)
             assertThatThrownBy { payment.markCompleted("tx_retry", now) }
                 .isInstanceOf(BusinessException::class.java)
         }
 
         @Test
-        fun `COMPLETED 상태에서 markCompleted 호출 시 예외가 발생한다`() {
+        fun `COMPLETED 상태에서 markCompleted 호출 시 전용 예외로 구분된다`() {
+            // 중복 완료는 docs-14 가 "재시도 말고 상태 조회" 로 안내하는 대표 케이스라 전용 코드를 준다.
             val payment = reconstitutedPayment(PaymentStatus.COMPLETED)
+
             assertThatThrownBy { payment.markCompleted("tx_dup", now) }
-                .isInstanceOf(BusinessException::class.java)
+                .isInstanceOf(PaymentAlreadyCompletedException::class.java)
+                .extracting { (it as BusinessException).errorCode }
+                .isEqualTo(ErrorCode.PAYMENT_ALREADY_COMPLETED)
         }
 
         @Test
