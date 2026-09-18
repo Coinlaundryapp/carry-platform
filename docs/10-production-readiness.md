@@ -1,6 +1,6 @@
 # 10. 프로덕션 준비도 평가 및 개선 로드맵
 
-> 최종 수정일: 2026-03-13
+> 최종 수정일: 2026-09-18
 > 상태: Active
 > 평가 기준일: Phase 3 Observability 통합 완료 시점
 
@@ -274,6 +274,26 @@ fun kafkaListenerContainerFactoryCustomizer(): ContainerCustomizer<String, Strin
         container.containerProperties.isStopContainerWhenFenced = true
     }
 }
+```
+
+---
+
+### P1-6. DB 소켓 읽기에 타임아웃 부재 — ✅ 해소됨 (2026-09-04)
+
+**현황(해소)**: `hikari.data-source-properties` 로 `socketTimeout: 10`(초)·`tcpKeepAlive: true` 를 전 프로파일·테스트에
+공통 적용했다. JDBC URL 이 프로파일별 환경변수라 URL 파라미터가 아니라 data-source-properties 경로를 썼다.
+
+**발견 경위**: Toxiproxy 로 DB 경로를 블랙홀 처리하는 `DatasourceOutageChaosTest` 를 붙이자 `SELECT 1` 이
+**13,424,276ms(3시간 43분) 동안 반환되지 않았다**(RED). `connection-timeout: 3000` 은 커넥션 **획득**에만 적용되고
+소켓 읽기에는 적용되지 않으며, pgjdbc `socketTimeout` 기본값이 0(무한)이기 때문이다. 가상 스레드라 스레드 고갈은
+늦게 오지만 커넥션 20개가 모두 이 상태가 되면 서비스가 멈춘다. `leak-detection-threshold: 5000` 은 경고만 남긴다.
+적용 후 **11.2초**에 실패(GREEN)하며, 해당 테스트가 회귀 가드로 상시 실행된다([08-testing](08-testing.md) 장애 주입 절).
+
+**남은 과제**:
+```
+1. DB 측 statement_timeout 병행 — 애플리케이션 타임아웃만으로는 DB 쪽 세션이 남는다
+2. 10초를 넘겨야 하는 배치가 생기면 전용 데이터소스로 분리 (OLTP 경로의 10초는 유지)
+3. Kafka·PG 경로 장애 주입은 미실행
 ```
 
 ---
