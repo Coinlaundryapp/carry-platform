@@ -20,6 +20,7 @@ ADR(Architecture Decision Record)은 **중요한 아키텍처 결정**을 그 *�
 | [0005](0005-event-schema-evolution.md) | 이벤트 스키마 진화 전략 | Accepted | 2026-06-10 |
 | [0006](0006-module-decomposition-reassessment.md) | 모듈 과분해 재평가 | Accepted | 2026-06-10 |
 | [0007](0007-modular-monolith-over-microservices.md) | 모듈러 모놀리스 유지 (MSA 보류) | Accepted | 2026-06-10 |
+| [0008](0008-no-domain-event-layer.md) | 도메인 이벤트 계층을 두지 않는다 (사후 기록) | Accepted | 2026-09-08 |
 
 ## 상태 정의
 
@@ -39,6 +40,7 @@ ADR-0003 (모듈 분리 기준)
   └─ 이벤트 전파 인프라
         └─ ADR-0002 (Outbox + CDC) — 신뢰성·순서 보장하는 이벤트 발행
               └─ ADR-0005 (이벤트 스키마 진화) — 그 이벤트의 모양을 무중단으로 바꾸는 규칙
+              └─ ADR-0008 (도메인 이벤트 계층 없음) — 통합 이벤트 한 층만 두고 서비스가 직접 Outbox 발행
 ```
 
 이 결정들은 "모듈러 모놀리스 + 신뢰성 있는 이벤트 기반 분산 워크플로우"라는 하나의 일관된

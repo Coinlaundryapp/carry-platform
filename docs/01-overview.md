@@ -16,7 +16,9 @@
 ## Carry란
 
 **Carry**는 코인 세탁 배달 서비스다. 고객이 세탁물을 맡기면 세탁소에서 세탁 후 배송해주는 O2O 서비스로,
-주문 → 결제 → 배차 → 수거 → 세탁 → 배송의 복합적인 도메인 흐름을 가진다.
+물리 흐름(주문 → 배차 → 수거 → 세탁 → 배송)과 결제 흐름(수거 완료 시 인보이스 발행 → 자동과금 → 재시도/연체)이
+병렬로 진행되는 두 개의 사가로 구성된다. 결제는 물리 흐름의 게이트가 아니며, 주문 생성 시점에는 빌링키 보유와
+연체 없음만 확인한다. 상세는 [06-saga.md](06-saga.md) 참조 (2026-09-08 정정: 이전 판은 "주문 → 결제 → 배차 → …" 순서로 적었다).
 
 ## 프로젝트의 목적
 
@@ -95,4 +97,7 @@ V1은 두 가지 형태로 존재한다:
 | [12-observability-stack.md](12-observability-stack.md) | 관측 스택 구성 (Prometheus·Grafana·알럿) |
 | [13-logging-policy.md](13-logging-policy.md) | 로깅 정책 — 상관관계·레벨 분류 |
 | [14-client-retry-guide.md](14-client-retry-guide.md) | 클라이언트 재시도 가이드 (에러 코드·멱등성·백오프) |
-| [adr/](adr/) | 아키텍처 의사결정 기록 (ADR-0001~0007) |
+| [15-invariant-catalog.md](15-invariant-catalog.md) | 불변식 카탈로그 (애그리거트·사가·스위퍼 규칙, 코드에서 역추출) |
+| [16-context-map.md](16-context-map.md) | 컨텍스트 맵 (바운디드 컨텍스트 관계·DDD 라벨) |
+| [17-ubiquitous-language.md](17-ubiquitous-language.md) | 유비쿼터스 언어 사전 (용어·불일치 목록) |
+| [adr/](adr/) | 아키텍처 의사결정 기록 (ADR-0001~0008) |

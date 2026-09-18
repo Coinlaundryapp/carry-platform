@@ -87,56 +87,54 @@ carry-event  ──→  (의존성 없음, 순수 Kotlin data class)
 carry-order/
 └── src/main/kotlin/com/carry/order/
     ├── domain/
-    │   ├── model/              # Aggregate Root, Entity, Value Object (@Entity)
-    │   ├── event/              # 모듈 내부 도메인 이벤트
-    │   ├── service/            # 도메인 서비스 (순수 비즈니스 로직)
-    │   └── repository/         # Repository 인터페이스 (Port)
+    │   ├── model/              # Aggregate Root, Entity (순수 Kotlin, JPA 무의존 — ADR-0001)
+    │   ├── vo/                 # Value Object, 상태 enum
+    │   └── exception/          # 도메인 예외
     │
     ├── application/
-    │   ├── service/            # 유스케이스 오케스트레이션
-    │   ├── port/
-    │   │   ├── inbound/        # 유스케이스 인터페이스 (다른 모듈이 호출할 진입점)
-    │   │   └── outbound/       # 외부 의존 인터페이스 (다른 모듈 데이터 조회)
-    │   └── dto/                # Command / Query DTO
+    │   ├── service/            # 유스케이스 오케스트레이션, 사가 핸들러, 스위퍼
+    │   └── port/
+    │       ├── inbound/        # 유스케이스 인터페이스 (다른 모듈이 호출할 진입점)
+    │       └── outbound/       # 영속성 포트 + 크로스모듈 쿼리 포트 (구현은 carry-app 의 *QueryPortAdapter)
     │
-    ├── infrastructure/
-    │   ├── persistence/        # JPA Repository 구현, QueryDSL
-    │   ├── messaging/
-    │   │   ├── producer/       # Outbox 이벤트 저장
-    │   │   └── consumer/       # Kafka 이벤트 리스너
-    │   └── adapter/            # Outbound Port 구현 (모놀리스: 직접 호출 / 분리 시: HTTP)
-    │
-    └── presentation/
-        ├── rest/               # REST Controller
-        └── payload/
-            ├── request/
-            └── response/
+    └── adapter/
+        ├── inbound/
+        │   ├── rest/           # REST Controller (+ dto/)
+        │   └── kafka/          # Kafka 이벤트 리스너
+        └── outbound/
+            ├── persistence/    # PersistenceAdapter, JPA entity/, repository/
+            └── redis/          # 멱등성 저장소 등 (모듈에 따라 존재)
 ```
+
+> 2026-09-08 정정: 이전 판의 트리는 `domain/event/`(모듈 내부 도메인 이벤트)·`domain/repository/`·`infrastructure/`·`presentation/` 를 보여주었으나
+> 어떤 모듈에도 그런 패키지가 없다(`find carry-order/src/main -type d` 로 확인). 도메인 이벤트 계층을 두지 않고 애플리케이션 서비스가
+> `EventPublisherPort` 로 통합 이벤트를 직접 Outbox 에 쓰는 결정은 [ADR-0008](adr/0008-no-domain-event-layer.md) 에 정리했다.
+> 위 구조는 `HexagonalArchitectureTest` 가 강제한다([ADR-0003](adr/0003-module-decomposition-criteria.md)).
 
 ### 계층 간 의존 방향
 
 ```
-presentation → application → domain ← infrastructure
-                    ↑                       |
-                    └───────────────────────┘
-                    (Port 인터페이스를 통한 역전)
+adapter.inbound → application → domain ← adapter.outbound
+                       ↑                       |
+                       └───────────────────────┘
+                       (Port 인터페이스를 통한 역전)
 ```
 
-- `domain`은 어떤 외부 프레임워크에도 의존하지 않는다 (JPA 어노테이션은 실용적 예외).
-- `infrastructure`는 `domain`의 Repository 인터페이스를 구현한다.
+- `domain`은 어떤 외부 프레임워크에도 의존하지 않는다 (JPA 엔티티는 `adapter/outbound/persistence/entity` 에 별도로 둔다, ADR-0001).
+- `adapter/outbound` 는 `application/port/outbound` 의 포트 인터페이스를 구현한다.
 - `application`은 `domain`과 Outbound Port를 조합하여 유스케이스를 오케스트레이션한다.
 
 ### 마이크로서비스 전환 시 모듈 구조 변화
 
 모듈러 모놀리스에서 마이크로서비스로 분리할 때, 내부 패키지 구조는 **그대로 유지**된다.
-변경되는 것은 `infrastructure/adapter/` 내의 구현체뿐이다:
+변경되는 것은 `carry-app/.../adapter/` 의 `*QueryPortAdapter` 구현체뿐이다:
 
 ```
-# 모놀리스일 때
-infrastructure/adapter/LaundromatQueryAdapter.kt
-  → LaundromatQueryService 빈을 직접 주입
+# 모놀리스일 때 (현재: carry-app/src/main/kotlin/com/carry/app/adapter/)
+carry-app/.../adapter/LaundromatQueryPortAdapter.kt
+  → LaundromatQueryUseCase 빈을 직접 주입
 
 # 마이크로서비스로 분리 후
-infrastructure/adapter/LaundromatQueryAdapter.kt
+carry-app/.../adapter/LaundromatQueryPortAdapter.kt
   → HTTP Client로 carry-laundromat 서비스 호출
 ```

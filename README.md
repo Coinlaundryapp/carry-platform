@@ -314,7 +314,9 @@ carry-{module}/
 
 - **아키텍처 의사결정**: [`docs/adr/`](docs/adr/) — ADR-0001 도메인/JPA 분리 · 0002 Outbox+CDC ·
   0003 모듈 분리 기준 · 0004 Choreography Saga · 0005 이벤트 스키마 진화 · 0006 모듈 과분해 재평가 ·
-  0007 모듈러 모놀리스 유지
+  0007 모듈러 모놀리스 유지 · 0008 도메인 이벤트 계층 없음
+- **코드에서 역추출한 문서**: [`docs/15-invariant-catalog.md`](docs/15-invariant-catalog.md) 불변식 카탈로그(강제 수단까지 구분) ·
+  [`docs/16-context-map.md`](docs/16-context-map.md) 컨텍스트 맵 · [`docs/17-ubiquitous-language.md`](docs/17-ubiquitous-language.md) 유비쿼터스 언어 사전
 - **기여 가이드**: [`CONTRIBUTING.md`](CONTRIBUTING.md) — 아키텍처 규칙·3-Method 패턴·테스트 기준·커밋/PR 규약
 - **클라이언트 재시도 가이드**: [`docs/14-client-retry-guide.md`](docs/14-client-retry-guide.md) — 에러 코드별 재시도 가능 여부 · `Idempotency-Key` 사용법 · 백오프 정책
 
