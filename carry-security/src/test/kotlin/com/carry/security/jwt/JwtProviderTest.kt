@@ -29,7 +29,7 @@ class JwtProviderTest {
 
     @Test
     fun `parseToken은 REFRESH 토큰을 거부한다`() {
-        val refresh = sut.createRefreshToken(7L)
+        val refresh = sut.createRefreshToken(7L, "sess-1", "jti-1")
 
         assertThat(sut.parseToken(refresh)).isNull()
     }
@@ -54,13 +54,28 @@ class JwtProviderTest {
         assertThat(sut.parseToken(token)).isNull()
     }
 
-    // --- parseRefreshToken: REFRESH 토큰만 수용 ---
+    // --- parseRefreshToken: REFRESH 토큰만 수용, sid/jti 복원 ---
 
     @Test
-    fun `parseRefreshToken은 REFRESH 토큰의 userId를 반환한다`() {
-        val refresh = sut.createRefreshToken(99L)
+    fun `parseRefreshToken은 REFRESH 토큰의 userId sessionId jti를 복원한다`() {
+        val refresh = sut.createRefreshToken(99L, "sess-abc", "jti-xyz")
 
-        assertThat(sut.parseRefreshToken(refresh)).isEqualTo(99L)
+        val claims = sut.parseRefreshToken(refresh)
+
+        assertThat(claims).isNotNull
+        assertThat(claims!!.userId).isEqualTo(99L)
+        assertThat(claims.sessionId).isEqualTo("sess-abc")
+        assertThat(claims.jti).isEqualTo("jti-xyz")
+    }
+
+    @Test
+    fun `parseRefreshToken은 회전돼도 같은 sessionId를 유지한다`() {
+        val first = sut.createRefreshToken(99L, "sess-fixed", "jti-1")
+        val rotated = sut.createRefreshToken(99L, "sess-fixed", "jti-2")
+
+        assertThat(sut.parseRefreshToken(first)!!.sessionId).isEqualTo("sess-fixed")
+        assertThat(sut.parseRefreshToken(rotated)!!.sessionId).isEqualTo("sess-fixed")
+        assertThat(sut.parseRefreshToken(first)!!.jti).isNotEqualTo(sut.parseRefreshToken(rotated)!!.jti)
     }
 
     @Test
@@ -99,6 +114,17 @@ class JwtProviderTest {
         assertThat(claims).isNotNull
         assertThat(claims!!.email).isNull()
         assertThat(claims.nickname).isNull()
+        // emailVerified 미지정(4-arg) → 기본값 false로 왕복
+        assertThat(claims.emailVerified).isFalse()
+    }
+
+    @Test
+    fun `SIGNUP 토큰의 emailVerified가 왕복 보존된다`() {
+        val verified = sut.createSignupToken("GOOGLE", "g-1", "v@x.com", "닉", emailVerified = true)
+        val unverified = sut.createSignupToken("GOOGLE", "g-2", "u@x.com", "닉", emailVerified = false)
+
+        assertThat(sut.parseSignupToken(verified)!!.emailVerified).isTrue()
+        assertThat(sut.parseSignupToken(unverified)!!.emailVerified).isFalse()
     }
 
     @Test

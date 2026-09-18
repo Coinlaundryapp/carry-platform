@@ -10,6 +10,8 @@ data class CreateOrderCommand(
     val selectedOptions: List<SelectedOptionCommand>,
     val desiredPickupAt: java.time.Instant,
     val desiredDeliveryAt: java.time.Instant,
+    /** 선택적 멱등성 키(HTTP `Idempotency-Key` 헤더). 같으면 중복 생성 대신 기존 결과를 재생한다. */
+    val idempotencyKey: String? = null,
 )
 
 data class SelectedOptionCommand(

@@ -99,4 +99,17 @@ class OutboxConnectorContractTest {
         assertThatThrownBy { objectMapper.readValue(barePayload, OutboxEventEnvelope::class.java) }
             .isInstanceOf(MismatchedInputException::class.java)
     }
+
+    @Test
+    fun `이벤트 토픽 복제 계수는 3이다 - 멀티브로커 HA 회귀 방지`() {
+        // RF가 1로 되돌아가면 브로커 1대 다운에 이벤트 토픽이 소실된다. 절대 1로 내리지 말 것.
+        val config = connectorConfig()
+        assertThat(config["topic.creation.default.replication.factor"]).isEqualTo("3")
+    }
+
+    @Test
+    fun `이벤트 토픽 min insync replicas는 2다 - acks=all 무손실 보장`() {
+        val config = connectorConfig()
+        assertThat(config["topic.creation.default.min.insync.replicas"]).isEqualTo("2")
+    }
 }

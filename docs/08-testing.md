@@ -1,7 +1,16 @@
 # 08. 테스트 전략
 
-> 최종 수정일: 2026-03-11
-> 상태: Draft
+> 최종 수정일: 2026-03-11 (초안) · 상태 갱신: 2026-09-18
+> 상태: **혼합 — 단위~사가 통합은 구현됨, "분리 후" MSA 테스트 절은 미채택**
+
+> ⚠️ **상태가 갈린다:**
+> - **실제 구현된 전략**: 순수 도메인 단위 테스트, ArchUnit 경계 강제, Testcontainers 기반 사가 통합 테스트,
+>   **크로스모듈 계약 테스트는 #93에서 `testFixtures`의 `Fake<Port>` 방식(모놀리스 내)으로 구현** —
+>   아래 "Pact/Spring Cloud Contract(분리 후)"가 아니라 이 형태다. 멱등성·동시성·Outbox 원자성(#123) 회귀 가드 포함.
+> - **장애 주입은 Toxiproxy(Testcontainers, 인프로세스)로 채택됨** — 아래 "장애 주입 테스트" 절.
+>   K8s Chaos Mesh 절(분리 후)과는 다른 계층이며, 그쪽은 여전히 미채택이다.
+> - **아래 "마이크로서비스 분리 후" 절들(API 호환성·Chaos Mesh·카나리 Smoke·Linkerd)은 미채택**(ADR-0007).
+>   분리를 안 하므로 해당 계층은 도입하지 않는다. 구상으로만 보존.
 
 ---
 
@@ -328,6 +337,52 @@ class OrderSagaE2ETest {
 
 ---
 
+## 장애 주입 테스트 (Chaos Injection) — 구현됨
+
+### 대상
+
+- **DB 경로 단절/지연** — 커넥션 풀과 드라이버 타임아웃이 실제로 요청을 풀어주는지 (`DatasourceOutageChaosTest`)
+- Kafka·PG 경로 주입은 **아직 하지 않았다**
+
+### 도구
+
+- Testcontainers + **Toxiproxy**(`ghcr.io/shopify/toxiproxy:2.5.0`) — DataSource 를 프록시 경유로 붙이고
+  toxic(`timeout(0)` = 연결을 끊지 않고 데이터만 흘리지 않는 블랙홀)을 붙였다 뗀다.
+  `connection-refused` 로 즉시 실패시키면 타임아웃 경로를 태울 수 없어 블랙홀을 쓴다.
+- 전용 베이스 `ChaosTestBase` — 기존 `IntegrationTestBase`(컨테이너 직결)와 **분리**한다.
+  프록시 홉과 컨텍스트 분기를 기존 통합 테스트 전체에 얹지 않기 위해서다.
+
+### 단언하는 것 — 성능이 아니라 거동
+
+절대 처리량·지연은 측정하지 않는다. 단언은 세 가지뿐이다.
+
+1. 단절 시 **유한 시간 안에 실패**한다 (무한 대기하지 않는다)
+2. 단절이 해소되면 **재기동·풀 재생성 없이 회복**한다
+3. 단절·회복을 겪어도 **풀이 상한(20)을 넘겨 팽창하지 않는다**
+
+3번이 핵심이다. 쿼리 실패를 커넥션 장애로 오인해 풀을 재생성하는 구조는 실패가 반복될 때
+커넥션·스레드가 선형으로 증가해 프로세스를 죽인다.
+
+> `application-test.yml` 이 HikariCP 설정을 덮지 않으므로 이 테스트가 관찰하는 거동은 **운영 설정의 거동**이다.
+> 테스트가 `maximumPoolSize == 20` 을 직접 단언해 그 전제를 고정한다.
+
+### 이 테스트가 처음 잡은 결함 (2026-09-04)
+
+붙이자마자 1번이 RED 였다 — 끊긴 DB 로의 `SELECT 1` 이 **13,424,276ms(3시간 43분) 동안 반환되지 않았다.**
+
+- `spring.datasource.hikari.connection-timeout: 3000` 은 커넥션 **획득**에만 적용된다. 이미 획득한 커넥션의
+  소켓 읽기는 드라이버 소관이고, pgjdbc `socketTimeout` 기본값이 **0(무한)** 이다.
+- 가상 스레드라 스레드 고갈은 늦게 오지만, 커넥션 20개가 모두 이 상태가 되면 서비스가 멈춘다.
+  `leak-detection-threshold: 5000` 은 경고만 남길 뿐 스레드를 풀어주지 않는다.
+- 조치: JDBC URL 이 프로파일별 환경변수라 `hikari.data-source-properties` 로 준다 —
+  `socketTimeout: 10`(초) + `tcpKeepAlive: true`. 전 프로파일·테스트에 공통 적용된다.
+- 적용 후 **11.2초**에 실패(GREEN). 이 테스트가 회귀 가드로 상시 실행된다.
+
+**남은 과제**: DB 측 `statement_timeout` 병행, 10초를 넘겨야 하는 배치가 생기면 전용 데이터소스 분리,
+Kafka·PG 경로 주입.
+
+---
+
 ## 마이크로서비스 테스트 전략 (분리 후)
 
 모놀리스에서 마이크로서비스로 전환 시, 테스트 계층이 확장된다:
@@ -406,7 +461,9 @@ abstract class IntegrationTestBase {
     companion object {
         @Container
         @JvmStatic
-        val postgres = PostgreSQLContainer("postgres:16-alpine")
+        // PostGIS 포함 이미지 — 인근 검색(ST_Distance·ST_DWithin)·V3 GIST 인덱스가 PostGIS에 의존.
+        // 확장은 Flyway V0(CREATE EXTENSION postgis)가 생성한다. 로컬 docker도 동일 이미지.
+        val postgres = PostgreSQLContainer("postgis/postgis:16-3.4")
             .withDatabaseName("carry_test")
 
         @Container

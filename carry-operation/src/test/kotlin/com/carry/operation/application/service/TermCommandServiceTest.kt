@@ -14,14 +14,16 @@ import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import java.time.Clock
 import java.time.Instant
+import java.time.ZoneOffset
 
 class TermCommandServiceTest {
 
     private val termPersistencePort = mockk<TermPersistencePort>(relaxed = true)
-    private val sut = TermCommandService(termPersistencePort)
-
-    private val now = Instant.now()
+    private val now = Instant.parse("2026-06-07T00:00:00Z")
+    private val clock = Clock.fixed(now, ZoneOffset.UTC)
+    private val sut = TermCommandService(termPersistencePort, clock)
 
     private fun reconstitutedTerm() = Term.reconstitute(
         id = 1L, title = "서비스 이용약관", content = "약관 내용",

@@ -25,10 +25,28 @@ class JwtAuthTokenAdapterTest {
     }
 
     @Test
-    fun `refresh 토큰은 parseRefreshToken으로 userId를 복원한다`() {
-        val token = sut.issueRefreshToken(11L)
+    fun `refresh 토큰은 sessionId·jti를 담아 발급되고 parseRefreshToken으로 복원된다`() {
+        val issued = sut.issueRefreshToken(11L)
 
-        assertThat(sut.parseRefreshToken(token)).isEqualTo(11L)
+        val claims = sut.parseRefreshToken(issued.token)
+        assertThat(claims).isNotNull
+        assertThat(claims!!.userId).isEqualTo(11L)
+        assertThat(claims.sessionId).isEqualTo(issued.sessionId)
+        assertThat(claims.jti).isEqualTo(issued.jti)
+    }
+
+    @Test
+    fun `회전은 sessionId를 유지하고 jti만 새로 발급한다`() {
+        val first = sut.issueRefreshToken(11L)
+        val rotated = sut.issueRefreshToken(11L, first.sessionId)
+
+        assertThat(rotated.sessionId).isEqualTo(first.sessionId)
+        assertThat(rotated.jti).isNotEqualTo(first.jti)
+    }
+
+    @Test
+    fun `새 세션 발급은 매번 다른 sessionId를 만든다`() {
+        assertThat(sut.issueRefreshToken(11L).sessionId).isNotEqualTo(sut.issueRefreshToken(11L).sessionId)
     }
 
     @Test
@@ -48,12 +66,23 @@ class JwtAuthTokenAdapterTest {
         assertThat(identity.oauthId).isEqualTo("kakao-9")
         assertThat(identity.email).isEqualTo("e@x.com")
         assertThat(identity.nickname).isEqualTo("닉")
+        // emailVerified 미지정(4-arg) → 기본값 false로 왕복
+        assertThat(identity.emailVerified).isFalse()
+    }
+
+    @Test
+    fun `signup 토큰의 emailVerified=true가 왕복 보존된다`() {
+        val token = sut.issueSignupToken(OAuthProvider.NAVER, "naver-9", "v@x.com", "닉", emailVerified = true)
+
+        val identity = sut.parseSignupToken(token)
+        assertThat(identity).isNotNull
+        assertThat(identity!!.emailVerified).isTrue()
     }
 
     @Test
     fun `signup 파싱은 refresh 토큰을 거부한다`() {
         val refresh = sut.issueRefreshToken(1L)
 
-        assertThat(sut.parseSignupToken(refresh)).isNull()
+        assertThat(sut.parseSignupToken(refresh.token)).isNull()
     }
 }

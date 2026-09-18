@@ -46,6 +46,9 @@ enum class ErrorCode(
     INVALID_ORDER_STATUS_TRANSITION(400, "Invalid order status transition"),
     ORDER_NOT_CANCELLABLE(409, "Order cannot be cancelled in current status"),
     ORDER_NOT_OWNED(403, "Order does not belong to the user"),
+    IDEMPOTENT_REQUEST_IN_PROGRESS(409, "A request with the same idempotency key is already in progress"),
+    BILLING_KEY_REQUIRED(409, "Active billing key is required to create an order"),
+    OVERDUE_INVOICE_EXISTS(409, "Customer has an overdue invoice"),
 
     // Payment
     PAYMENT_NOT_FOUND(404, "Payment not found"),
@@ -54,8 +57,9 @@ enum class ErrorCode(
     PAYMENT_FAILED(502, "Payment processing failed"),
     PG_GATEWAY_UNAVAILABLE(503, "Payment gateway is temporarily unavailable — retry later"),
     UNSUPPORTED_PG_PROVIDER(400, "Unsupported payment gateway provider"),
-    ORDER_NOT_PAID(402, "Order payment is not completed"),
     PAYMENT_NOT_OWNED(403, "Payment does not belong to the user"),
+    BILLING_KEY_ISSUE_FAILED(400, "Billing key issuance was rejected by PG"),
+    BILLING_KEY_NOT_FOUND(404, "Active billing key not found"),
 
     // Invoice
     INVOICE_NOT_FOUND(404, "Invoice not found"),

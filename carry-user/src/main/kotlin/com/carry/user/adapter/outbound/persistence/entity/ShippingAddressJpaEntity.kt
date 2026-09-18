@@ -4,6 +4,7 @@ import com.carry.infra.persistence.BaseEntity
 import com.carry.user.domain.model.ShippingAddress
 import com.carry.user.domain.vo.Address
 import com.carry.user.domain.vo.Coordinates
+import com.carry.user.domain.vo.Recipient
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.Table
@@ -54,8 +55,7 @@ class ShippingAddressJpaEntity(
         alias = alias,
         address = Address(roadAddress, detailAddress, zipCode),
         coordinates = Coordinates(latitude, longitude),
-        recipientName = recipientName,
-        recipientPhone = recipientPhone,
+        recipient = Recipient(recipientName, recipientPhone),
         entranceInfo = entranceInfo,
         areaCode = areaCode,
         isDefault = isDefault,

@@ -1,5 +1,6 @@
 package com.carry.geo.adapter.outbound.cache
 
+import com.carry.common.metrics.MetricsPort
 import com.carry.geo.application.port.outbound.GeocodingPort
 import com.carry.geo.domain.exception.GeocodingFailedException
 import com.carry.geo.domain.model.GeocodingResult
@@ -16,6 +17,8 @@ import org.springframework.data.redis.core.ValueOperations
 import java.time.Duration
 
 class RedisCachingGeocodingAdapterTest {
+
+    private val metrics = mockk<MetricsPort>(relaxed = true)
 
     private val sampleResult = GeocodingResult(
         jibunAddress = "서울특별시 강남구 역삼동 123",
@@ -49,7 +52,7 @@ class RedisCachingGeocodingAdapterTest {
         val (redisTemplate, valueOps) = mockRedisTemplate()
         every { valueOps.get(any()) } returns null
         every { valueOps.set(any(), any(), any<Duration>()) } returns Unit
-        val sut = RedisCachingGeocodingAdapter(delegate, redisTemplate)
+        val sut = RedisCachingGeocodingAdapter(delegate, redisTemplate, metrics)
 
         val result = sut.geocode("서울특별시 강남구 테헤란로 100")
 
@@ -65,7 +68,7 @@ class RedisCachingGeocodingAdapterTest {
         val delegate = mockk<GeocodingPort>()
         val (redisTemplate, valueOps) = mockRedisTemplate()
         every { valueOps.get("geo:fwd:서울특별시 강남구 테헤란로 100") } returns listOf(sampleResult)
-        val sut = RedisCachingGeocodingAdapter(delegate, redisTemplate)
+        val sut = RedisCachingGeocodingAdapter(delegate, redisTemplate, metrics)
 
         val result = sut.geocode("서울특별시 강남구 테헤란로 100")
 
@@ -81,7 +84,7 @@ class RedisCachingGeocodingAdapterTest {
         val (redisTemplate, valueOps) = mockRedisTemplate()
         every { valueOps.get("geo:fwd:서울특별시 강남구 테헤란로 100") } returns null
         every { valueOps.set(any(), any(), any<Duration>()) } returns Unit
-        val sut = RedisCachingGeocodingAdapter(delegate, redisTemplate)
+        val sut = RedisCachingGeocodingAdapter(delegate, redisTemplate, metrics)
 
         sut.geocode("  서울특별시 강남구 테헤란로 100  ")
 
@@ -97,7 +100,7 @@ class RedisCachingGeocodingAdapterTest {
         every { delegate.geocode(any()) } throws GeocodingFailedException("Naver returned 500")
         val (redisTemplate, valueOps) = mockRedisTemplate()
         every { valueOps.get(any()) } returns null
-        val sut = RedisCachingGeocodingAdapter(delegate, redisTemplate)
+        val sut = RedisCachingGeocodingAdapter(delegate, redisTemplate, metrics)
 
         assertThatThrownBy { sut.geocode("주소") }
             .isInstanceOf(GeocodingFailedException::class.java)
@@ -106,12 +109,42 @@ class RedisCachingGeocodingAdapterTest {
     }
 
     @Test
+    fun `cache hit 시 carry_geo_cache hit 메트릭을 기록한다`() {
+        val delegate = mockk<GeocodingPort>()
+        val (redisTemplate, valueOps) = mockRedisTemplate()
+        every { valueOps.get(any()) } returns listOf(sampleResult)
+        val sut = RedisCachingGeocodingAdapter(delegate, redisTemplate, metrics)
+
+        sut.geocode("서울특별시 강남구 테헤란로 100")
+
+        verify(exactly = 1) {
+            metrics.incrementCounter("carry.geo.cache", "direction" to "fwd", "result" to "hit")
+        }
+    }
+
+    @Test
+    fun `cache miss 시 carry_geo_cache miss 메트릭을 기록한다`() {
+        val delegate = mockk<GeocodingPort>()
+        every { delegate.geocode(any()) } returns listOf(sampleResult)
+        val (redisTemplate, valueOps) = mockRedisTemplate()
+        every { valueOps.get(any()) } returns null
+        every { valueOps.set(any(), any(), any<Duration>()) } returns Unit
+        val sut = RedisCachingGeocodingAdapter(delegate, redisTemplate, metrics)
+
+        sut.geocode("서울특별시 강남구 테헤란로 100")
+
+        verify(exactly = 1) {
+            metrics.incrementCounter("carry.geo.cache", "direction" to "fwd", "result" to "miss")
+        }
+    }
+
+    @Test
     fun `빈 결과는 캐싱하지 않는다 — Naver가 일시적으로 빈 결과를 줄 때 음수 캐시를 피한다`() {
         val delegate = mockk<GeocodingPort>()
         every { delegate.geocode(any()) } returns emptyList()
         val (redisTemplate, valueOps) = mockRedisTemplate()
         every { valueOps.get(any()) } returns null
-        val sut = RedisCachingGeocodingAdapter(delegate, redisTemplate)
+        val sut = RedisCachingGeocodingAdapter(delegate, redisTemplate, metrics)
 
         val result = sut.geocode("존재하지 않는 주소")
 

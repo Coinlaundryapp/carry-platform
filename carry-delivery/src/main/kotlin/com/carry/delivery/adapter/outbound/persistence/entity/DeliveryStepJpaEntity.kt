@@ -4,6 +4,7 @@ import com.carry.delivery.domain.model.DeliveryStep
 import com.carry.delivery.domain.vo.DeliveryStepType
 import com.carry.delivery.domain.vo.StepStatus
 import com.carry.infra.persistence.BaseEntity
+import com.carry.infra.persistence.replaceAllFrom
 import jakarta.persistence.CascadeType
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
@@ -54,10 +55,9 @@ class DeliveryStepJpaEntity(
         note = step.note
         completedAt = step.completedAt
 
-        // Sync media
-        media.clear()
-        step.mediaIds.forEach { mediaId ->
-            media.add(DeliveryStepMediaJpaEntity(deliveryStep = this, mediaId = mediaId))
+        // media는 식별자 없는 단순 값(mediaId)이라 전체 교체로 동기화한다.
+        media.replaceAllFrom(step.mediaIds) { mediaId ->
+            DeliveryStepMediaJpaEntity(deliveryStep = this, mediaId = mediaId)
         }
     }
 

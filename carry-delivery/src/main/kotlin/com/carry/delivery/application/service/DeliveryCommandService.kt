@@ -3,11 +3,10 @@ package com.carry.delivery.application.service
 import com.carry.common.metrics.MetricsPort
 import com.carry.delivery.application.port.inbound.DeliveryCommandUseCase
 import com.carry.delivery.application.port.outbound.DeliveryPersistencePort
-import com.carry.delivery.application.port.outbound.PaymentQueryPort
 import com.carry.delivery.domain.exception.DeliveryNotFoundException
 import com.carry.delivery.domain.exception.DeliveryNotOwnedException
-import com.carry.delivery.domain.exception.OrderNotPaidException
 import com.carry.delivery.domain.model.Delivery
+import com.carry.delivery.domain.vo.DeliveryStatus
 import com.carry.event.delivery.DeliveryCompletedEvent
 import com.carry.event.delivery.LaundryStartedEvent
 import com.carry.event.delivery.PickupCompletedEvent
@@ -16,15 +15,15 @@ import com.carry.event.port.EventPublisherPort
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
+import java.time.Clock
 import java.time.Duration
-import java.time.Instant
 
 @Service
 class DeliveryCommandService(
     private val deliveryPersistencePort: DeliveryPersistencePort,
-    private val paymentQueryPort: PaymentQueryPort,
     private val eventPublisher: EventPublisherPort,
     private val metrics: MetricsPort,
+    private val clock: Clock,
 ) : DeliveryCommandUseCase {
 
     @Transactional
@@ -40,7 +39,8 @@ class DeliveryCommandService(
         requestingCarrierId: Long,
     ): Delivery {
         val delivery = findOwnedDelivery(deliveryId, requestingCarrierId)
-        delivery.completePickup(weight, photoIds)
+        val transitioned = delivery.completePickup(weight, photoIds, clock.instant())
+        if (!transitioned) return delivery // 멱등 재시도 → 현재 상태 반환, 발행 억제.
         val saved = deliveryPersistencePort.save(delivery)
 
         eventPublisher.publish(
@@ -66,7 +66,8 @@ class DeliveryCommandService(
     @Transactional
     override fun startWashing(deliveryId: Long, photoIds: List<Long>, requestingCarrierId: Long): Delivery {
         val delivery = findOwnedDelivery(deliveryId, requestingCarrierId)
-        delivery.startWashing(photoIds)
+        val transitioned = delivery.startWashing(photoIds, clock.instant())
+        if (!transitioned) return delivery // 멱등 재시도 → 현재 상태 반환, 발행 억제.
         val saved = deliveryPersistencePort.save(delivery)
 
         eventPublisher.publish(
@@ -85,14 +86,16 @@ class DeliveryCommandService(
     @Transactional
     override fun completeDrying(deliveryId: Long, photoIds: List<Long>, requestingCarrierId: Long): Delivery {
         val delivery = findOwnedDelivery(deliveryId, requestingCarrierId)
-        delivery.completeDrying(photoIds)
+        val transitioned = delivery.completeDrying(photoIds, clock.instant())
+        if (!transitioned) return delivery // 멱등 재시도 → 현재 상태 반환.
         return deliveryPersistencePort.save(delivery)
     }
 
     @Transactional
     override fun startDelivery(deliveryId: Long, requestingCarrierId: Long): Delivery {
         val delivery = findOwnedDelivery(deliveryId, requestingCarrierId)
-        delivery.startDelivery()
+        val transitioned = delivery.startDelivery()
+        if (!transitioned) return delivery // 멱등 재시도 → 현재 상태 반환.
         return deliveryPersistencePort.save(delivery)
     }
 
@@ -100,11 +103,12 @@ class DeliveryCommandService(
     override fun completeDelivery(deliveryId: Long, photoIds: List<Long>, requestingCarrierId: Long): Delivery {
         val delivery = findOwnedDelivery(deliveryId, requestingCarrierId)
 
-        if (!paymentQueryPort.isOrderPaid(delivery.orderId)) {
-            throw OrderNotPaidException(delivery.orderId)
-        }
+        // 이미 배달 완료(DELIVERED)면 멱등 no-op → 현재 상태 반환.
+        if (delivery.status == DeliveryStatus.DELIVERED) return delivery
 
-        delivery.completeDelivery(photoIds)
+        // 물리 흐름은 결제를 기다리지 않는다 — 빌링키 자동 청구가 별도 트리거로 병행 진행.
+        val transitioned = delivery.completeDelivery(photoIds, clock.instant())
+        if (!transitioned) return delivery // 방어적(상태 레이스) — 발행·메트릭 억제.
         val saved = deliveryPersistencePort.save(delivery)
 
         eventPublisher.publish(
@@ -119,9 +123,9 @@ class DeliveryCommandService(
         )
 
         // 배달 라이프사이클 길이 — Delivery aggregate 생성(=DispatchAccepted 사가 처리 시점)부터
-        // 배달 완료까지. Clock 주입은 ROADMAP Phase 5에서 처리하므로 여기선 Instant.now() 직접 호출.
+        // 배달 완료까지. 시각은 주입된 Clock 에서 가져온다.
         metrics.incrementCounter("carry.delivery.completed")
-        metrics.recordTimer("carry.delivery.duration", Duration.between(saved.createdAt, Instant.now()))
+        metrics.recordTimer("carry.delivery.duration", Duration.between(saved.createdAt, clock.instant()))
 
         return saved
     }

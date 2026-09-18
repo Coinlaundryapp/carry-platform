@@ -9,6 +9,7 @@ import com.carry.user.domain.exception.ShippingAddressNotOwnedException
 import com.carry.user.domain.model.ShippingAddress
 import com.carry.user.domain.vo.Address
 import com.carry.user.domain.vo.Coordinates
+import com.carry.user.domain.vo.Recipient
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -48,8 +49,7 @@ class ShippingAddressService(
             alias = alias,
             address = address,
             coordinates = coordinates,
-            recipientName = recipientName,
-            recipientPhone = recipientPhone,
+            recipient = Recipient(recipientName, recipientPhone),
             entranceInfo = entranceInfo,
             areaCode = areaCode,
             isDefault = isFirst,
@@ -70,7 +70,7 @@ class ShippingAddressService(
         areaCode: String,
     ): ShippingAddress {
         val shippingAddress = findOwnedAddress(userId, addressId)
-        shippingAddress.update(alias, address, coordinates, recipientName, recipientPhone, entranceInfo, areaCode)
+        shippingAddress.update(alias, address, coordinates, Recipient(recipientName, recipientPhone), entranceInfo, areaCode)
         return shippingAddressPersistencePort.save(shippingAddress)
     }
 

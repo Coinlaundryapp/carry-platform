@@ -1,5 +1,6 @@
 package com.carry.geo.adapter.outbound.config
 
+import com.carry.common.metrics.MetricsPort
 import com.carry.geo.adapter.outbound.cache.RedisCachingGeocodingAdapter
 import com.carry.geo.adapter.outbound.cache.RedisCachingReverseGeocodingAdapter
 import com.carry.geo.adapter.outbound.external.naver.NaverApiProperties
@@ -14,7 +15,10 @@ import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.data.redis.connection.RedisConnectionFactory
 import org.springframework.data.redis.core.RedisTemplate
+import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer
+import org.springframework.data.redis.serializer.StringRedisSerializer
 
 /**
  * 지오코딩 포트의 데코레이터 체인을 명시적으로 와이어링한다.
@@ -30,7 +34,14 @@ import org.springframework.data.redis.core.RedisTemplate
  * (`geocoding-forward`, `geocoding-reverse`)해 한쪽 장애가 다른 쪽 호출을 차단하지 않게 한다.
  * 공통 설정은 application.yml의 `resilience4j.circuitbreaker.configs.geocoding`을 공유한다.
  *
- * [RedisTemplate]이 등록되지 않은 환경(테스트에서 `RedisAutoConfiguration`을 exclude한 경우 등)
+ * 캐시 층 활성 조건은 **[RedisConnectionFactory] 빈(자동구성)의 존재**로 판단하고 템플릿은
+ * 여기서 직접 만든다 — [RefreshTokenStoreConfig]와 동일한 nullable-factory 패턴.
+ * ⚠️ 과거에는 `RedisConfig`(@Configuration + `@ConditionalOnBean(RedisConnectionFactory)`)가 만드는
+ * `RedisTemplate` 빈에 의존했는데, `@ConditionalOnBean`은 자동구성보다 먼저 평가되는 사용자
+ * @Configuration에서 신뢰할 수 없어 **Redis가 떠 있어도 캐시 층이 조용히 빠지는** 버그가 있었다
+ * (2026-06-12 라이브 스모크 발견, [GeocodingResilienceConfigTest]가 회귀 가드).
+ *
+ * [RedisConnectionFactory]가 없는 환경(테스트에서 `RedisAutoConfiguration`을 exclude한 경우 등)
  * 에서는 캐시 층을 생략하고 CB만 적용해 graceful degradation한다. 이 fallback은 의도된 동작이며
  * 로그로 명시한다.
  */
@@ -38,37 +49,52 @@ import org.springframework.data.redis.core.RedisTemplate
 class GeocodingResilienceConfig(
     private val naverProperties: NaverApiProperties,
     private val circuitBreakerRegistry: CircuitBreakerRegistry,
+    private val metrics: MetricsPort,
 ) {
 
     private val log = LoggerFactory.getLogger(javaClass)
 
     @Bean
     fun geocodingPort(
-        @Autowired(required = false) redisTemplate: RedisTemplate<String, Any>?,
+        @Autowired(required = false) redisConnectionFactory: RedisConnectionFactory?,
     ): GeocodingPort {
         val raw = NaverGeocodingAdapter(naverProperties)
         val cb = circuitBreakerRegistry.circuitBreaker("geocoding-forward", "geocoding")
         val protected_ = CircuitBreakerGeocodingAdapter(raw, cb)
-        return if (redisTemplate != null) {
-            RedisCachingGeocodingAdapter(protected_, redisTemplate)
+        return if (redisConnectionFactory != null) {
+            RedisCachingGeocodingAdapter(protected_, geoRedisTemplate(redisConnectionFactory), metrics)
         } else {
-            log.warn("RedisTemplate not available — GeocodingPort runs without cache layer (CB only)")
+            log.warn("RedisConnectionFactory not available — GeocodingPort runs without cache layer (CB only)")
             protected_
         }
     }
 
     @Bean
     fun reverseGeocodingPort(
-        @Autowired(required = false) redisTemplate: RedisTemplate<String, Any>?,
+        @Autowired(required = false) redisConnectionFactory: RedisConnectionFactory?,
     ): ReverseGeocodingPort {
         val raw = NaverReverseGeocodingAdapter(naverProperties)
         val cb = circuitBreakerRegistry.circuitBreaker("geocoding-reverse", "geocoding")
         val protected_ = CircuitBreakerReverseGeocodingAdapter(raw, cb)
-        return if (redisTemplate != null) {
-            RedisCachingReverseGeocodingAdapter(protected_, redisTemplate)
+        return if (redisConnectionFactory != null) {
+            RedisCachingReverseGeocodingAdapter(protected_, geoRedisTemplate(redisConnectionFactory), metrics)
         } else {
-            log.warn("RedisTemplate not available — ReverseGeocodingPort runs without cache layer (CB only)")
+            log.warn("RedisConnectionFactory not available — ReverseGeocodingPort runs without cache layer (CB only)")
             protected_
         }
     }
+
+    /**
+     * 캐시 값(GeocodingResult 등 복합 객체)을 JSON으로 직렬화하는 템플릿.
+     * 수동 생성이므로 [RedisTemplate.afterPropertiesSet] 호출이 필수다.
+     */
+    private fun geoRedisTemplate(connectionFactory: RedisConnectionFactory): RedisTemplate<String, Any> =
+        RedisTemplate<String, Any>().apply {
+            setConnectionFactory(connectionFactory)
+            keySerializer = StringRedisSerializer()
+            valueSerializer = GenericJackson2JsonRedisSerializer()
+            hashKeySerializer = StringRedisSerializer()
+            hashValueSerializer = GenericJackson2JsonRedisSerializer()
+            afterPropertiesSet()
+        }
 }

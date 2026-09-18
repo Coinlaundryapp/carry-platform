@@ -5,6 +5,8 @@ import com.carry.notification.application.port.outbound.NotificationPersistenceP
 import com.carry.notification.application.port.outbound.NotificationSenderPort
 import com.carry.notification.domain.model.Notification
 import com.carry.notification.domain.vo.NotificationChannel
+import com.carry.notification.domain.vo.NotificationMessage
+import com.carry.notification.domain.vo.NotificationReference
 import com.carry.notification.domain.vo.NotificationStatus
 import com.carry.notification.domain.vo.NotificationType
 import io.mockk.every
@@ -14,16 +16,19 @@ import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import java.time.Clock
 import java.time.Instant
+import java.time.ZoneOffset
 
 class NotificationCommandServiceTest {
 
     private val notificationPersistencePort = mockk<NotificationPersistencePort>(relaxed = true)
     private val notificationSenderPort = mockk<NotificationSenderPort>(relaxed = true)
 
-    private val sut = NotificationCommandService(notificationPersistencePort, notificationSenderPort)
+    private val now = Instant.parse("2026-06-07T00:00:00Z")
+    private val clock = Clock.fixed(now, ZoneOffset.UTC)
 
-    private val now = Instant.now()
+    private val sut = NotificationCommandService(notificationPersistencePort, notificationSenderPort, clock)
 
     private fun createCommand() = SendNotificationCommand(
         recipientId = 1L,
@@ -49,11 +54,9 @@ class NotificationCommandServiceTest {
                     recipientContact = saved.captured.recipientContact,
                     type = saved.captured.type,
                     channel = saved.captured.channel,
-                    title = saved.captured.title,
-                    content = saved.captured.content,
+                    message = NotificationMessage(saved.captured.title, saved.captured.content),
                     status = saved.captured.status,
-                    referenceType = saved.captured.referenceType,
-                    referenceId = saved.captured.referenceId,
+                    reference = saved.captured.referenceType?.let { NotificationReference(it, saved.captured.referenceId!!) },
                     sentAt = saved.captured.sentAt,
                     failReason = saved.captured.failReason,
                     createdAt = now,
@@ -63,7 +66,7 @@ class NotificationCommandServiceTest {
             val result = sut.send(createCommand())
 
             assertThat(result.status).isEqualTo(NotificationStatus.SENT)
-            assertThat(result.sentAt).isNotNull()
+            assertThat(result.sentAt).isEqualTo(now)
             verify { notificationSenderPort.send(NotificationChannel.KAKAO_ALARMTALK, "01012345678", "주문 접수", "주문이 접수되었습니다.") }
             verify(exactly = 2) { notificationPersistencePort.save(any()) }
         }
@@ -78,11 +81,9 @@ class NotificationCommandServiceTest {
                     recipientContact = saved.captured.recipientContact,
                     type = saved.captured.type,
                     channel = saved.captured.channel,
-                    title = saved.captured.title,
-                    content = saved.captured.content,
+                    message = NotificationMessage(saved.captured.title, saved.captured.content),
                     status = saved.captured.status,
-                    referenceType = saved.captured.referenceType,
-                    referenceId = saved.captured.referenceId,
+                    reference = saved.captured.referenceType?.let { NotificationReference(it, saved.captured.referenceId!!) },
                     sentAt = saved.captured.sentAt,
                     failReason = saved.captured.failReason,
                     createdAt = now,
@@ -109,11 +110,9 @@ class NotificationCommandServiceTest {
                     recipientContact = saved.captured.recipientContact,
                     type = saved.captured.type,
                     channel = saved.captured.channel,
-                    title = saved.captured.title,
-                    content = saved.captured.content,
+                    message = NotificationMessage(saved.captured.title, saved.captured.content),
                     status = saved.captured.status,
-                    referenceType = saved.captured.referenceType,
-                    referenceId = saved.captured.referenceId,
+                    reference = saved.captured.referenceType?.let { NotificationReference(it, saved.captured.referenceId!!) },
                     sentAt = saved.captured.sentAt,
                     failReason = saved.captured.failReason,
                     createdAt = now,

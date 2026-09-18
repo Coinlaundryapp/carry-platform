@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
@@ -33,10 +34,19 @@ class OrderController(
     private val orderQueryUseCase: OrderQueryUseCase,
 ) {
     @Operation(summary = "주문 생성", description = "세탁물 수거/배달 주문을 생성합니다")
-    @ApiResponses(value = [SwaggerApiResponse(responseCode = "201", description = "주문 생성 성공"), SwaggerApiResponse(responseCode = "400", description = "잘못된 요청"), SwaggerApiResponse(responseCode = "422", description = "서비스 불가 지역 또는 시간")])
+    @ApiResponses(
+        value = [
+            SwaggerApiResponse(responseCode = "201", description = "주문 생성 성공"),
+            SwaggerApiResponse(responseCode = "400", description = "잘못된 요청"),
+            SwaggerApiResponse(responseCode = "409", description = "활성 빌링키 없음 또는 연체 인보이스 존재"),
+            SwaggerApiResponse(responseCode = "422", description = "서비스 불가 지역 또는 시간"),
+        ],
+    )
     @PostMapping
     fun createOrder(
         @Parameter(hidden = true) @AuthenticationPrincipal userId: Long,
+        @Parameter(description = "중복 생성 방지용 멱등성 키(재시도 시 동일 값 전송)")
+        @RequestHeader(value = "Idempotency-Key", required = false) idempotencyKey: String?,
         @Valid @RequestBody request: CreateOrderRequest,
     ): ResponseEntity<ApiResponse<OrderResponse>> {
         val command = CreateOrderCommand(
@@ -47,6 +57,7 @@ class OrderController(
             selectedOptions = request.selectedOptions.map { SelectedOptionCommand(it.optionType, it.subOptionType) },
             desiredPickupAt = request.desiredPickupAt,
             desiredDeliveryAt = request.desiredDeliveryAt,
+            idempotencyKey = idempotencyKey,
         )
         val order = orderCommandUseCase.createOrder(command)
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(OrderResponse.from(order)))

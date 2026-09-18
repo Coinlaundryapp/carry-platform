@@ -3,6 +3,9 @@ package com.carry.app.concurrency
 import com.carry.app.test.IntegrationTestBase
 import com.carry.app.test.SagaIntegrationTestConfig
 import com.carry.app.test.TestFixtures
+import com.carry.delivery.adapter.outbound.persistence.entity.DeliveryJpaEntity
+import com.carry.delivery.adapter.outbound.persistence.repository.DeliveryJpaRepository
+import com.carry.delivery.domain.vo.DeliveryStatus
 import com.carry.dispatch.application.port.inbound.ClaimDispatchCommand
 import com.carry.dispatch.application.port.inbound.DispatchSagaEventHandler
 import com.carry.dispatch.application.port.outbound.DispatchPersistencePort
@@ -14,8 +17,15 @@ import com.carry.order.application.port.inbound.SelectedOptionCommand
 import com.carry.order.application.port.outbound.OrderPersistencePort
 import com.carry.order.application.service.OrderCommandService
 import com.carry.order.domain.vo.OrderStatus
+import com.carry.payment.adapter.outbound.persistence.entity.PaymentJpaEntity
+import com.carry.payment.adapter.outbound.persistence.repository.PaymentJpaRepository
+import com.carry.payment.domain.vo.PaymentStatus
+import com.carry.payment.domain.vo.PgProvider
+import com.carry.review.adapter.outbound.persistence.entity.ReviewJpaEntity
+import com.carry.review.adapter.outbound.persistence.repository.ReviewJpaRepository
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
@@ -24,6 +34,9 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Import
 import org.springframework.dao.OptimisticLockingFailureException
 import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.support.TransactionTemplate
+import java.math.BigDecimal
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -38,6 +51,12 @@ class ConcurrencyIntegrationTest : IntegrationTestBase() {
     @Autowired lateinit var orderPersistencePort: OrderPersistencePort
     @Autowired lateinit var jdbc: JdbcTemplate
     @Autowired lateinit var objectMapper: ObjectMapper
+    @Autowired lateinit var paymentJpaRepository: PaymentJpaRepository
+    @Autowired lateinit var deliveryJpaRepository: DeliveryJpaRepository
+    @Autowired lateinit var reviewJpaRepository: ReviewJpaRepository
+    @Autowired lateinit var billingKeyUseCase: com.carry.payment.application.port.inbound.BillingKeyUseCase
+    @Autowired lateinit var transactionManager: PlatformTransactionManager
+    private val tx by lazy { TransactionTemplate(transactionManager) }
 
     private val carrierA = 100L
     private val carrierB = 200L
@@ -52,6 +71,7 @@ class ConcurrencyIntegrationTest : IntegrationTestBase() {
         TestFixtures.insertCarrierArea(jdbc, carrierA)
         TestFixtures.insertCarrierArea(jdbc, carrierB)
         TestFixtures.insertServiceArea(jdbc)
+        TestFixtures.insertBillingKey(billingKeyUseCase)
     }
 
     @AfterEach
@@ -168,5 +188,66 @@ class ConcurrencyIntegrationTest : IntegrationTestBase() {
             val persisted = orderPersistencePort.findById(orderId)!!
             assertThat(persisted.status).isEqualTo(OrderStatus.CANCELLED)
         }
+    }
+
+    // --- @Version 낙관적 락 일관 적용 (Payment·Delivery·Review) ---
+
+    private fun seedInvoiceId(orderId: Long): Long =
+        jdbc.queryForObject(
+            "INSERT INTO payment_invoices(order_id, customer_id, status, weight, total_amount) " +
+                "VALUES (?, 1, 'ISSUED', 1.00, 1000) RETURNING id",
+            Long::class.java, orderId,
+        )!!
+
+    @Test
+    fun `같은 Payment를 stale 버전으로 저장하면 OptimisticLockingFailureException`() {
+        val invoiceId = seedInvoiceId(orderId = 90001L)
+        val id = tx.execute {
+            paymentJpaRepository.save(
+                PaymentJpaEntity(
+                    invoiceId = invoiceId, orderId = 90001L, customerId = 1L,
+                    status = PaymentStatus.PENDING, pgProvider = PgProvider.TOSS_PAYMENTS,
+                    pgTransactionId = null, amount = 1000L, paidAt = null, failReason = null,
+                ),
+            ).id
+        }!!
+        val stale = tx.execute { paymentJpaRepository.findById(id).get() }!!          // detached, v0
+        // step3: fresh 로드 후 스칼라 변경 → dirty-checking이 커밋 시 flush, version 0→1
+        tx.execute { paymentJpaRepository.findById(id).get().apply { failReason = "first" } }
+        // step4: detached stale(v0) 변경 후 save → merge가 version 불일치 감지
+        stale.failReason = "second"
+        assertThatThrownBy { tx.execute { paymentJpaRepository.save(stale) } }
+            .isInstanceOf(OptimisticLockingFailureException::class.java)
+    }
+
+    @Test
+    fun `같은 Delivery를 stale 버전으로 저장하면 OptimisticLockingFailureException`() {
+        val id = tx.execute {
+            deliveryJpaRepository.save(
+                DeliveryJpaEntity(
+                    orderId = 90002L, dispatchId = 1L, carrierId = 1L, laundromatId = 1L,
+                    status = DeliveryStatus.PICKUP_PENDING, actualWeight = null,
+                ),
+            ).id
+        }!!
+        val stale = tx.execute { deliveryJpaRepository.findById(id).get() }!!
+        tx.execute { deliveryJpaRepository.findById(id).get().apply { actualWeight = BigDecimal("1.00") } }
+        stale.actualWeight = BigDecimal("2.00")   // 스칼라만 변경 — steps 컬렉션은 절대 건드리지 않음
+        assertThatThrownBy { tx.execute { deliveryJpaRepository.save(stale) } }
+            .isInstanceOf(OptimisticLockingFailureException::class.java)
+    }
+
+    @Test
+    fun `같은 Review를 stale 버전으로 저장하면 OptimisticLockingFailureException`() {
+        val id = tx.execute {
+            reviewJpaRepository.save(
+                ReviewJpaEntity(laundromatId = 1L, customerId = 1L, comment = "c", rating = 5),
+            ).id
+        }!!
+        val stale = tx.execute { reviewJpaRepository.findById(id).get() }!!
+        tx.execute { reviewJpaRepository.findById(id).get().apply { comment = "first" } }
+        stale.comment = "second"
+        assertThatThrownBy { tx.execute { reviewJpaRepository.save(stale) } }
+            .isInstanceOf(OptimisticLockingFailureException::class.java)
     }
 }

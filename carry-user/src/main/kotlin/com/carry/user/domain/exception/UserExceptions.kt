@@ -10,6 +10,9 @@ class UserNotFoundException(userId: Long) :
 class InactiveUserException :
     BusinessException(ErrorCode.FORBIDDEN, "비활성 상태인 계정입니다")
 
+class EmailAlreadyExistsException :
+    BusinessException(ErrorCode.CONFLICT, "이미 사용 중인 이메일입니다")
+
 class ShippingAddressNotFoundException(addressId: Long) :
     BusinessException(ErrorCode.NOT_FOUND, "배송지를 찾을 수 없습니다: $addressId")
 

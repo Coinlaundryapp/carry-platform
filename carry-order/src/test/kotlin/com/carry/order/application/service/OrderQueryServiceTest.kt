@@ -31,8 +31,8 @@ class OrderQueryServiceTest {
         laundromatId = 10L, laundryItemType = "REGULAR",
         selectedOptions = listOf(SelectedOption("WASH", "STANDARD")),
         shippingAddress = address, desiredPickupAt = now, desiredDeliveryAt = now.plus(4, ChronoUnit.HOURS),
-        carrierId = null, invoiceId = null, totalAmount = null, actualWeight = null,
-        cancelReason = null, cancelledBy = null, cancelledAt = null, completedAt = null,
+        carrierId = null, actualWeight = null,
+        cancellation = null, completedAt = null,
         createdAt = now, updatedAt = now,
     )
 
@@ -59,6 +59,32 @@ class OrderQueryServiceTest {
         every { orderPersistencePort.findById(1L) } returns null
 
         assertThatThrownBy { sut.getOrder(1L, requestingUserId = 7L) }
+            .isInstanceOf(OrderNotFoundException::class.java)
+    }
+
+    @Test
+    fun `코디네이터 목록 조회는 상태 필터를 그대로 위임한다`() {
+        every { orderPersistencePort.findForCoordinator(OrderStatus.IN_PROGRESS, null, 20) } returns listOf(anOrder(7L))
+
+        val orders = sut.getOrdersForCoordinator(OrderStatus.IN_PROGRESS, null, 20)
+
+        assertThat(orders).hasSize(1)
+    }
+
+    @Test
+    fun `코디네이터 단건 조회는 소유자 검증 없이 반환한다`() {
+        every { orderPersistencePort.findById(1L) } returns anOrder(customerId = 7L)
+
+        val order = sut.getOrderForCoordinator(1L)
+
+        assertThat(order.id).isEqualTo(1L)
+    }
+
+    @Test
+    fun `코디네이터 단건 조회도 없으면 OrderNotFoundException 이 발생한다`() {
+        every { orderPersistencePort.findById(1L) } returns null
+
+        assertThatThrownBy { sut.getOrderForCoordinator(1L) }
             .isInstanceOf(OrderNotFoundException::class.java)
     }
 }

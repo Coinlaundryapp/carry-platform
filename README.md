@@ -33,7 +33,7 @@
 - [시작하기](#시작하기)
 - [API 문서](#api-문서)
 - [프로젝트 구조](#프로젝트-구조)
-- [로드맵](#로드맵)
+- [로드맵 · 문서](#로드맵--문서)
 
 ---
 
@@ -195,8 +195,13 @@ PostgreSQL, Kafka, Zookeeper, Redis, Debezium Connect, Jaeger, OTel Collector가
 ### 애플리케이션 실행
 
 ```bash
-./gradlew :carry-app:bootRun
+SPRING_PROFILES_ACTIVE=local ./gradlew :carry-app:bootRun
 ```
+
+> **로컬 스키마는 Flyway가 관리합니다**(`ddl-auto: validate`). 기동 시 Flyway가 `db/migration`의 V0~V23을
+> 적용해 스키마를 빌드합니다(V0=PostGIS 확장 — 로컬 postgres는 `postgis/postgis` 이미지). 마이그레이션을
+> 추가/수정했거나 stale 스키마를 버리고 싶으면 `scripts/db-reset.sh`(Windows: `db-reset.ps1`)로 볼륨을 비우고
+> 재기동하면 Flyway가 깨끗이 다시 빌드합니다.
 
 ### 빌드 & 테스트
 
@@ -222,6 +227,17 @@ http://localhost:8080/swagger-ui.html
 ```
 
 모든 API는 JWT Bearer 토큰 인증이 필요합니다. Swagger UI 상단의 **Authorize** 버튼으로 토큰을 설정하세요.
+
+### OpenAPI 스키마 산출물
+
+프론트엔드(`carry-app`)의 TS 타입 자동 생성이 소비하는 OpenAPI v2 스키마를 [`docs/api/openapi-v2.json`](docs/api/openapi-v2.json)으로 고정해 둡니다. 백엔드 API 변경 시 앱을 띄운 상태에서 갱신합니다:
+
+```bash
+SPRING_PROFILES_ACTIVE=local ./gradlew :carry-app:bootRun   # 별도 터미널
+./scripts/export-openapi.sh                                  # docs/api/openapi-v2.json 갱신
+```
+
+> 비프로덕션 로컬 인증은 `POST /api/v2/auth/dev-login {"role":"CUSTOMER|CARRIER|COORDINATOR|ADMIN"}`로 Kakao 없이 토큰을 발급받을 수 있습니다(local/dev 프로파일 전용).
 
 ### API 그룹
 
@@ -290,22 +306,29 @@ carry-{module}/
 
 ---
 
-## 로드맵
+## 로드맵 · 문서
 
-| Phase | 내용 | 상태 |
-|-------|------|------|
-| **Phase 1** | 프로젝트 기반 구축 (Gradle, Docker, CI/CD) | Done |
-| **Phase 2** | 핵심 도메인 (User, Laundromat, Price, Geo) | Done |
-| **Phase 3** | 주문 사가 (Order, Payment, Dispatch + CDC + OTel) | Done |
-| **Phase 4** | 부가 도메인 (Operation, Review, Notification, Media) | Done |
-| **Phase 5** | 마이크로서비스 전환 (K8s, DB 분리, API Gateway) | Planned |
-| **Phase 6** | 서비스 메시 + 카나리 배포 (Linkerd, Flagger) | Planned |
+엔지니어링 개선 로드맵([`ROADMAP.md`](ROADMAP.md))의 **Phase 1~7이 사실상 완료**되었다
+(예외계층·장애복원력·관측성·보안·테스트 성숙도·진화관리·DX). 상세 체크리스트와 진행 노트는
+`ROADMAP.md`, 설계 의사결정은 아래 ADR 참조.
 
-### 마이크로서비스 분리 순서
+- **아키텍처 의사결정**: [`docs/adr/`](docs/adr/) — ADR-0001 도메인/JPA 분리 · 0002 Outbox+CDC ·
+  0003 모듈 분리 기준 · 0004 Choreography Saga · 0005 이벤트 스키마 진화 · 0006 모듈 과분해 재평가 ·
+  0007 모듈러 모놀리스 유지 · 0008 도메인 이벤트 계층 없음 · 0009 규모 가정과 파생 결정
+- **코드에서 역추출한 문서**: [`docs/15-invariant-catalog.md`](docs/15-invariant-catalog.md) 불변식 카탈로그(강제 수단까지 구분) ·
+  [`docs/16-context-map.md`](docs/16-context-map.md) 컨텍스트 맵 · [`docs/17-ubiquitous-language.md`](docs/17-ubiquitous-language.md) 유비쿼터스 언어 사전
+- **기여 가이드**: [`CONTRIBUTING.md`](CONTRIBUTING.md) — 아키텍처 규칙·3-Method 패턴·테스트 기준·커밋/PR 규약
+- **클라이언트 재시도 가이드**: [`docs/14-client-retry-guide.md`](docs/14-client-retry-guide.md) — 에러 코드별 재시도 가능 여부 · `Idempotency-Key` 사용법 · 백오프 정책
+
+### 마이크로서비스 전환 — 보류 (ADR-0007)
+
+이 프로젝트는 **모듈러 모놀리스를 유지**한다. 분산 시스템 패턴(Outbox+CDC, Choreography Saga,
+멱등 소비, 강제된 경계)은 단일 배포 단위에서 이미 시연되며, 1인·비프로덕션 맥락에서 실제 분리는
+이득 대비 비용이 크다. 다만 트리거(트래픽 격차·팀 분리·규제 격리·클라우드 준비) 도달 시
+**저비용 분리가 가능한 seam**을 ADR-0007에 명시해 두었다:
 
 ```
-1. Notification  ──►  2. Media  ──►  3. Dispatch  ──►  4. Payment  ──►  5. Order
-   (무상태, 독립)      (S3 집중)      (독립 스케일링)    (보안 요구)      (코어 도메인)
+가장 분리하기 쉬운 순서(필요 시):  Notification(순수 이벤트 소비)  ──►  Payment(이벤트 + 단일 QueryPort)
 ```
 
 ---

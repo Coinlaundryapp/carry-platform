@@ -1,0 +1,37 @@
+name: Dependency Submission
+
+# Gradle 의존성 그래프를 생성한다. GitHub 어드바이저리 DB 기반이라 OWASP dependency-check 처럼
+# NVD API 키·대용량 DB 다운로드가 필요 없다(키리스·무플레이키).
+#
+# ⚠ 현재는 그래프를 워크플로 아티팩트로만 업로드한다(generate-and-upload). 그래프를 GitHub 에
+# 제출(generate-and-submit)하려면 리포지토리에서 "Dependency graph" 기능을 켜야 하는데
+# (Settings → Code security and analysis → Dependency graph → Enable), 이는 코드가 아닌
+# 리포 설정/조직 권한 영역이라 별도다(브랜치 보호와 동일 성격). 기능을 켠 뒤
+# `dependency-graph: generate-and-submit` 로 바꾸면 네이티브 Dependabot 보안 경보가 활성화된다.
+#
+# 기본 브랜치에서만 실행해 그래프 기준선을 갱신한다(PR 게이트 아님).
+
+on:
+  push:
+    branches: [develop, main]
+  workflow_dispatch:
+
+# 제출(submit) 시엔 contents: write 가 필요하나, 현재는 아티팩트 업로드만 하므로 read 로 충분.
+# generate-and-submit 로 전환할 때 contents: write 로 올릴 것.
+permissions:
+  contents: read
+
+jobs:
+  dependency-submission:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      - name: Generate dependency graph
+        uses: gradle/actions/dependency-submission@v4
+        with:
+          # 리포 Dependency graph 기능이 켜지면 generate-and-submit 로 전환.
+          dependency-graph: generate-and-upload

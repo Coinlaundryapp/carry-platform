@@ -7,16 +7,18 @@ import java.time.Instant
 
 class DeviceTokenTest {
 
+    private val now = Instant.parse("2026-06-07T00:00:00Z")
+
     @Test
     fun `create는 createdAt과 lastSeenAt을 설정하고 id는 null이다`() {
-        val token = DeviceToken.create(userId = 1L, token = "fcm-abc", platform = DevicePlatform.WEB)
+        val token = DeviceToken.create(userId = 1L, token = "fcm-abc", platform = DevicePlatform.WEB, now = now)
 
         assertThat(token.id).isNull()
         assertThat(token.userId).isEqualTo(1L)
         assertThat(token.token).isEqualTo("fcm-abc")
         assertThat(token.platform).isEqualTo(DevicePlatform.WEB)
-        assertThat(token.createdAt).isNotNull()
-        assertThat(token.lastSeenAt).isNotNull()
+        assertThat(token.createdAt).isEqualTo(now)
+        assertThat(token.lastSeenAt).isEqualTo(now)
     }
 
     @Test
@@ -27,9 +29,9 @@ class DeviceTokenTest {
             createdAt = old, lastSeenAt = old,
         )
 
-        token.refresh(userId = 2L)
+        token.refresh(userId = 2L, now = now)
 
         assertThat(token.userId).isEqualTo(2L)
-        assertThat(token.lastSeenAt).isAfter(old)
+        assertThat(token.lastSeenAt).isEqualTo(now)
     }
 }

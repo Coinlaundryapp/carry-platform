@@ -23,7 +23,7 @@ class DeliveryEventConsumer(
     @KafkaListener(topics = ["carry.Dispatch.events"], groupId = "carry-delivery-module")
     fun consumeDispatchEvents(record: ConsumerRecord<String, String>) {
         val envelope = objectMapper.readValue(record.value(), OutboxEventEnvelope::class.java)
-        eventConsumerSupport.processIfNotDuplicate(envelope.id, envelope.traceId, envelope.eventType) {
+        eventConsumerSupport.processIfNotDuplicate("carry-delivery-module", envelope.id, envelope.traceId, envelope.eventType) {
             when (envelope.eventType) {
                 "DispatchAcceptedEvent" -> {
                     val event = objectMapper.readValue(envelope.payload, DispatchAcceptedEvent::class.java)
@@ -41,7 +41,7 @@ class DeliveryEventConsumer(
     @KafkaListener(topics = ["carry.Order.events"], groupId = "carry-delivery-module")
     fun consumeOrderEvents(record: ConsumerRecord<String, String>) {
         val envelope = objectMapper.readValue(record.value(), OutboxEventEnvelope::class.java)
-        eventConsumerSupport.processIfNotDuplicate(envelope.id, envelope.traceId, envelope.eventType) {
+        eventConsumerSupport.processIfNotDuplicate("carry-delivery-module", envelope.id, envelope.traceId, envelope.eventType) {
             when (envelope.eventType) {
                 "OrderCancelledEvent" -> {
                     val event = objectMapper.readValue(envelope.payload, OrderCancelledEvent::class.java)

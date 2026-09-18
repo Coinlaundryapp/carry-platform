@@ -8,6 +8,8 @@ import java.time.Instant
 
 class TermTest {
 
+    private val now = Instant.parse("2026-06-07T00:00:00Z")
+
     @Nested
     inner class Create {
 
@@ -18,6 +20,7 @@ class TermTest {
                 content = "약관 내용입니다.",
                 type = TermType.SERVICE,
                 required = true,
+                now = now,
             )
 
             assertThat(term.id).isNull()
@@ -27,8 +30,8 @@ class TermTest {
             assertThat(term.required).isTrue()
             assertThat(term.version).isEqualTo(1)
             assertThat(term.active).isTrue()
-            assertThat(term.createdAt).isNotNull()
-            assertThat(term.updatedAt).isNotNull()
+            assertThat(term.createdAt).isEqualTo(now)
+            assertThat(term.updatedAt).isEqualTo(now)
         }
     }
 
@@ -40,18 +43,19 @@ class TermTest {
             val term = reconstitutedTerm()
             val previousVersion = term.version
 
-            term.update(title = "수정된 제목", content = "수정된 내용", required = false)
+            term.update(title = "수정된 제목", content = "수정된 내용", required = false, now = now)
 
             assertThat(term.version).isEqualTo(previousVersion + 1)
             assertThat(term.required).isFalse()
+            assertThat(term.updatedAt).isEqualTo(now)
         }
 
         @Test
         fun `약관을 여러 번 수정하면 버전이 누적 증가한다`() {
             val term = reconstitutedTerm()
 
-            term.update(title = "수정1", content = "내용1", required = true)
-            term.update(title = "수정2", content = "내용2", required = false)
+            term.update(title = "수정1", content = "내용1", required = true, now = now)
+            term.update(title = "수정2", content = "내용2", required = false, now = now)
 
             assertThat(term.version).isEqualTo(3)
         }
@@ -64,7 +68,7 @@ class TermTest {
         fun `약관을 비활성화하면 active가 false가 된다`() {
             val term = reconstitutedTerm()
 
-            term.deactivate()
+            term.deactivate(now)
 
             assertThat(term.active).isFalse()
         }
@@ -73,7 +77,7 @@ class TermTest {
         fun `비활성화된 약관을 활성화하면 active가 true가 된다`() {
             val term = reconstitutedTerm(active = false)
 
-            term.activate()
+            term.activate(now)
 
             assertThat(term.active).isTrue()
         }
@@ -87,7 +91,7 @@ class TermTest {
             val term = reconstitutedTerm()
             val previousUpdatedAt = term.updatedAt
 
-            term.update(title = "새 제목", content = "새 내용", required = true)
+            term.update(title = "새 제목", content = "새 내용", required = true, now = now)
 
             assertThat(term.updatedAt).isAfterOrEqualTo(previousUpdatedAt)
         }
@@ -103,7 +107,7 @@ class TermTest {
         required = true,
         version = 1,
         active = active,
-        createdAt = Instant.now(),
-        updatedAt = Instant.now(),
+        createdAt = now,
+        updatedAt = now,
     )
 }

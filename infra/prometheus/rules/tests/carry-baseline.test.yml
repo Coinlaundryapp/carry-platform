@@ -256,3 +256,33 @@ tests:
               summary: '주문 생성률이 전일 대비 50% 이하로 떨어졌습니다'
               description: 'today/yesterday=25% (<50%, 1h 비교)'
               runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/order-volume-drop.md'
+  - interval: 30s
+    name: SagaStuck 음성 (정체 메트릭 없음)
+    input_series:
+      - series: carry_order_created_total
+        values: '0+1x80'
+      # carry_saga_stuck_total 일부러 정의 안 함 → increase 없음 → no fire
+    alert_rule_test:
+      - eval_time: 36m
+        alertname: SagaStuck
+        # exp_alerts 생략 = no fire
+  - interval: 30s
+    name: SagaStuck firing (PICKED_UP 정체 지속)
+    input_series:
+      # 30s 간격으로 계속 증가 → increase(30m) > 0 이 36m 시점까지 지속(for: 5m 충족)
+      - series: carry_saga_stuck_total{status="PICKED_UP"}
+        values: '0+1x80'
+    alert_rule_test:
+      - eval_time: 36m
+        alertname: SagaStuck
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              route: business
+              team: carry
+              service: carry-platform
+              status: 'PICKED_UP'
+            exp_annotations:
+              summary: '정체된 주문 사가가 감지됐습니다 (status=PICKED_UP)'
+              description: '비종결 중간 상태 status=PICKED_UP 에 24h+ 정체된 주문이 있습니다 (최근 30분 내 감지, StuckSagaDetector 기준)'
+              runbook_url: 'https://github.com/Coinlaundryapp/carry-platform/blob/develop/docs/operations/runbooks/saga-stuck.md'

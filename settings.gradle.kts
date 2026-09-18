@@ -3,6 +3,7 @@ rootProject.name = "carry-platform"
 // ── Common ──
 include("carry-common")
 include("carry-event")
+include("carry-audit")
 
 // ── Infrastructure ──
 include("carry-infra-persistence")
@@ -31,3 +32,6 @@ include("carry-service-availability")
 
 // ── Application ──
 include("carry-app")
+
+// ── Load Test (격리, 일반 빌드 비참여) ──
+include("carry-loadtest")

@@ -1,6 +1,7 @@
 package com.carry.laundromat.adapter.outbound.persistence.entity
 
 import com.carry.infra.persistence.BaseEntity
+import com.carry.infra.persistence.replaceAllFrom
 import com.carry.laundromat.domain.model.Laundromat
 import com.carry.laundromat.domain.vo.LaundromatAddress
 import com.carry.laundromat.domain.vo.LaundromatOption
@@ -77,13 +78,10 @@ class LaundromatJpaEntity(
         latitude = laundromat.location.latitude
         longitude = laundromat.location.longitude
 
-        options.clear()
-        options.addAll(laundromat.options)
-
-        mediaResources.clear()
-        mediaResources.addAll(
-            laundromat.mediaResources.map { LaundromatMediaResourceJpaEntity.fromDomain(it) },
-        )
+        options.replaceAllFrom(laundromat.options) { it }
+        mediaResources.replaceAllFrom(laundromat.mediaResources) {
+            LaundromatMediaResourceJpaEntity.fromDomain(it)
+        }
     }
 
     companion object {

@@ -35,7 +35,7 @@ class KakaoOAuthClientTest {
                 ),
             )
 
-        val profile = sut.fetchKakaoProfile("test-at")
+        val profile = sut.fetchProfile("test-at")
 
         assertThat(profile.oauthId).isEqualTo("123456789")
         assertThat(profile.email).isEqualTo("a@b.com")
@@ -47,7 +47,7 @@ class KakaoOAuthClientTest {
         server.expect(requestTo("https://kapi.kakao.com/v2/user/me"))
             .andRespond(withSuccess("""{"id":999}""", MediaType.APPLICATION_JSON))
 
-        val profile = sut.fetchKakaoProfile("test-at")
+        val profile = sut.fetchProfile("test-at")
 
         assertThat(profile.oauthId).isEqualTo("999")
         assertThat(profile.email).isNull()
@@ -59,7 +59,7 @@ class KakaoOAuthClientTest {
         server.expect(requestTo("https://kapi.kakao.com/v2/user/me"))
             .andRespond(withSuccess("""{"kakao_account":{"email":"a@b.com"}}""", MediaType.APPLICATION_JSON))
 
-        assertThatThrownBy { sut.fetchKakaoProfile("test-at") }
+        assertThatThrownBy { sut.fetchProfile("test-at") }
             .isInstanceOf(OAuthTokenInvalidException::class.java)
     }
 
@@ -68,7 +68,7 @@ class KakaoOAuthClientTest {
         server.expect(requestTo("https://kapi.kakao.com/v2/user/me"))
             .andRespond(withStatus(HttpStatus.UNAUTHORIZED))
 
-        assertThatThrownBy { sut.fetchKakaoProfile("bad") }
+        assertThatThrownBy { sut.fetchProfile("bad") }
             .isInstanceOf(OAuthTokenInvalidException::class.java)
     }
 
@@ -77,7 +77,7 @@ class KakaoOAuthClientTest {
         server.expect(requestTo("https://kapi.kakao.com/v2/user/me"))
             .andRespond(withServerError())
 
-        assertThatThrownBy { sut.fetchKakaoProfile("test-at") }
+        assertThatThrownBy { sut.fetchProfile("test-at") }
             .isInstanceOf(OAuthProviderUnavailableException::class.java)
     }
 }

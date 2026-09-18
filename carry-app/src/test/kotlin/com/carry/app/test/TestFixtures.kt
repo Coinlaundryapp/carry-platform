@@ -1,9 +1,11 @@
 package com.carry.app.test
 
+import com.carry.payment.application.port.inbound.BillingKeyUseCase
 import org.springframework.jdbc.core.JdbcTemplate
 import java.time.Instant
+import java.time.LocalDate
 import java.time.LocalTime
-import java.time.temporal.ChronoUnit
+import java.time.ZoneId
 
 object TestFixtures {
 
@@ -16,24 +18,40 @@ object TestFixtures {
     fun insertCustomer(jdbc: JdbcTemplate, id: Long = CUSTOMER_ID) {
         jdbc.update(
             """
-            INSERT INTO user_users (id, email, name, phone, role, oauth_provider, oauth_id, is_active)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO user_users (id, email, email_verified, name, phone, role, is_active)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT (id) DO NOTHING
             """,
-            id, "customer$id@test.com", "테스트고객$id", "010-1234-5678",
-            "CUSTOMER", "KAKAO", "kakao_$id", true,
+            id, "customer$id@test.com", false, "테스트고객$id", "010-1234-5678",
+            "CUSTOMER", true,
+        )
+        jdbc.update(
+            """
+            INSERT INTO user_oauth_accounts (user_id, provider, oauth_id)
+            VALUES (?, ?, ?)
+            ON CONFLICT (provider, oauth_id) DO NOTHING
+            """,
+            id, "KAKAO", "kakao_$id",
         )
     }
 
     fun insertCarrier(jdbc: JdbcTemplate, id: Long = CARRIER_ID) {
         jdbc.update(
             """
-            INSERT INTO user_users (id, email, name, phone, role, oauth_provider, oauth_id, is_active)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO user_users (id, email, email_verified, name, phone, role, is_active)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT (id) DO NOTHING
             """,
-            id, "carrier$id@test.com", "테스트캐리어$id", "010-9876-5432",
-            "CARRIER", "KAKAO", "kakao_carrier_$id", true,
+            id, "carrier$id@test.com", false, "테스트캐리어$id", "010-9876-5432",
+            "CARRIER", true,
+        )
+        jdbc.update(
+            """
+            INSERT INTO user_oauth_accounts (user_id, provider, oauth_id)
+            VALUES (?, ?, ?)
+            ON CONFLICT (provider, oauth_id) DO NOTHING
+            """,
+            id, "KAKAO", "kakao_carrier_$id",
         )
     }
 
@@ -93,9 +111,30 @@ object TestFixtures {
         }
     }
 
-    fun desiredPickupAt(): Instant = Instant.now().plus(2, ChronoUnit.HOURS)
+    /**
+     * 주문 생성 전제조건(Task 11)을 충족시키는 빌링키 픽스처 — Fake PG(항상 성공)를 통해
+     * `BillingKeyService.register`를 실 서비스 빈으로 호출한다. mock이 아니라 서비스를 태우는 이유는
+     * 이 경로가 `BillingKeyCryptoConverter`(Hibernate SpringBeanContainer 부팅)와 부분 유니크 인덱스
+     * DDL(customer_id WHERE status='ACTIVE')을 함께 저장→재조회로 검증하기 때문이다.
+     */
+    fun insertBillingKey(
+        billingKeyUseCase: BillingKeyUseCase,
+        customerId: Long = CUSTOMER_ID,
+        authKey: String = "fake-auth-$customerId",
+    ) {
+        billingKeyUseCase.register(customerId, authKey)
+    }
 
-    fun desiredDeliveryAt(): Instant = Instant.now().plus(24, ChronoUnit.HOURS)
+    private val KST = ZoneId.of("Asia/Seoul")
+
+    // 희망 시각은 **고정 KST 시각**으로 둔다. now.plus(Nh) 방식은 실행 시점의 time-of-day가 그대로 남아,
+    // CI가 23:59 KST에 돌면 전일 운영(00:00~23:59) 종료 경계(23:59:00)를 넘겨 OutsideOperatingHours로
+    // 깨졌다(시각 의존 플레이크). 익일 10:00·익익일 14:00 KST는 시계와 무관하게 항상 운영시간 내·미래다.
+    fun desiredPickupAt(): Instant =
+        LocalDate.now(KST).plusDays(1).atTime(10, 0).atZone(KST).toInstant()
+
+    fun desiredDeliveryAt(): Instant =
+        LocalDate.now(KST).plusDays(2).atTime(14, 0).atZone(KST).toInstant()
 
     fun truncateAll(jdbc: JdbcTemplate) {
         jdbc.execute(
@@ -111,15 +150,23 @@ object TestFixtures {
             DELETE FROM delivery_step_media;
             DELETE FROM delivery_steps;
             DELETE FROM delivery_deliveries;
+            DELETE FROM review_media;
+            DELETE FROM review_reviews;
+            -- 원장은 V31 트리거가 DELETE 를 막는다(append-only). 행 트리거는 TRUNCATE 에 반응하지 않으므로
+            -- 테스트 격리는 이 경로를 쓴다.
+            TRUNCATE TABLE payment_ledger_entries CASCADE;
+            DELETE FROM payment_reconciliation_mismatches;
             DELETE FROM payment_payments;
             DELETE FROM payment_invoice_line_items;
             DELETE FROM payment_invoices;
+            DELETE FROM customer_billing_keys;
             DELETE FROM order_selected_options;
             DELETE FROM orders;
             DELETE FROM laundromat_media_resources;
             DELETE FROM laundromat_options;
             DELETE FROM laundromat_laundromats;
             DELETE FROM user_shipping_addresses;
+            DELETE FROM user_oauth_accounts;
             DELETE FROM user_users;
             """
         )

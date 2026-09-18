@@ -1,5 +1,6 @@
 package com.carry.dispatch.domain.model
 
+import com.carry.common.exception.checkInvariant
 import com.carry.dispatch.domain.exception.DispatchAlreadyAcceptedException
 import com.carry.dispatch.domain.exception.DispatchNotCancellableException
 import com.carry.dispatch.domain.exception.DispatchNotPendingException
@@ -7,8 +8,8 @@ import com.carry.dispatch.domain.exception.DispatchTimeoutNotAllowedException
 import com.carry.dispatch.domain.vo.AssignedBy
 import com.carry.dispatch.domain.vo.DispatchStatus
 import com.carry.dispatch.domain.vo.PenaltyReason
+import java.time.Duration
 import java.time.Instant
-import java.time.temporal.ChronoUnit
 
 class Dispatch private constructor(
     val id: Long?,
@@ -33,8 +34,18 @@ class Dispatch private constructor(
     val cancelReason get() = _cancelReason
 
     companion object {
-        fun create(orderId: Long, laundromatId: Long, areaCode: String, desiredPickupAt: Instant): Dispatch {
-            val now = Instant.now()
+        /**
+         * 배차는 사용자 요청이 아니라 `OrderCreatedEvent` 소비 경로에서 만들어진다. 그래서 여기서 깨진 값은
+         * 클라이언트 잘못이 아니라 **이벤트를 만든 쪽의 버그**이고, 400 이 아니라 500 이 맞다([checkInvariant]).
+         *
+         * ⚠️ `desiredPickupAt` 이 과거인지는 **의도적으로 검사하지 않는다.** Outbox 재배달·사가 재처리로
+         * 오래된 이벤트가 다시 소비될 수 있는데, 그때 생성을 거부하면 정상 replay 가 영구 실패(DLQ)한다.
+         * 만료 판정은 스위퍼가 리드타임으로 따로 한다.
+         */
+        fun create(orderId: Long, laundromatId: Long, areaCode: String, desiredPickupAt: Instant, now: Instant): Dispatch {
+            checkInvariant(orderId > 0) { "배차의 주문 식별자가 유효하지 않습니다: $orderId" }
+            checkInvariant(laundromatId > 0) { "배차의 세탁소 식별자가 유효하지 않습니다: $laundromatId" }
+            checkInvariant(areaCode.isNotBlank()) { "배차의 지역 코드가 비어 있습니다 (orderId=$orderId)" }
             return Dispatch(
                 id = null, orderId = orderId, laundromatId = laundromatId,
                 _status = DispatchStatus.PENDING, _carrierId = null,
@@ -55,52 +66,91 @@ class Dispatch private constructor(
         )
     }
 
-    fun claimByCarrier(carrierId: Long) {
+    /**
+     * 캐리어 본인이 PENDING 배차를 직접 선점한다. **멱등**: 이미 이 캐리어가 잡아 ACCEPTED면
+     * no-op(false), 실제 전이면 true. 다른 캐리어 소유/타 상태면 충돌로 예외.
+     */
+    fun claimByCarrier(carrierId: Long, now: Instant): Boolean {
+        if (_status == DispatchStatus.ACCEPTED && _carrierId == carrierId && _assignedBy == AssignedBy.CARRIER) {
+            return false
+        }
         if (_status != DispatchStatus.PENDING) throw DispatchNotPendingException()
         _status = DispatchStatus.ACCEPTED
         _carrierId = carrierId
         _assignedBy = AssignedBy.CARRIER
-        _acceptedAt = Instant.now()
+        _acceptedAt = now
+        return true
     }
 
-    fun assignByCoordinator(carrierId: Long) {
+    /**
+     * 코디네이터가 PENDING 배차를 캐리어에게 지정한다. **멱등**: 이미 같은 캐리어로 ASSIGNED면
+     * no-op(false), 실제 전이면 true. 다른 캐리어 지정/타 상태면 충돌로 예외.
+     */
+    fun assignByCoordinator(carrierId: Long, now: Instant): Boolean {
+        if (_status == DispatchStatus.ASSIGNED && _carrierId == carrierId) return false
         if (_status != DispatchStatus.PENDING) throw DispatchNotPendingException()
         _status = DispatchStatus.ASSIGNED
         _carrierId = carrierId
         _assignedBy = AssignedBy.COORDINATOR
-        _assignedAt = Instant.now()
+        _assignedAt = now
+        return true
     }
 
-    fun acceptAssignment() {
+    /**
+     * 지정된 배차를 캐리어가 수락한다(소유 검증은 서비스). **멱등**: 이미 ACCEPTED면 no-op(false),
+     * 실제 전이면 true. ASSIGNED·ACCEPTED 외 상태면 충돌로 예외.
+     */
+    fun acceptAssignment(now: Instant): Boolean {
+        if (_status == DispatchStatus.ACCEPTED) return false
         if (_status != DispatchStatus.ASSIGNED) throw DispatchAlreadyAcceptedException()
         _status = DispatchStatus.ACCEPTED
-        _acceptedAt = Instant.now()
+        _acceptedAt = now
+        return true
     }
 
-    fun rejectAssignment(): PenaltyRecord {
+    fun rejectAssignment(now: Instant): PenaltyRecord {
         if (_status != DispatchStatus.ASSIGNED) throw DispatchAlreadyAcceptedException()
         val penalizedCarrierId = _carrierId!!
         _status = DispatchStatus.PENDING
         _carrierId = null
         _assignedBy = null
         _assignedAt = null
-        return PenaltyRecord.create(penalizedCarrierId, id!!, PenaltyReason.REJECTED_FORCED_ASSIGNMENT)
+        return PenaltyRecord.create(penalizedCarrierId, id!!, PenaltyReason.REJECTED_FORCED_ASSIGNMENT, now)
     }
 
-    fun cancel(reason: String) {
+    /**
+     * 배차를 취소한다. **멱등**: 이미 CANCELLED면 no-op(false, 기존 사유 유지), 실제 전이면 true.
+     * 취소 불가 상태(TIMEOUT 등)면 충돌로 예외.
+     */
+    fun cancel(reason: String): Boolean {
+        if (_status == DispatchStatus.CANCELLED) return false
         if (!_status.canTransitionTo(DispatchStatus.CANCELLED)) {
             throw DispatchNotCancellableException(_status)
         }
         _status = DispatchStatus.CANCELLED
         _cancelReason = reason
+        return true
     }
 
-    fun timeout() {
+    /**
+     * PENDING 배차를 시한 초과로 종결한다. **멱등**: 이미 TIMEOUT이면 no-op(false), 실제 전이면 true.
+     * 그 외 비-PENDING(ACCEPTED 등)이면 충돌로 예외(스위퍼는 건너뛴다).
+     */
+    fun timeout(): Boolean {
+        if (_status == DispatchStatus.TIMEOUT) return false
         if (_status != DispatchStatus.PENDING) throw DispatchTimeoutNotAllowedException(_status)
         _status = DispatchStatus.TIMEOUT
+        return true
     }
 
-    fun isExpired(): Boolean =
+    /**
+     * 만료 판정의 **유일한 근거**. 리드타임은 호출자(스위퍼)가 설정값으로 주입한다 —
+     * 정책값을 도메인에 박아 두면 조회 SQL 과 두 곳에 존재하게 되고 한쪽만 바뀌면 어긋난다.
+     *
+     * 경계는 포함이다(`desiredPickupAt - lead == now` 면 만료). 조회 쿼리가 같은 경계로
+     * 후보를 추리므로 둘이 일치해야 프리필터-판정 사이에 누락이 없다.
+     */
+    fun isExpired(now: Instant, lead: Duration): Boolean =
         _status == DispatchStatus.PENDING &&
-            Instant.now().isAfter(desiredPickupAt.minus(30, ChronoUnit.MINUTES))
+            !now.isBefore(desiredPickupAt.minus(lead))
 }

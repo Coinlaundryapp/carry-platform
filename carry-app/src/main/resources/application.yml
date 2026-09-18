@@ -24,6 +24,13 @@ spring:
       max-lifetime: 1800000             # 30분 (DB 측 wait_timeout보다 짧게)
       leak-detection-threshold: 5000    # 5초
       pool-name: CarryHikariPool
+      # connection-timeout 은 커넥션 '획득'에만 적용된다. 이미 획득한 커넥션의 소켓 읽기는
+      # 드라이버 소관이며 pgjdbc 기본값이 0(무한)이라, DB 경로가 블랙홀이 되면 요청 스레드가
+      # 영원히 점유된다(2026-09-04 장애 주입 실측: 3시간 43분 미반환).
+      # URL 이 프로파일별 환경변수라 data-source-properties 로 준다 — 전 프로파일·테스트 공통 적용.
+      data-source-properties:
+        socketTimeout: 10      # 초. OLTP 경로에서 10초 넘는 단일 read 는 병리로 본다.
+        tcpKeepAlive: true     # 조용히 끊긴 피어를 감지
 
   jpa:
     hibernate:
@@ -32,6 +39,9 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+        # EAGER 컬렉션(예: OrderJpaEntity.selectedOptions)을 결과 건수만큼 N+1로 초기화하지 않고
+        # IN-배치 한 번으로 로딩한다. fetch-join은 cursor 페이지네이션(LIMIT)과 충돌하므로 batch 사용.
+        default_batch_fetch_size: 100
     open-in-view: false
 
   flyway:
@@ -72,6 +82,16 @@ kakao:
     # prod에서 이 값이 실 Kakao가 아니면 KakaoBaseUrlGuard가 부팅을 막는다.
     base-url: ${KAKAO_API_BASE_URL:https://kapi.kakao.com}
 
+naver:
+  api:
+    # prod에서 실 Naver가 아니면 NaverBaseUrlGuard가 부팅을 막는다.
+    base-url: ${NAVER_API_BASE_URL:https://openapi.naver.com}
+
+google:
+  api:
+    # prod에서 실 Google이 아니면 GoogleBaseUrlGuard가 부팅을 막는다.
+    base-url: ${GOOGLE_API_BASE_URL:https://openidconnect.googleapis.com}
+
 cloud:
   aws:
     region:
@@ -85,6 +105,15 @@ management:
   observations:
     key-values:
       application: carry-platform
+  metrics:
+    distribution:
+      # histogram_quantile 기반 패널/알럿(p50·p95·p99)의 전제 — _bucket 시리즈 노출.
+      # 라이브 검증(2026-06-12)에서 미설정으로 API 응답시간·배달 소요시간 패널이
+      # 항상 No data였던 미스매치 발견 → 활성화.
+      percentiles-histogram:
+        http.server.requests: true
+        carry.delivery.duration: true
+        carry.saga.duration: true
 
 # Resilience4j Circuit Breaker — 외부 PG 장애 시 fast-fail로 스레드 블로킹·연쇄 장애 방지.
 # 슬라이딩 윈도우(최근 10건) 중 50% 실패 시 30초간 OPEN.

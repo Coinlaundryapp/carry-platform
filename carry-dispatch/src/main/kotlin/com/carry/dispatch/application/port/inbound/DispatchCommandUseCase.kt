@@ -33,4 +33,10 @@ interface DispatchCommandUseCase {
     fun acceptAssignment(command: AcceptAssignmentCommand): Dispatch
     fun rejectAssignment(command: RejectAssignmentCommand): Dispatch
     fun cancelDispatch(command: CancelDispatchCommand)
+
+    /**
+     * 수거 시한이 임박하도록 PENDING 으로 남은 배차를 TIMEOUT 으로 종결한다.
+     * 시스템(스위퍼)이 트리거하며, 이미 다른 인스턴스가 종결했으면 도메인 가드가 예외를 던져 멱등하다.
+     */
+    fun timeoutDispatch(dispatchId: Long): Dispatch
 }

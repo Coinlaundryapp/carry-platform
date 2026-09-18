@@ -1,6 +1,7 @@
 package com.carry.price.adapter.outbound.persistence.entity
 
 import com.carry.infra.persistence.BaseEntity
+import com.carry.infra.persistence.replaceAllFrom
 import com.carry.price.domain.model.PricePolicy
 import com.carry.price.domain.vo.LaundryItemType
 import com.carry.price.domain.vo.OrderRequestType
@@ -57,8 +58,7 @@ class PricePolicyJpaEntity(
     )
 
     fun updateFrom(policy: PricePolicy) {
-        optionPrices.clear()
-        optionPrices.addAll(policy.optionPrices.map { OptionPriceJpaEntity.fromDomain(it) })
+        optionPrices.replaceAllFrom(policy.optionPrices) { OptionPriceJpaEntity.fromDomain(it) }
     }
 
     companion object {

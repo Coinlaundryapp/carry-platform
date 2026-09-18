@@ -13,9 +13,11 @@ dependencyManagement {
 dependencies {
     implementation(project(":carry-common"))
     implementation(project(":carry-event"))
+    implementation(project(":carry-audit"))
     implementation(project(":carry-infra-persistence"))
     implementation(project(":carry-infra-kafka"))
     implementation(project(":carry-infra-observability"))
+    implementation(project(":carry-infra-redis"))
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.security:spring-security-core")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
@@ -26,6 +28,8 @@ dependencies {
 
     // Resilience4j Circuit Breaker — PG 장애 시 fast-fail로 스레드 블로킹 방지
     implementation("io.github.resilience4j:resilience4j-spring-boot3:2.2.0")
+    // @SchedulerLock 어노테이션(RefundRetrySweeper). 락 프로바이더 결선은 carry-app.
+    implementation("net.javacrumbs.shedlock:shedlock-spring:5.16.0")
 
     testImplementation("io.mockk:mockk:1.13.13")
     testImplementation("org.assertj:assertj-core:3.27.0")

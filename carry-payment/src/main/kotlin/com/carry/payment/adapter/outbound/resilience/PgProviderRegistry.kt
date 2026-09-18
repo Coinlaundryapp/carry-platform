@@ -33,4 +33,6 @@ class PgProviderRegistry(
         val cb = circuitBreakerRegistry.circuitBreaker("pg-gateway-${provider.name.lowercase()}", "pg-gateway")
         return CircuitBreakerPaymentGateway(raw, cb)
     }
+
+    override fun supportedProviders(): Set<PgProvider> = adapterMap.keys
 }

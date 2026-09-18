@@ -8,10 +8,12 @@ import com.carry.dispatch.domain.exception.CarrierAreaNotFoundException
 import com.carry.dispatch.domain.model.CarrierArea
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Clock
 
 @Service
 class CarrierAreaService(
     private val carrierAreaPersistencePort: CarrierAreaPersistencePort,
+    private val clock: Clock,
 ) : CarrierAreaUseCase {
 
     @Transactional
@@ -21,7 +23,7 @@ class CarrierAreaService(
             existing.activate()
             return carrierAreaPersistencePort.save(existing)
         }
-        val carrierArea = CarrierArea.create(command.carrierId, command.areaCode, command.areaName)
+        val carrierArea = CarrierArea.create(command.carrierId, command.areaCode, command.areaName, clock.instant())
         return carrierAreaPersistencePort.save(carrierArea)
     }
 

@@ -1,0 +1,65 @@
+package com.carry.order.application.service
+
+import com.carry.common.metrics.MetricsPort
+import com.carry.order.application.port.outbound.OrderPersistencePort
+import com.carry.order.domain.vo.OrderStatus
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock
+import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.scheduling.annotation.Scheduled
+import org.springframework.stereotype.Component
+import java.time.Clock
+import java.time.temporal.ChronoUnit
+
+/**
+ * 비종결 중간 상태에서 장기 정체된 주문(=진행이 멈춘 Choreography Saga)을 감지하는 안전망.
+ *
+ * 본 시스템의 사가 상태는 각 애그리거트에 분산 저장되고(ADR-0004), 재시작 복원력은 Outbox 내구성 +
+ * Kafka 오프셋 재배달 + 멱등 소비(ADR-0002)로 이미 보장된다. 알려진 정체 원인은 전용 스위퍼가
+ * 종결한다(배차 미수락 → DispatchTimeoutSweeper).
+ *
+ * 그럼에도 외부 트리거 부재 등으로 어떤 주문이 중간 상태에 머물 수 있다. 이 디텍터는 그런 정체를
+ * `carry.saga.stuck` 메트릭 + 경고 로그로 **가시화**한다(비파괴 — 자동 취소/재발행은 상태별 비즈니스
+ * 정책이라 범위 밖). 운영/알럿이 이를 보고 개입하는 진입점이다.
+ *
+ * 감시 대상은 모두 **물리 작업 상태**라 정상 주문도 체류 시간이 길다 — PICKED_UP 은 캐리어가 세탁을
+ * 수동 시작할 때까지, IN_PROGRESS 는 세탁→건조→배달까지 몇 시간이 걸린다. 결제 결합 제거 후에는
+ * 결제 완료 같은 짧은 자동 트리거가 사라졌으므로, 수거→배달이 하루까지 걸리는 현실을 반영해 단일
+ * 임계를 24h 로 둔다(상태별 임계로 쪼개는 복잡도는 의도적으로 회피).
+ */
+@Component
+class StuckSagaDetector(
+    private val orderPersistencePort: OrderPersistencePort,
+    private val metrics: MetricsPort,
+    private val clock: Clock,
+    @Value("\${carry.order.stuck-saga-threshold-hours:24}") private val thresholdHours: Long,
+) {
+    private val log = LoggerFactory.getLogger(javaClass)
+
+    @Scheduled(fixedRateString = "\${carry.order.stuck-saga-scan-interval-ms:600000}")
+    @SchedulerLock(name = "stuckSagaScan", lockAtMostFor = "PT9M", lockAtLeastFor = "PT0S")
+    fun detectStuckSagas() {
+        val cutoff = clock.instant().minus(thresholdHours, ChronoUnit.HOURS)
+        WATCHED_STATUSES.forEach { status ->
+            orderPersistencePort.findByStatusAndUpdatedAtBefore(status, cutoff).forEach { order ->
+                metrics.incrementCounter("carry.saga.stuck", "status" to status.name)
+                log.warn(
+                    "정체 사가 감지: orderId={} status={} (마지막 갱신 이후 {}h 초과)",
+                    order.id, status.name, thresholdHours,
+                )
+            }
+        }
+    }
+
+    companion object {
+        /**
+         * 감시 대상 = 비종결 중간 상태. 종결(COMPLETED/CANCELLED)은 제외해 중복 경보를 피한다.
+         */
+        val WATCHED_STATUSES = listOf(
+            OrderStatus.CREATED,
+            OrderStatus.DISPATCHED,
+            OrderStatus.PICKED_UP,
+            OrderStatus.IN_PROGRESS,
+        )
+    }
+}

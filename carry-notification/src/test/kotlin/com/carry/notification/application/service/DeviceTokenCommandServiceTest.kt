@@ -11,12 +11,16 @@ import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import java.time.Clock
 import java.time.Instant
+import java.time.ZoneOffset
 
 class DeviceTokenCommandServiceTest {
 
     private val deviceTokenPersistencePort = mockk<DeviceTokenPersistencePort>(relaxed = true)
-    private val sut = DeviceTokenCommandService(deviceTokenPersistencePort)
+    private val now = Instant.parse("2026-06-07T00:00:00Z")
+    private val clock = Clock.fixed(now, ZoneOffset.UTC)
+    private val sut = DeviceTokenCommandService(deviceTokenPersistencePort, clock)
 
     private fun command(userId: Long = 1L, token: String = "fcm-abc") =
         RegisterDeviceTokenCommand(userId = userId, token = token, platform = DevicePlatform.WEB)
@@ -53,7 +57,7 @@ class DeviceTokenCommandServiceTest {
 
             assertThat(saved.captured.id).isEqualTo(10L)
             assertThat(saved.captured.userId).isEqualTo(2L)
-            assertThat(saved.captured.lastSeenAt).isAfter(old)
+            assertThat(saved.captured.lastSeenAt).isEqualTo(now)
             verify(exactly = 1) { deviceTokenPersistencePort.save(any()) }
         }
     }

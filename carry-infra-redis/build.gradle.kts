@@ -11,4 +11,7 @@ dependencyManagement {
 
 dependencies {
     api("org.springframework.boot:spring-boot-starter-data-redis")
+
+    testImplementation("io.mockk:mockk:1.13.13")
+    testImplementation("org.assertj:assertj-core:3.27.0")
 }

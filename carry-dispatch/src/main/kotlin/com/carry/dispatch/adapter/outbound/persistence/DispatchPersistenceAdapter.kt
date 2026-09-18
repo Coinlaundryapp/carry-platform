@@ -7,6 +7,7 @@ import com.carry.dispatch.domain.model.Dispatch
 import com.carry.dispatch.domain.vo.DispatchStatus
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Component
+import java.time.Instant
 
 @Component
 class DispatchPersistenceAdapter(
@@ -37,13 +38,18 @@ class DispatchPersistenceAdapter(
             .map { it.toDomain() }
     }
 
-    override fun findExpiredPendingDispatches(): List<Dispatch> {
-        return dispatchJpaRepository.findExpiredPendingDispatches()
+    override fun findExpiredPendingDispatches(threshold: Instant): List<Dispatch> {
+        return dispatchJpaRepository.findExpiredPendingDispatches(threshold)
             .map { it.toDomain() }
     }
 
     override fun findByCarrierId(carrierId: Long, cursor: Long?, size: Int): List<Dispatch> {
         return dispatchJpaRepository.findByCarrierIdWithCursor(carrierId, cursor, PageRequest.of(0, size))
+            .map { it.toDomain() }
+    }
+
+    override fun findForCoordinator(status: DispatchStatus?, areaCode: String?, cursor: Long?, size: Int): List<Dispatch> {
+        return dispatchJpaRepository.findForCoordinatorWithCursor(status, areaCode, cursor, PageRequest.of(0, size))
             .map { it.toDomain() }
     }
 }

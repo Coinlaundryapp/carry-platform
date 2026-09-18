@@ -1,5 +1,6 @@
 package com.carry.geo.adapter.outbound.cache
 
+import com.carry.common.metrics.MetricsPort
 import com.carry.geo.application.port.outbound.ReverseGeocodingPort
 import com.carry.geo.domain.exception.ReverseGeocodingFailedException
 import com.carry.geo.domain.model.ReverseGeocodingResult
@@ -15,6 +16,8 @@ import org.springframework.data.redis.core.ValueOperations
 import java.time.Duration
 
 class RedisCachingReverseGeocodingAdapterTest {
+
+    private val metrics = mockk<MetricsPort>(relaxed = true)
 
     private val sampleCoord = Coordinate(latitude = 37.501234, longitude = 127.039876)
     private val sampleResult = ReverseGeocodingResult(
@@ -40,7 +43,7 @@ class RedisCachingReverseGeocodingAdapterTest {
         val (redisTemplate, valueOps) = mockRedisTemplate()
         every { valueOps.get(any()) } returns null
         every { valueOps.set(any(), any(), any<Duration>()) } returns Unit
-        val sut = RedisCachingReverseGeocodingAdapter(delegate, redisTemplate)
+        val sut = RedisCachingReverseGeocodingAdapter(delegate, redisTemplate, metrics)
 
         val result = sut.reverseGeocode(sampleCoord)
 
@@ -56,7 +59,7 @@ class RedisCachingReverseGeocodingAdapterTest {
         val delegate = mockk<ReverseGeocodingPort>()
         val (redisTemplate, valueOps) = mockRedisTemplate()
         every { valueOps.get("geo:rev:37.501234:127.039876") } returns sampleResult
-        val sut = RedisCachingReverseGeocodingAdapter(delegate, redisTemplate)
+        val sut = RedisCachingReverseGeocodingAdapter(delegate, redisTemplate, metrics)
 
         val result = sut.reverseGeocode(sampleCoord)
 
@@ -71,7 +74,7 @@ class RedisCachingReverseGeocodingAdapterTest {
         val (redisTemplate, valueOps) = mockRedisTemplate()
         every { valueOps.get(any()) } returns null
         every { valueOps.set(any(), any(), any<Duration>()) } returns Unit
-        val sut = RedisCachingReverseGeocodingAdapter(delegate, redisTemplate)
+        val sut = RedisCachingReverseGeocodingAdapter(delegate, redisTemplate, metrics)
 
         // 7자리째에서만 차이나는 좌표 — 같은 키로 정규화돼야 한다
         sut.reverseGeocode(Coordinate(latitude = 37.5012341, longitude = 127.0398761))
@@ -80,12 +83,32 @@ class RedisCachingReverseGeocodingAdapterTest {
     }
 
     @Test
+    fun `cache hit-miss 시 carry_geo_cache 메트릭을 direction=rev로 기록한다`() {
+        val delegate = mockk<ReverseGeocodingPort>()
+        every { delegate.reverseGeocode(any()) } returns sampleResult
+        val (redisTemplate, valueOps) = mockRedisTemplate()
+        every { valueOps.get(any()) } returns null andThen sampleResult
+        every { valueOps.set(any(), any(), any<Duration>()) } returns Unit
+        val sut = RedisCachingReverseGeocodingAdapter(delegate, redisTemplate, metrics)
+
+        sut.reverseGeocode(sampleCoord) // miss
+        sut.reverseGeocode(sampleCoord) // hit
+
+        verify(exactly = 1) {
+            metrics.incrementCounter("carry.geo.cache", "direction" to "rev", "result" to "miss")
+        }
+        verify(exactly = 1) {
+            metrics.incrementCounter("carry.geo.cache", "direction" to "rev", "result" to "hit")
+        }
+    }
+
+    @Test
     fun `delegate 예외는 그대로 전파하고 캐시하지 않는다`() {
         val delegate = mockk<ReverseGeocodingPort>()
         every { delegate.reverseGeocode(any()) } throws ReverseGeocodingFailedException("Naver returned 500")
         val (redisTemplate, valueOps) = mockRedisTemplate()
         every { valueOps.get(any()) } returns null
-        val sut = RedisCachingReverseGeocodingAdapter(delegate, redisTemplate)
+        val sut = RedisCachingReverseGeocodingAdapter(delegate, redisTemplate, metrics)
 
         assertThatThrownBy { sut.reverseGeocode(sampleCoord) }
             .isInstanceOf(ReverseGeocodingFailedException::class.java)

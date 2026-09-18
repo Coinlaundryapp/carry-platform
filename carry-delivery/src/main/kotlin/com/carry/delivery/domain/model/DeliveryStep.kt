@@ -48,10 +48,20 @@ class DeliveryStep private constructor(
         )
     }
 
-    fun complete(mediaIds: List<Long>, note: String? = null) {
+    /**
+     * 스텝을 완료로 고정한다. **이미 완료된 스텝은 건드리지 않고 false 를 돌려준다.**
+     *
+     * 지금은 [Delivery] 의 상태 가드가 중복 호출을 막고 있지만, 그것이 유일한 보호막이면 호출 경로가
+     * 하나 늘어날 때 조용히 깨진다 — 재호출 시 증빙 사진이 중복 누적되고 `completedAt`·`note` 가
+     * 덮어써져 "언제 무엇으로 완료했는가" 가 사라진다. 애그리거트 상태전이와 같은 자연 멱등
+     * (no-op 이면 false)을 스텝에도 둔다.
+     */
+    fun complete(mediaIds: List<Long>, now: Instant, note: String? = null): Boolean {
+        if (_status == StepStatus.COMPLETED) return false
         _status = StepStatus.COMPLETED
         _mediaIds.addAll(mediaIds)
         _note = note
-        _completedAt = Instant.now()
+        _completedAt = now
+        return true
     }
 }

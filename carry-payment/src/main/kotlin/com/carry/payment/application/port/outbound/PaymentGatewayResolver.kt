@@ -11,4 +11,7 @@ import com.carry.payment.domain.vo.PgProvider
  */
 interface PaymentGatewayResolver {
     fun resolve(provider: PgProvider): PaymentGatewayPort
+
+    /** 어댑터가 등록된 provider 목록 — 대사 잡이 등록분만 순회한다(미등록 provider resolve 는 throw). */
+    fun supportedProviders(): Set<PgProvider>
 }

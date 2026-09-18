@@ -15,7 +15,9 @@ import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import java.time.Clock
 import java.time.Instant
+import java.time.ZoneOffset
 import java.util.UUID
 
 class MediaUploadServiceTest {
@@ -23,7 +25,10 @@ class MediaUploadServiceTest {
     private val mediaPersistencePort = mockk<MediaPersistencePort>(relaxed = true)
     private val fileStoragePort = mockk<FileStoragePort>(relaxed = true)
 
-    private val sut = MediaUploadService(mediaPersistencePort, fileStoragePort)
+    private val now = Instant.parse("2026-06-07T00:00:00Z")
+    private val clock = Clock.fixed(now, ZoneOffset.UTC)
+
+    private val sut = MediaUploadService(mediaPersistencePort, fileStoragePort, clock)
 
     @Nested
     inner class InitiateUpload {

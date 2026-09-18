@@ -1,6 +1,8 @@
 services:
   postgres:
-    image: postgres:16-alpine
+    # PostGIS 포함 이미지. 인근 세탁소 검색(ST_Distance·ST_DWithin·::geography)과 V3 GIST 인덱스의 전제.
+    # 테스트(testcontainers)와 동일 이미지로 통일. 확장 자체는 Flyway V0가 생성한다.
+    image: postgis/postgis:16-3.4
     container_name: carry-postgres
     ports:
       - "5432:5432"
@@ -21,24 +23,74 @@ services:
     ports:
       - "6379:6379"
 
-  kafka:
-    image: apache/kafka:3.8.1
-    container_name: carry-kafka
+  # LocalStack — 로컬 S3(미디어 업로드). 백엔드 S3Config는 cloud.aws.s3.endpoint가 설정되면
+  # endpointOverride + forcePathStyle(true)로 LocalStack에 붙는다(application-local.yml의
+  # endpoint=http://localhost:4566, creds test/test). ready 훅이 carry-media 버킷을 생성한다.
+  # 이게 없으면 배달 단계 사진 업로드(/api/v2/media/upload)가 연결 실패한다.
+  localstack:
+    image: localstack/localstack:3
+    container_name: carry-localstack
     ports:
-      - "9092:9092"
+      - "4566:4566"
     environment:
-      KAFKA_NODE_ID: 1
+      SERVICES: s3
+      AWS_DEFAULT_REGION: ap-northeast-2
+      DEBUG: "0"
+    volumes:
+      - "./infra/localstack/ready.d:/etc/localstack/init/ready.d"
+
+  # Kafka 멀티브로커 HA — 3-node 겸임 KRaft(broker+controller) 클러스터.
+  # 리스너 3종 분리(advertised 오설정 = 멀티브로커 최대 footgun 차단):
+  #   CONTROLLER(9093) 컨테이너 내부 전용(호스트 매핑 없음, KRaft 쿼럼)
+  #   INTERNAL(19092)  브로커 간 + kafka-connect (advertised kafka-N:19092)
+  #   EXTERNAL(9092)   호스트 앱/테스트 (advertised localhost:9092·9094·9096)
+  # RF=3 + min.insync.replicas=2 + 프로듀서 acks=all → 브로커 1대 다운 허용(무손실).
+  kafka-1:
+    image: apache/kafka:3.8.1
+    container_name: carry-kafka-1
+    ports:
+      - "9092:9092"   # EXTERNAL (호스트→브로커1)
+    environment: &kafka-common-env
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 3
+      KAFKA_MIN_INSYNC_REPLICAS: 2
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
       CLUSTER_ID: carry-kafka-cluster-001
+      KAFKA_NODE_ID: 1
+      KAFKA_LISTENERS: CONTROLLER://0.0.0.0:9093,INTERNAL://0.0.0.0:19092,EXTERNAL://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-1:19092,EXTERNAL://localhost:9092
+
+  kafka-2:
+    image: apache/kafka:3.8.1
+    container_name: carry-kafka-2
+    ports:
+      - "9094:9092"   # 호스트 9094 → 컨테이너 EXTERNAL 9092
+    environment:
+      <<: *kafka-common-env
+      KAFKA_NODE_ID: 2
+      KAFKA_LISTENERS: CONTROLLER://0.0.0.0:9093,INTERNAL://0.0.0.0:19092,EXTERNAL://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-2:19092,EXTERNAL://localhost:9094
+
+  kafka-3:
+    image: apache/kafka:3.8.1
+    container_name: carry-kafka-3
+    ports:
+      - "9096:9092"   # 호스트 9096 → 컨테이너 EXTERNAL 9092
+    environment:
+      <<: *kafka-common-env
+      KAFKA_NODE_ID: 3
+      KAFKA_LISTENERS: CONTROLLER://0.0.0.0:9093,INTERNAL://0.0.0.0:19092,EXTERNAL://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-3:19092,EXTERNAL://localhost:9096
 
   kafka-connect:
-    image: debezium/connect:2.7
+    # 부동 태그 `2.7`은 레지스트리에서 제거되어 manifest unknown → 정확 패치 버전으로 고정(재현성).
+    image: debezium/connect:2.7.3.Final
     container_name: carry-kafka-connect
     ports:
       - "8083:8083"
@@ -47,12 +99,16 @@ services:
       CONFIG_STORAGE_TOPIC: connect-configs
       OFFSET_STORAGE_TOPIC: connect-offsets
       STATUS_STORAGE_TOPIC: connect-status
-      BOOTSTRAP_SERVERS: kafka:9092
-      CONFIG_STORAGE_REPLICATION_FACTOR: 1
-      OFFSET_STORAGE_REPLICATION_FACTOR: 1
-      STATUS_STORAGE_REPLICATION_FACTOR: 1
+      BOOTSTRAP_SERVERS: kafka-1:19092,kafka-2:19092,kafka-3:19092
+      # ⚠️ debezium/connect 이미지는 CONNECT_ 접두사 env만 worker 프로퍼티로 변환한다.
+      # 접두사 없는 *_STORAGE_REPLICATION_FACTOR는 무시되어 RF=1(기본값)로 남는다(라이브 스모크로 발견).
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 3
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 3
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 3
     depends_on:
-      - kafka
+      - kafka-1
+      - kafka-2
+      - kafka-3
       - postgres
 
   otel-collector:
@@ -104,11 +160,12 @@ services:
     ports:
       - "3000:3000"
     environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin
+      # 운영은 GRAFANA_ADMIN_USER/PASSWORD 시크릿 주입으로 하드닝, 로컬 dev는 기본 admin/admin 유지.
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
       GF_USERS_ALLOW_SIGN_UP: "false"
-      GF_AUTH_ANONYMOUS_ENABLED: "true"
-      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      # 익명 접근 차단 — 모든 대시보드 조회에 로그인을 요구한다.
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
     volumes:
       - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro

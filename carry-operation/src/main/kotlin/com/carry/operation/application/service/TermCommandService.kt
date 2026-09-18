@@ -8,10 +8,12 @@ import com.carry.operation.domain.exception.TermNotFoundException
 import com.carry.operation.domain.model.Term
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Clock
 
 @Service
 class TermCommandService(
     private val termPersistencePort: TermPersistencePort,
+    private val clock: Clock,
 ) : TermCommandUseCase {
 
     @Transactional
@@ -21,6 +23,7 @@ class TermCommandService(
             content = command.content,
             type = command.type,
             required = command.required,
+            now = clock.instant(),
         )
         return termPersistencePort.save(term)
     }
@@ -33,6 +36,7 @@ class TermCommandService(
             title = command.title,
             content = command.content,
             required = command.required,
+            now = clock.instant(),
         )
         return termPersistencePort.save(term)
     }
@@ -41,7 +45,7 @@ class TermCommandService(
     override fun deactivateTerm(termId: Long) {
         val term = termPersistencePort.findById(termId)
             ?: throw TermNotFoundException(termId)
-        term.deactivate()
+        term.deactivate(clock.instant())
         termPersistencePort.save(term)
     }
 }

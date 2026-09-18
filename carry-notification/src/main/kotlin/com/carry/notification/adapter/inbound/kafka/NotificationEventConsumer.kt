@@ -7,6 +7,7 @@ import com.carry.event.order.OrderCreatedEvent
 import com.carry.event.payment.InvoiceIssuedEvent
 import com.carry.event.payment.PaymentCompletedEvent
 import com.carry.event.payment.PaymentFailedEvent
+import com.carry.event.payment.RefundCompletedEvent
 import com.carry.infra.kafka.consumer.EventConsumerSupport
 import com.carry.infra.kafka.consumer.OutboxEventEnvelope
 import com.carry.notification.application.port.inbound.NotificationEventHandler
@@ -30,7 +31,7 @@ class NotificationEventConsumer(
     )
     fun consume(record: ConsumerRecord<String, String>) {
         val envelope = objectMapper.readValue(record.value(), OutboxEventEnvelope::class.java)
-        eventConsumerSupport.processIfNotDuplicate(envelope.id, envelope.traceId, envelope.eventType) {
+        eventConsumerSupport.processIfNotDuplicate("carry-notification-module", envelope.id, envelope.traceId, envelope.eventType) {
             when (envelope.eventType) {
                 "OrderCreatedEvent" -> {
                     val event = objectMapper.readValue(envelope.payload, OrderCreatedEvent::class.java)
@@ -55,6 +56,10 @@ class NotificationEventConsumer(
                 "PaymentFailedEvent" -> {
                     val event = objectMapper.readValue(envelope.payload, PaymentFailedEvent::class.java)
                     eventHandler.onPaymentFailed(event)
+                }
+                "RefundCompletedEvent" -> {
+                    val event = objectMapper.readValue(envelope.payload, RefundCompletedEvent::class.java)
+                    eventHandler.onRefundCompleted(event)
                 }
                 "DeliveryCompletedEvent" -> {
                     val event = objectMapper.readValue(envelope.payload, DeliveryCompletedEvent::class.java)

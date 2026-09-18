@@ -10,10 +10,12 @@ import com.carry.event.order.OrderCancelledEvent
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Clock
 
 @Service
 class DeliverySagaHandler(
     private val deliveryPersistencePort: DeliveryPersistencePort,
+    private val clock: Clock,
 ) : DeliverySagaEventHandler {
 
     private val log = LoggerFactory.getLogger(javaClass)
@@ -27,6 +29,7 @@ class DeliverySagaHandler(
                 dispatchId = event.dispatchId,
                 carrierId = event.carrierId,
                 laundromatId = event.laundromatId,
+                now = clock.instant(),
             )
             deliveryPersistencePort.save(delivery)
         }

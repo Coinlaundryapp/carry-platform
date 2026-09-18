@@ -5,6 +5,7 @@ import com.carry.order.application.port.outbound.OrderPersistencePort
 import com.carry.order.domain.exception.OrderNotFoundException
 import com.carry.order.domain.exception.OrderNotOwnedException
 import com.carry.order.domain.model.Order
+import com.carry.order.domain.vo.OrderStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -24,5 +25,13 @@ class OrderQueryService(
 
     override fun getOrdersByCustomer(customerId: Long, cursor: Long?, size: Int): List<Order> {
         return orderPersistencePort.findByCustomerId(customerId, cursor, size)
+    }
+
+    override fun getOrdersForCoordinator(status: OrderStatus?, cursor: Long?, size: Int): List<Order> {
+        return orderPersistencePort.findForCoordinator(status, cursor, size)
+    }
+
+    override fun getOrderForCoordinator(orderId: Long): Order {
+        return orderPersistencePort.findById(orderId) ?: throw OrderNotFoundException(orderId)
     }
 }

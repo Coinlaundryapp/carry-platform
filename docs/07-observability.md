@@ -1,7 +1,12 @@
 # 07. Observability, 서비스 메시, 카나리 배포
 
-> 최종 수정일: 2026-03-11
-> 상태: Draft
+> 최종 수정일: 2026-03-11 (초안) · 상태 갱신: 2026-06-13
+> 상태: **혼합 — Observability는 구현됨, 서비스 메시는 미채택**
+
+> ⚠️ **두 부분의 상태가 다르다:**
+> - **Observability(OTel·Prometheus·Grafana·알럿)는 구현·운영된다** — 실제 스택은 [12-observability-stack.md](12-observability-stack.md),
+>   메트릭 카탈로그는 [11-business-metrics.md](11-business-metrics.md), 로깅은 [13-logging-policy.md](13-logging-policy.md)가 사실원.
+> - **아래 "서비스 메시 — Linkerd"·카나리 배포 절은 미채택**(ADR-0007 모듈러 모놀리스 유지, 클라우드 미준비). 구상으로만 보존.
 
 ---
 

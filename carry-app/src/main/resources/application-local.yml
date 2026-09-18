@@ -5,16 +5,14 @@ spring:
     password: carry
     driver-class-name: org.postgresql.Driver
 
+  # 스키마는 base application.yml의 Flyway(classpath:db/migration) + ddl-auto:validate를 상속한다.
+  # 로컬도 테스트/프로드와 동일한 Flyway 관리 경로를 쓴다(과거 update+flyway:false 오버라이드 제거).
+  # 스키마 리셋이 필요하면 scripts/db-reset.sh|ps1로 볼륨을 비우고 재기동한다.
   jpa:
-    hibernate:
-      ddl-auto: update
     show-sql: true
 
-  flyway:
-    enabled: false
-
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: localhost:9092,localhost:9094,localhost:9096
 
   data:
     redis:
@@ -34,6 +32,9 @@ cloud:
       secret-key: test
 
 carry:
+  kafka:
+    replication-factor: 3
+    min-insync-replicas: 2
   geo:
     naver:
       client-id: ${NAVER_CLIENT_ID:local-test}

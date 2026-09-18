@@ -34,6 +34,11 @@ class OrderPersistenceAdapter(
             .map { it.toDomain() }
     }
 
+    override fun findForCoordinator(status: OrderStatus?, cursor: Long?, size: Int): List<Order> {
+        return orderJpaRepository.findForCoordinatorWithCursor(status, cursor, PageRequest.of(0, size))
+            .map { it.toDomain() }
+    }
+
     override fun findByStatusAndUpdatedAtBefore(status: OrderStatus, cutoff: Instant): List<Order> {
         return orderJpaRepository.findByStatusAndUpdatedAtBefore(status, cutoff).map { it.toDomain() }
     }

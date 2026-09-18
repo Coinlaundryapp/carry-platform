@@ -11,6 +11,7 @@ import jakarta.persistence.Enumerated
 import jakarta.persistence.FetchType
 import jakarta.persistence.OneToMany
 import jakarta.persistence.Table
+import jakarta.persistence.Version
 import java.math.BigDecimal
 
 @Entity
@@ -39,6 +40,15 @@ class DeliveryJpaEntity(
     val steps: MutableList<DeliveryStepJpaEntity> = mutableListOf(),
 ) : BaseEntity() {
 
+    /**
+     * JPA optimistic locking 카운터. 두 트랜잭션이 동일 애그리거트를 동시 변경하면
+     * 두 번째 commit에서 OptimisticLockingFailureException이 발생한다.
+     */
+    @Version
+    @Column(nullable = false)
+    var version: Long = 0
+        protected set
+
     fun toDomain(): Delivery = Delivery.reconstitute(
         id = id,
         orderId = orderId,
@@ -56,7 +66,9 @@ class DeliveryJpaEntity(
         status = delivery.status
         actualWeight = delivery.actualWeight
 
-        // Update existing steps
+        // steps는 stepType 기준 in-place 갱신(행 식별자·@Version 보존)으로 동기화한다.
+        // 자식을 삭제/재삽입하는 "전체 교체"(replaceAllFrom)와 의미가 다르므로 의도적으로
+        // 다른 패턴을 유지한다.
         delivery.steps.forEach { domainStep ->
             val existingStep = steps.find { it.stepType == domainStep.stepType }
             existingStep?.updateFrom(domainStep)

@@ -6,9 +6,11 @@ import com.fasterxml.jackson.annotation.JsonInclude
 import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.constraints.NotBlank
 
-@Schema(description = "Kakao 로그인 요청")
+@Schema(description = "소셜 로그인 요청")
 data class LoginRequest(
-    @Schema(description = "Kakao access token") @field:NotBlank val kakaoAccessToken: String,
+    @Schema(description = "OAuth provider", example = "KAKAO", allowableValues = ["KAKAO", "NAVER", "GOOGLE"])
+    @field:NotBlank val provider: String,
+    @Schema(description = "provider access token") @field:NotBlank val accessToken: String,
 )
 
 @Schema(description = "회원가입 완료 요청")
@@ -22,6 +24,12 @@ data class SignupRequest(
 @Schema(description = "토큰 재발급 요청")
 data class RefreshRequest(
     @Schema(description = "refresh token") @field:NotBlank val refreshToken: String,
+)
+
+@Schema(description = "dev-login 요청 (비프로덕션)")
+data class DevLoginRequest(
+    @Schema(description = "역할", example = "CUSTOMER", allowableValues = ["CUSTOMER", "CARRIER", "COORDINATOR", "ADMIN"])
+    @field:NotBlank val role: String,
 )
 
 @Schema(description = "가입 폼 prefill")
@@ -68,8 +76,3 @@ data class TokenResponse(
         fun from(tokens: TokenPair) = TokenResponse(tokens.accessToken, tokens.refreshToken)
     }
 }
-
-@Schema(description = "access 토큰 응답")
-data class AccessTokenResponse(
-    val accessToken: String,
-)

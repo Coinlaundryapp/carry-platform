@@ -9,6 +9,7 @@ import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
 import jakarta.persistence.Table
+import jakarta.persistence.Version
 import java.time.Instant
 
 @Entity
@@ -39,7 +40,21 @@ class PaymentJpaEntity(
     var paidAt: Instant?,
 
     var failReason: String?,
+
+    @Column(nullable = false)
+    var retryCount: Int = 0,
+
+    var nextRetryAt: Instant? = null,
 ) : BaseEntity() {
+
+    /**
+     * JPA optimistic locking 카운터. 두 트랜잭션이 동일 애그리거트를 동시 변경하면
+     * 두 번째 commit에서 OptimisticLockingFailureException이 발생한다.
+     */
+    @Version
+    @Column(nullable = false)
+    var version: Long = 0
+        protected set
 
     fun toDomain(): Payment = Payment.reconstitute(
         id = id,
@@ -52,6 +67,8 @@ class PaymentJpaEntity(
         amount = amount,
         paidAt = paidAt,
         failReason = failReason,
+        retryCount = retryCount,
+        nextRetryAt = nextRetryAt,
         createdAt = createdAt,
         updatedAt = updatedAt,
     )
@@ -61,6 +78,8 @@ class PaymentJpaEntity(
         pgTransactionId = payment.pgTransactionId
         paidAt = payment.paidAt
         failReason = payment.failReason
+        retryCount = payment.retryCount
+        nextRetryAt = payment.nextRetryAt
     }
 
     companion object {
@@ -74,6 +93,8 @@ class PaymentJpaEntity(
             amount = payment.amount,
             paidAt = payment.paidAt,
             failReason = payment.failReason,
+            retryCount = payment.retryCount,
+            nextRetryAt = payment.nextRetryAt,
         )
     }
 }

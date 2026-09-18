@@ -4,6 +4,7 @@ import com.carry.user.application.port.outbound.OAuthProfile
 import com.carry.user.application.port.outbound.OAuthProfileClient
 import com.carry.user.domain.exception.OAuthProviderUnavailableException
 import com.carry.user.domain.exception.OAuthTokenInvalidException
+import com.carry.user.domain.vo.OAuthProvider
 import com.fasterxml.jackson.annotation.JsonProperty
 import org.springframework.web.client.RestClient
 import org.springframework.web.client.RestClientException
@@ -17,7 +18,9 @@ class KakaoOAuthClient(
     private val restClient: RestClient,
 ) : OAuthProfileClient {
 
-    override fun fetchKakaoProfile(accessToken: String): OAuthProfile {
+    override fun supports(): OAuthProvider = OAuthProvider.KAKAO
+
+    override fun fetchProfile(accessToken: String): OAuthProfile {
         val response = try {
             restClient.get()
                 .uri("/v2/user/me")
@@ -37,6 +40,7 @@ class KakaoOAuthClient(
             oauthId = oauthId.toString(),
             email = response.kakaoAccount?.email,
             nickname = response.kakaoAccount?.profile?.nickname,
+            emailVerified = response.kakaoAccount?.isEmailVerified ?: false,
         )
     }
 
@@ -48,6 +52,7 @@ class KakaoOAuthClient(
     data class KakaoAccount(
         val email: String? = null,
         val profile: KakaoProfile? = null,
+        @JsonProperty("is_email_verified") val isEmailVerified: Boolean? = null,
     )
 
     data class KakaoProfile(

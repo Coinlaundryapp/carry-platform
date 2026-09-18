@@ -14,23 +14,29 @@ import com.carry.payment.domain.vo.InvoiceLineItem
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
+import java.math.RoundingMode
+import java.time.Clock
 
 @Service
 class InvoiceService(
     private val invoicePersistencePort: InvoicePersistencePort,
     private val eventPublisher: EventPublisherPort,
+    private val clock: Clock,
 ) : InvoiceQueryUseCase {
 
     companion object {
         private const val BASE_RATE_PER_KG = 3000L
         private const val DELIVERY_FEE = 3000L
-        private const val SERVICE_FEE_RATE = 0.1
+
+        // 돈 경로에 Double(IEEE-754) 곱을 쓰면 700.4999… 같은 절삭이 생긴다 — BigDecimal + 명시 라운딩.
+        private val SERVICE_FEE_RATE = BigDecimal("0.1")
     }
 
     @Transactional
     fun createInvoiceFromPickup(event: PickupCompletedEvent): Invoice {
         val laundryPrice = event.actualWeight.multiply(BigDecimal(BASE_RATE_PER_KG)).toLong()
-        val serviceFee = (laundryPrice * SERVICE_FEE_RATE).toLong()
+        val serviceFee = BigDecimal.valueOf(laundryPrice).multiply(SERVICE_FEE_RATE)
+            .setScale(0, RoundingMode.HALF_UP).toLong()
 
         val lineItems = listOf(
             InvoiceLineItem(ChargeType.LAUNDRY_PRICE, "세탁 비용 (${event.actualWeight}kg)", laundryPrice),
@@ -43,6 +49,7 @@ class InvoiceService(
             customerId = event.customerId,
             lineItems = lineItems,
             weight = event.actualWeight,
+            now = clock.instant(),
         )
 
         val saved = invoicePersistencePort.save(invoice)

@@ -1,5 +1,6 @@
 package com.carry.geo.adapter.outbound.cache
 
+import com.carry.common.metrics.MetricsPort
 import com.carry.geo.application.port.outbound.ReverseGeocodingPort
 import com.carry.geo.domain.model.ReverseGeocodingResult
 import com.carry.geo.domain.vo.Coordinate
@@ -20,6 +21,7 @@ import java.time.Duration
 class RedisCachingReverseGeocodingAdapter(
     private val delegate: ReverseGeocodingPort,
     private val redisTemplate: RedisTemplate<String, Any>,
+    private val metrics: MetricsPort,
     private val ttl: Duration = Duration.ofHours(24),
 ) : ReverseGeocodingPort {
 
@@ -27,8 +29,10 @@ class RedisCachingReverseGeocodingAdapter(
         val key = cacheKey(coordinate)
         val cached = redisTemplate.opsForValue().get(key)
         if (cached != null) {
+            metrics.incrementCounter(RedisCachingGeocodingAdapter.CACHE_METRIC, "direction" to "rev", "result" to "hit")
             return cached as ReverseGeocodingResult
         }
+        metrics.incrementCounter(RedisCachingGeocodingAdapter.CACHE_METRIC, "direction" to "rev", "result" to "miss")
         val fresh = delegate.reverseGeocode(coordinate)
         redisTemplate.opsForValue().set(key, fresh, ttl)
         return fresh

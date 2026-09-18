@@ -22,4 +22,14 @@ interface OrderJpaRepository : JpaRepository<OrderJpaEntity, Long> {
         @Param("cursor") cursor: Long?,
         pageable: Pageable,
     ): List<OrderJpaEntity>
+
+    @Query(
+        "SELECT o FROM OrderJpaEntity o WHERE (:status IS NULL OR o.status = :status)" +
+            " AND (:cursor IS NULL OR o.id < :cursor) ORDER BY o.id DESC",
+    )
+    fun findForCoordinatorWithCursor(
+        @Param("status") status: OrderStatus?,
+        @Param("cursor") cursor: Long?,
+        pageable: Pageable,
+    ): List<OrderJpaEntity>
 }

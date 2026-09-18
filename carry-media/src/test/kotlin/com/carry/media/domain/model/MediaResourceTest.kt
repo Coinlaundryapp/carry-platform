@@ -12,11 +12,14 @@ import java.util.UUID
 
 class MediaResourceTest {
 
+    private val now = Instant.parse("2026-06-07T00:00:00Z")
+
     private fun createMedia() = MediaResource.create(
         folder = "review",
         originalFilename = "photo.jpg",
         contentType = "image/jpeg",
         uploadedBy = 1L,
+        now = now,
     )
 
     private fun reconstitutedMedia(status: MediaStatus = MediaStatus.UPLOADING) = MediaResource.reconstitute(
@@ -43,12 +46,13 @@ class MediaResourceTest {
             assertThat(media.accessKey).isNotNull()
             assertThat(media.extension).isEqualTo("jpg")
             assertThat(media.fileSize).isNull()
+            assertThat(media.createdAt).isEqualTo(now)
         }
 
         @Test
         fun `빈 폴더명으로 생성하면 예외가 발생한다`() {
             assertThatThrownBy {
-                MediaResource.create("", "photo.jpg", "image/jpeg", 1L)
+                MediaResource.create("", "photo.jpg", "image/jpeg", 1L, now)
             }.isInstanceOf(BusinessException::class.java)
                 .hasMessageContaining("폴더명")
         }
@@ -56,7 +60,7 @@ class MediaResourceTest {
         @Test
         fun `빈 파일명으로 생성하면 예외가 발생한다`() {
             assertThatThrownBy {
-                MediaResource.create("review", "", "image/jpeg", 1L)
+                MediaResource.create("review", "", "image/jpeg", 1L, now)
             }.isInstanceOf(BusinessException::class.java)
                 .hasMessageContaining("파일명")
         }
@@ -64,7 +68,7 @@ class MediaResourceTest {
         @Test
         fun `확장자 없는 파일명으로 생성하면 예외가 발생한다`() {
             assertThatThrownBy {
-                MediaResource.create("review", "photo", "image/jpeg", 1L)
+                MediaResource.create("review", "photo", "image/jpeg", 1L, now)
             }.isInstanceOf(BusinessException::class.java)
                 .hasMessageContaining("확장자")
         }

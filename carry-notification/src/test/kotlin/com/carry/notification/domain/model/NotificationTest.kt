@@ -1,6 +1,8 @@
 package com.carry.notification.domain.model
 
 import com.carry.notification.domain.vo.NotificationChannel
+import com.carry.notification.domain.vo.NotificationMessage
+import com.carry.notification.domain.vo.NotificationReference
 import com.carry.notification.domain.vo.NotificationStatus
 import com.carry.notification.domain.vo.NotificationType
 import org.assertj.core.api.Assertions.assertThat
@@ -10,17 +12,16 @@ import java.time.Instant
 
 class NotificationTest {
 
-    private val now = Instant.now()
+    private val now = Instant.parse("2026-06-07T00:00:00Z")
 
     private fun createNotification() = Notification.create(
         recipientId = 1L,
         recipientContact = "01012345678",
         type = NotificationType.ORDER_CREATED,
         channel = NotificationChannel.KAKAO_ALARMTALK,
-        title = "주문 접수",
-        content = "주문이 접수되었습니다.",
-        referenceType = "ORDER",
-        referenceId = 100L,
+        message = NotificationMessage("주문 접수", "주문이 접수되었습니다."),
+        reference = NotificationReference("ORDER", 100L),
+        now = now,
     )
 
     private fun reconstitutedNotification(
@@ -31,11 +32,9 @@ class NotificationTest {
         recipientContact = "01012345678",
         type = NotificationType.ORDER_CREATED,
         channel = NotificationChannel.KAKAO_ALARMTALK,
-        title = "주문 접수",
-        content = "주문이 접수되었습니다.",
+        message = NotificationMessage("주문 접수", "주문이 접수되었습니다."),
         status = status,
-        referenceType = "ORDER",
-        referenceId = 100L,
+        reference = NotificationReference("ORDER", 100L),
         sentAt = if (status == NotificationStatus.SENT) now else null,
         failReason = if (status == NotificationStatus.FAILED) "전송 실패" else null,
         createdAt = now,
@@ -70,10 +69,10 @@ class NotificationTest {
         @Test
         fun `알림을 발송 완료로 표시하면 SENT 상태가 된다`() {
             val notification = createNotification()
-            notification.markSent()
+            notification.markSent(now)
 
             assertThat(notification.status).isEqualTo(NotificationStatus.SENT)
-            assertThat(notification.sentAt).isNotNull()
+            assertThat(notification.sentAt).isEqualTo(now)
         }
     }
 

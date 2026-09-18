@@ -1,6 +1,8 @@
 package com.carry.payment.domain.model
 
 import com.carry.common.exception.BusinessException
+import com.carry.common.exception.ErrorCode
+import com.carry.payment.domain.exception.InvoiceAlreadyPaidException
 import com.carry.payment.domain.vo.ChargeType
 import com.carry.payment.domain.vo.InvoiceLineItem
 import com.carry.payment.domain.vo.InvoiceStatus
@@ -19,13 +21,14 @@ class InvoiceTest {
         InvoiceLineItem(ChargeType.SERVICE_FEE, "서비스 수수료", 1500L),
     )
 
-    private val now = Instant.now()
+    private val now = Instant.parse("2026-06-07T00:00:00Z")
 
     private fun createInvoice() = Invoice.create(
         orderId = 1L,
         customerId = 100L,
         lineItems = lineItems,
         weight = BigDecimal("5.0"),
+        now = now,
     )
 
     private fun reconstitutedInvoice(status: InvoiceStatus = InvoiceStatus.ISSUED) = Invoice.reconstitute(
@@ -42,6 +45,8 @@ class InvoiceTest {
             val invoice = createInvoice()
             assertThat(invoice.status).isEqualTo(InvoiceStatus.ISSUED)
             assertThat(invoice.id).isNull()
+            assertThat(invoice.createdAt).isEqualTo(now)
+            assertThat(invoice.updatedAt).isEqualTo(now)
         }
 
         @Test
@@ -53,7 +58,7 @@ class InvoiceTest {
         @Test
         fun `lineItems가 비어 있으면 예외가 발생한다`() {
             assertThatThrownBy {
-                Invoice.create(1L, 100L, emptyList(), BigDecimal("5.0"))
+                Invoice.create(1L, 100L, emptyList(), BigDecimal("5.0"), now)
             }.isInstanceOf(BusinessException::class.java)
                 .hasMessageContaining("청구 항목")
         }
@@ -85,6 +90,28 @@ class InvoiceTest {
         }
 
         @Test
+        fun `이미 PAID 인 청구서를 다시 markPaid 하면 전용 예외로 구분된다`() {
+            // 일반 CONFLICT 로 뭉뚱그리면 docs-14 의 "INVOICE_ALREADY_PAID 는 재시도 말고 상태 조회" 안내가
+            // 클라이언트에 닿지 않는다. 상태 코드는 409 로 동일하고 에러 코드만 구체화된다.
+            val invoice = reconstitutedInvoice(InvoiceStatus.PAID)
+
+            assertThatThrownBy { invoice.markPaid() }
+                .isInstanceOf(InvoiceAlreadyPaidException::class.java)
+                .extracting { (it as BusinessException).errorCode }
+                .isEqualTo(ErrorCode.INVOICE_ALREADY_PAID)
+        }
+
+        @Test
+        fun `PAID 가 아닌 비정상 전이는 일반 충돌로 남는다`() {
+            val cancelled = reconstitutedInvoice(InvoiceStatus.CANCELLED)
+
+            assertThatThrownBy { cancelled.markPaid() }
+                .isInstanceOf(BusinessException::class.java)
+                .extracting { (it as BusinessException).errorCode }
+                .isEqualTo(ErrorCode.CONFLICT)
+        }
+
+        @Test
         fun `PAID 상태에서 refund 호출 시 REFUNDED로 전이한다`() {
             val invoice = reconstitutedInvoice(InvoiceStatus.PAID)
             invoice.refund()
@@ -102,6 +129,34 @@ class InvoiceTest {
         fun `PAID 상태에서 cancel 호출 시 예외가 발생한다`() {
             val invoice = reconstitutedInvoice(InvoiceStatus.PAID)
             assertThatThrownBy { invoice.cancel() }
+                .isInstanceOf(BusinessException::class.java)
+        }
+
+        @Test
+        fun `ISSUED 에서 OVERDUE 로 전이할 수 있다`() {
+            val invoice = reconstitutedInvoice(InvoiceStatus.ISSUED)
+            invoice.markOverdue()
+            assertThat(invoice.status).isEqualTo(InvoiceStatus.OVERDUE)
+        }
+
+        @Test
+        fun `OVERDUE 에서 PAID 로 전이할 수 있다`() {
+            val invoice = reconstitutedInvoice(InvoiceStatus.OVERDUE)
+            invoice.markPaid()
+            assertThat(invoice.status).isEqualTo(InvoiceStatus.PAID)
+        }
+
+        @Test
+        fun `OVERDUE 에서 CANCELLED 로 전이할 수 있다`() {
+            val invoice = reconstitutedInvoice(InvoiceStatus.OVERDUE)
+            invoice.cancel()
+            assertThat(invoice.status).isEqualTo(InvoiceStatus.CANCELLED)
+        }
+
+        @Test
+        fun `PAID 에서 OVERDUE 는 불가`() {
+            val invoice = reconstitutedInvoice(InvoiceStatus.PAID)
+            assertThatThrownBy { invoice.markOverdue() }
                 .isInstanceOf(BusinessException::class.java)
         }
     }

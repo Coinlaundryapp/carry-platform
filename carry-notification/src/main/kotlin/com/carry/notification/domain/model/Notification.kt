@@ -1,6 +1,8 @@
 package com.carry.notification.domain.model
 
 import com.carry.notification.domain.vo.NotificationChannel
+import com.carry.notification.domain.vo.NotificationMessage
+import com.carry.notification.domain.vo.NotificationReference
 import com.carry.notification.domain.vo.NotificationStatus
 import com.carry.notification.domain.vo.NotificationType
 import java.time.Instant
@@ -11,11 +13,9 @@ class Notification private constructor(
     val recipientContact: String,
     val type: NotificationType,
     val channel: NotificationChannel,
-    val title: String,
-    val content: String,
+    val message: NotificationMessage,
     private var _status: NotificationStatus,
-    val referenceType: String?,
-    val referenceId: Long?,
+    val reference: NotificationReference?,
     private var _sentAt: Instant?,
     private var _failReason: String?,
     val createdAt: Instant,
@@ -23,6 +23,10 @@ class Notification private constructor(
     val status get() = _status
     val sentAt get() = _sentAt
     val failReason get() = _failReason
+    val title: String get() = message.title
+    val content: String get() = message.content
+    val referenceType: String? get() = reference?.type
+    val referenceId: Long? get() = reference?.id
 
     companion object {
         fun create(
@@ -30,24 +34,21 @@ class Notification private constructor(
             recipientContact: String,
             type: NotificationType,
             channel: NotificationChannel,
-            title: String,
-            content: String,
-            referenceType: String? = null,
-            referenceId: Long? = null,
+            message: NotificationMessage,
+            reference: NotificationReference? = null,
+            now: Instant,
         ): Notification = Notification(
             id = null,
             recipientId = recipientId,
             recipientContact = recipientContact,
             type = type,
             channel = channel,
-            title = title,
-            content = content,
+            message = message,
             _status = NotificationStatus.PENDING,
-            referenceType = referenceType,
-            referenceId = referenceId,
+            reference = reference,
             _sentAt = null,
             _failReason = null,
-            createdAt = Instant.now(),
+            createdAt = now,
         )
 
         fun reconstitute(
@@ -56,23 +57,21 @@ class Notification private constructor(
             recipientContact: String,
             type: NotificationType,
             channel: NotificationChannel,
-            title: String,
-            content: String,
+            message: NotificationMessage,
             status: NotificationStatus,
-            referenceType: String?,
-            referenceId: Long?,
+            reference: NotificationReference?,
             sentAt: Instant?,
             failReason: String?,
             createdAt: Instant,
         ): Notification = Notification(
-            id, recipientId, recipientContact, type, channel, title, content,
-            status, referenceType, referenceId, sentAt, failReason, createdAt,
+            id, recipientId, recipientContact, type, channel, message,
+            status, reference, sentAt, failReason, createdAt,
         )
     }
 
-    fun markSent() {
+    fun markSent(now: Instant) {
         _status = NotificationStatus.SENT
-        _sentAt = Instant.now()
+        _sentAt = now
     }
 
     fun markFailed(reason: String) {

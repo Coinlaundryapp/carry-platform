@@ -7,6 +7,7 @@ import com.carry.common.exception.BusinessException
 import com.carry.common.exception.ErrorCode
 import com.carry.dispatch.domain.exception.DispatchNotFoundException
 import com.carry.dispatch.domain.model.Dispatch
+import com.carry.dispatch.domain.vo.DispatchStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -35,5 +36,14 @@ class DispatchQueryService(
 
     override fun getDispatchesByCarrier(carrierId: Long, cursor: Long?, size: Int): List<Dispatch> {
         return dispatchPersistencePort.findByCarrierId(carrierId, cursor, size)
+    }
+
+    override fun getDispatchesForCoordinator(
+        status: DispatchStatus?,
+        areaCode: String?,
+        cursor: Long?,
+        size: Int,
+    ): List<Dispatch> {
+        return dispatchPersistencePort.findForCoordinator(status, areaCode, cursor, size)
     }
 }

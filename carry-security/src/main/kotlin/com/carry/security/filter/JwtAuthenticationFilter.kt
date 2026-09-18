@@ -4,6 +4,7 @@ import com.carry.security.jwt.JwtProvider
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import org.slf4j.MDC
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.context.SecurityContextHolder
@@ -30,13 +31,23 @@ class JwtAuthenticationFilter(
                     listOf(SimpleGrantedAuthority("ROLE_${principal.role}"))
                 )
                 SecurityContextHolder.getContext().authentication = authentication
+                MDC.put(MDC_USER_ID, principal.userId.toString())
             }
         }
-        filterChain.doFilter(request, response)
+        try {
+            filterChain.doFilter(request, response)
+        } finally {
+            // 인증 성공 시 채운 userId를 항상 정리(스레드풀 재사용 누수 방지). 미설정 키 remove는 no-op.
+            MDC.remove(MDC_USER_ID)
+        }
     }
 
     private fun resolveToken(request: HttpServletRequest): String? {
         val bearer = request.getHeader("Authorization") ?: return null
         return if (bearer.startsWith("Bearer ")) bearer.substring(7) else null
+    }
+
+    private companion object {
+        const val MDC_USER_ID = "userId"  // logback includeMdcKeyName과 일치
     }
 }
