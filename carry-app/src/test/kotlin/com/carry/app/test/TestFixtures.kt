@@ -152,7 +152,9 @@ object TestFixtures {
             DELETE FROM delivery_deliveries;
             DELETE FROM review_media;
             DELETE FROM review_reviews;
-            DELETE FROM payment_ledger_entries;
+            -- 원장은 V31 트리거가 DELETE 를 막는다(append-only). 행 트리거는 TRUNCATE 에 반응하지 않으므로
+            -- 테스트 격리는 이 경로를 쓴다.
+            TRUNCATE TABLE payment_ledger_entries CASCADE;
             DELETE FROM payment_reconciliation_mismatches;
             DELETE FROM payment_payments;
             DELETE FROM payment_invoice_line_items;

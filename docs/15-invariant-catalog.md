@@ -1,6 +1,6 @@
 # 15. 불변식 카탈로그
 
-> 최종 수정일: 2026-09-08
+> 최종 수정일: 2026-09-18 (§6 갭 중 5건 해소 반영)
 > 상태: 사후 기록 (코드에서 역추출)
 > 범위: Order, Dispatch, Invoice/Payment/BillingKey/Ledger, Delivery 애그리거트와 사가·스위퍼가 지키는 시스템 수준 불변식
 
@@ -25,7 +25,7 @@
 | O-C1 | 선택 옵션이 1개 이상이어야 한다 | `Order.kt:48` | `BusinessException(INVALID_INPUT)` | 단위 테스트 있음 (`carry-order/src/test/kotlin/com/carry/order/domain/model/OrderTest.kt:80-84`) |
 | O-C2 | `desiredDeliveryAt` 는 `desiredPickupAt` 보다 뒤여야 한다 | `Order.kt:49` | `BusinessException(INVALID_INPUT)` | 단위 테스트 있음 (`OrderTest.kt:88-92`) |
 | O-C3 | 생성 직후 상태는 `CREATED`, carrierId/actualWeight/cancellation/completedAt 은 모두 null | `Order.kt:51-67` | 해당 없음 (구조적 보장) | 단위 테스트 있음 (`OrderTest.kt:65-77`) |
-| O-C4 | 배송지 VO 의 도로명주소·수령인 이름·전화·지역코드는 공백일 수 없다 | `carry-order/src/main/kotlin/com/carry/order/domain/vo/OrderShippingAddress.kt:16-21` | `BusinessException(INVALID_INPUT)` | 없음 (테스트 디렉터리에서 해당 메시지·공백 입력 케이스를 찾지 못함) |
+| O-C4 | 배송지 VO 의 도로명주소·수령인 이름·전화·지역코드는 공백일 수 없다 | `carry-order/src/main/kotlin/com/carry/order/domain/vo/OrderShippingAddress.kt:16-21` | `BusinessException(INVALID_INPUT)` | 단위 테스트 있음 (`OrderShippingAddressTest` — 4개 필드 × 공백 4종) |
 | O-C5 | 취소 정보(사유·주체·시각)는 셋 다 있거나 셋 다 없다 | `carry-order/src/main/kotlin/com/carry/order/domain/vo/OrderCancellation.kt:12-16` (data class 로 타입 수준 표현) | 해당 없음 (타입으로 강제) | 단위 테스트 있음 (취소 테스트가 `cancellation` 을 함께 확인, `OrderTest.kt:145-160`) |
 
 ### 1.2 상태 전이표
@@ -64,7 +64,7 @@
 |---|--------|-----------|--------------|-----------|
 | D-C1 | 생성 직후 상태는 `PENDING`, carrierId/assignedBy/assignedAt/acceptedAt/cancelReason 은 null | `Dispatch.kt:36-44` | 해당 없음 (구조적 보장) | 단위 테스트 있음 (`carry-dispatch/src/test/kotlin/com/carry/dispatch/domain/model/DispatchTest.kt` 의 fixture 가 `create` 사용) |
 | D-C2 | `Dispatch.create` 는 입력값 검증(`requireInput`)이 없다 | `Dispatch.kt:36-44` | 없음 | 해당 없음 |
-| D-C3 | `CarrierArea.create` 는 `areaCode` 가 공백이면 거부한다 | `CarrierArea.kt:19` | `BusinessException(INVALID_INPUT)` | 없음 (`CarrierArea.create` 를 호출하는 테스트를 찾지 못함) |
+| D-C3 | `CarrierArea.create` 는 `areaCode` 가 공백이면 거부한다 | `CarrierArea.kt:19` | `BusinessException(INVALID_INPUT)` | 단위 테스트 있음 (`CarrierAreaTest`) |
 | D-C4 | `PenaltyRecord` 는 생성 후 변경할 수 없다 (모든 필드 `val`, 변경 메서드 없음) | `PenaltyRecord.kt:6-22` | 해당 없음 | 해당 없음 |
 
 ### 2.2 상태 전이표
@@ -162,17 +162,17 @@
 | B-C1 | `cardLast4` 는 정확히 4자리다 | `BillingKey.kt:38` | `BusinessException(INVALID_INPUT)` | 단위 테스트 있음 (`carry-payment/src/test/kotlin/com/carry/payment/domain/model/BillingKeyTest.kt:40-44`) |
 | B-C2 | 생성 직후 상태는 `ACTIVE`, invalidatedAt 은 null | `BillingKey.kt:39-40` | 해당 없음 | 단위 테스트 있음 (`BillingKeyTest.kt:19-22`) |
 | B-T1 | ACTIVE → INVALID 는 `invalidate(now)` 로만 가능하고, INVALID 에서 다시 호출하면 거부된다 (전이는 이 하나뿐) | `BillingKey.kt:27-31` | `BusinessException(CONFLICT)` (409) | 단위 테스트 있음 (`BillingKeyTest.kt:24-37`) |
-| B-R1 | 고객당 ACTIVE 빌링키는 최대 1개다. 재등록 시 기존 키를 먼저 무효화하고 flush 한 뒤 새 키를 저장한다 | 서비스 `carry-payment/src/main/kotlin/com/carry/payment/application/service/BillingKeyService.kt:48-60`; DB 부분 유니크 인덱스 `carry-payment/src/main/resources/db/migration/V26__create_customer_billing_keys.sql:17-18` | 서비스 단위 테스트 있음 (`carry-payment/src/test/kotlin/com/carry/payment/application/service/BillingKeyServiceTest.kt`). 인덱스 자체를 검증하는 테스트는 찾지 못함 (`uq_billing_keys` grep 결과 없음) |
+| B-R1 | 고객당 ACTIVE 빌링키는 최대 1개다. 재등록 시 기존 키를 먼저 무효화하고 flush 한 뒤 새 키를 저장한다 | 서비스 `carry-payment/src/main/kotlin/com/carry/payment/application/service/BillingKeyService.kt:48-60`; DB 부분 유니크 인덱스 `carry-payment/src/main/resources/db/migration/V26__create_customer_billing_keys.sql:17-18` | 서비스 단위 테스트 있음 (`carry-payment/src/test/kotlin/com/carry/payment/application/service/BillingKeyServiceTest.kt`). 인덱스 자체도 통합 테스트로 검증한다 (`BillingKeyActiveUniqueIntegrationTest` — 두 번째 ACTIVE 행 거부, INVALID 이력 다수 허용, 고객 간 독립) |
 | B-R2 | billingKey 값은 영속화 시 암호화된다 | `BillingKey.kt:8-12` 주석; 구현체 `BillingKeyCryptoConverter` (docs/06-saga.md:262 에 테스트 언급) | 단위 테스트 있음 (`carry-payment/src/test/kotlin/com/carry/payment/adapter/outbound/persistence/crypto/BillingKeyCryptoConverterTest.kt`, 내용은 미열람) |
 
 ### 3.4 Ledger (append-only 정산 원장)
 
 | # | 불변식 | 강제 위치 | 위반 시 예외 | 검증 상태 |
 |---|--------|-----------|--------------|-----------|
-| L-R1 | 거래 그룹(결제 1건 또는 환불 1건) 안의 `Σamount == 0` | `LedgerEntry.kt:67-73` (`balanced`, Kotlin `require`) | `IllegalArgumentException` (BusinessException 아님, 500 으로 매핑됨) | 단위 테스트 있음 (`carry-payment/src/test/kotlin/com/carry/payment/domain/model/LedgerEntriesTest.kt:81`) |
+| L-R1 | 거래 그룹(결제 1건 또는 환불 1건) 안의 `Σamount == 0` | `LedgerEntry.kt` (`balanced`, `checkInvariant`) | `BusinessException(INTERNAL_ERROR)` — 내부 일관성 위반이므로 500 이 **의도된** 매핑이다 | 단위 테스트 있음 (`LedgerEntriesTest`, 예외 타입·에러 코드까지 단언) |
 | L-R2 | 결제 그룹 = 고객 총액 차변 1행 + 라인아이템별 수취 행. LAUNDRY_PRICE·DELIVERY_FEE 는 CARRIER, SERVICE_FEE 는 PLATFORM 으로 귀속된다 | `LedgerEntry.kt:38-65` | 해당 없음 | 단위 테스트 있음 (`LedgerEntriesTest.kt:37-66`) |
 | L-R3 | 환불 그룹은 결제 그룹과 행 구성이 같고 부호만 반대다 (`sign = -1`) | `LedgerEntry.kt:34-36` | 해당 없음 | 단위 테스트 있음 (`LedgerEntriesTest.kt:68-79`) |
-| L-R4 | 원장 행은 append 만 가능하고 수정·삭제 경로가 없다 | `carry-payment/src/main/kotlin/com/carry/payment/application/port/outbound/LedgerPort.kt:8-9` (주석과 인터페이스 형태), `LedgerPersistenceAdapter.kt:15-17` (`saveAll` 만 호출), 테이블 `V25__create_payment_ledger_entries.sql` (트리거·REVOKE 없음) | 해당 없음 (코드 관례) | 없음 (수정 불가를 검증하는 테스트 없음) |
+| L-R4 | 원장 행은 append 만 가능하고 수정·삭제 경로가 없다 | **DB**: `V31__payment_ledger_append_only.sql` 트리거가 UPDATE/DELETE 를 거부(TRUNCATE 는 허용 — 테스트 격리 경로). **타입**: `LedgerEntryJpaRepository` 가 `Repository` 상속으로 `saveAll`+집계만 노출. **도메인**: 전 필드 `val`, 수정 메서드 없음 | `restrict_violation` 예외 → `DataAccessException` | 통합 테스트 있음 (`LedgerAppendOnlyIntegrationTest` — UPDATE·DELETE 거부, 역분개 INSERT 는 허용) |
 | L-R5 | 원장 기입은 결제 완료·환불 확정과 같은 트랜잭션에서 일어난다 | `carry-payment/src/main/kotlin/com/carry/payment/application/service/AutoChargeService.kt:121-127`, `.../PaymentCommandService.kt:83-96` | 해당 없음 | 서비스 단위 테스트 있음 (`AutoChargeServiceTest.kt`, `PaymentCommandServiceTest.kt` 가 `LedgerPort.record` 호출 검증). 통합: `carry-app/src/test/kotlin/com/carry/app/saga/SettlementLedgerIntegrationTest.kt` |
 
 ---
@@ -246,22 +246,22 @@
 
 ### 6.1 도메인에는 있는데 프로덕션 경로가 쓰지 않는 규칙
 
-1. `Invoice.markOverdue()` (`Invoice.kt:68-70`) 는 main 코드 어디서도 호출되지 않는다. 실제 OVERDUE 확정은 `InvoiceJpaRepository.markOverdueIfIssued` 의 조건부 UPDATE (`InvoiceJpaRepository.kt:24-29`) 가 애그리거트를 우회해서 수행한다. 동시성 이유는 주석에 있으나, 결과적으로 ISSUED → OVERDUE 전이 규칙이 enum 과 JPQL 두 곳에 존재한다.
+1. ~~`Invoice.markOverdue()` 가 main 코드에서 호출되지 않고, ISSUED → OVERDUE 전이 규칙이 enum 과 JPQL 두 곳에 존재한다.~~ — **2026-09-18 해소.** `OverdueSweeper` 가 확정 전에 `invoice.markOverdue()` 로 도메인 전이표의 판정을 먼저 거치게 했다(실제 확정은 lost-update 방지를 위해 여전히 조건부 UPDATE 가 한다 — 이 설계는 유지). 두 표현이 어긋나는 것 자체는 `InvoiceOverdueGuardIntegrationTest` 가 막는다: 모든 `InvoiceStatus` 에 대해 조건부 UPDATE 의 수행 여부가 `canTransitionTo(OVERDUE)` 와 정확히 일치함을 단언한다.
 2. ~~`Dispatch.isExpired(now)` 가 main 코드에서 호출되지 않고, 30분 정책값이 도메인과 SQL 에 중복된다.~~ — **2026-09-18 해소.** 리드타임을 설정값(`carry.dispatch.pickup-timeout-lead-minutes`)으로 빼고 `DispatchTimeoutSweeper` 가 그 값 하나로 조회 임계 시각과 도메인 판정을 함께 구동한다. 조회는 프리필터, 판정은 `Dispatch.isExpired(now, lead)` 로 역할이 갈리고 경계(포함)도 일치시켰다. SQL 이 쥐고 있던 `CURRENT_TIMESTAMP` 도 주입된 `Clock` 으로 바뀌었다.
 3. `InvoiceAlreadyPaidException`, `PaymentAlreadyCompletedException` 이 `Invoice.kt:5`, `Payment.kt:5` 에 import 돼 있으나 두 파일 모두 사용하지 않는다. 실제 전이 위반은 모두 `checkState` 의 일반 `BusinessException(CONFLICT)` 로 나간다. Order/Dispatch/Delivery 는 전용 예외 클래스를 쓰는 것과 대비된다.
 
 ### 6.2 코드가 강제하지 않고 관례·주석에만 있는 규칙
 
-4. 원장 append-only (L-R4): `LedgerPort` 주석과 어댑터가 `saveAll` 만 호출한다는 사실에 의존한다. `LedgerEntryJpaRepository` 는 `JpaRepository` 를 상속하므로 `delete*`/`save` 가 열려 있고, `V25` 마이그레이션에는 UPDATE/DELETE 를 막는 트리거나 권한 제한이 없다.
+4. ~~원장 append-only (L-R4) 가 관례에만 의존한다.~~ — **2026-09-18 해소.** DB 트리거(V31)가 UPDATE/DELETE 를 거부하고, 리포지토리는 `Repository` 상속으로 바꿔 `saveAll`+집계만 노출한다. TRUNCATE 는 열어 두었다(행 트리거는 반응하지 않으며 테스트 격리가 쓴다 — 운영에서 막는 것은 권한 설계의 몫).
 5. `DeliveryStep.complete` (V-R1) 에 상태 가드가 없다. `Delivery` 의 멱등 조기 반환이 유일한 보호막이며, `DeliveryStep` 단독 테스트도 없다.
 6. `Dispatch.create`, `Delivery.create`, `PenaltyRecord.create` 에는 `requireInput` 이 하나도 없다 (예: `desiredPickupAt` 이 과거인지, id 가 양수인지). 상위 계층(DTO 검증)에서 걸러지는지는 본 문서 작성 시 확인하지 않았다 (미확인).
-7. `LedgerEntries.balanced` (L-R1) 는 Kotlin 표준 `require` 를 쓴다. `DomainValidation.kt:3-14` 의 설명대로라면 이 예외는 500 으로 매핑된다. 내부 일관성 위반이므로 500 이 의도일 수 있으나, 다른 도메인 검증과 다른 헬퍼를 쓴다는 점은 기록해 둔다.
+7. ~~`LedgerEntries.balanced` (L-R1) 가 Kotlin 표준 `require` 를 써서 500 이 의도인지 누락인지 구분되지 않는다.~~ — **2026-09-18 해소.** `DomainValidation` 에 `checkInvariant`(→ 500 `INTERNAL_ERROR`)를 추가하고 `balanced` 가 이를 쓴다. 500 이 의도임이 코드에 드러나고, `GlobalExceptionHandler` 가 에러 코드 이름과 함께 error 레벨로 남긴다.
 
 ### 6.3 테스트가 없는 불변식
 
-8. `OrderShippingAddress` 의 공백 검증 4건 (O-C4): 해당 메시지나 공백 입력 케이스를 테스트에서 찾지 못했다.
-9. `CarrierArea.create` 의 `areaCode` 공백 검증 (D-C3): `CarrierArea.create` 를 호출하는 테스트가 없다.
-10. `uq_billing_keys_active_per_customer` 부분 유니크 인덱스 (B-R1): 서비스 로직은 테스트가 있으나 인덱스가 실제로 두 번째 ACTIVE 행을 거부하는지 확인하는 테스트는 없다.
+8. ~~`OrderShippingAddress` 의 공백 검증 4건 (O-C4) 에 테스트가 없다.~~ — **2026-09-18 해소** (`OrderShippingAddressTest` — 4개 필드 × 공백 4종, 에러 코드까지 단언).
+9. ~~`CarrierArea.create` 의 `areaCode` 공백 검증 (D-C3) 을 호출하는 테스트가 없다.~~ — **2026-09-18 해소** (`CarrierAreaTest`).
+10. ~~`uq_billing_keys_active_per_customer` 부분 유니크 인덱스 (B-R1) 가 실제로 두 번째 ACTIVE 행을 거부하는지 확인하는 테스트가 없다.~~ — **2026-09-18 해소** (`BillingKeyActiveUniqueIntegrationTest` — 두 번째 ACTIVE 거부, INVALID 이력은 몇 개든 허용, 고객 간 독립).
 11. `PaymentTest.kt:101` 의 테스트명은 "FAILED 상태에서 다시 PENDING 으로 전이할 수 없다" 인데, `PaymentStatus.canTransitionTo` (`PaymentEnums.kt:24`) 는 FAILED → PENDING 을 허용하고 `markRetrying` 이 그 경로다. 테스트 본문은 `markCompleted` 를 검사하므로 동작은 맞고 이름만 오래됐다.
 
 ### 6.4 문서와 코드의 불일치

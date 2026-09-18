@@ -34,6 +34,10 @@ class OverdueSweeper(
         val cutoff = now.minus(Duration.ofHours(thresholdHours))
         invoicePersistencePort.findIssuedBefore(cutoff).forEach { invoice ->
             try {
+                // 전이 허용 여부는 도메인이 판정한다 — 전이표(InvoiceStatus)와 조건부 UPDATE 의
+                // ISSUED 가드가 어긋나면 여기서 먼저 막힌다. 실제 확정은 lost-update 를 막기 위해
+                // 아래 조건부 UPDATE 가 하고, 이 호출의 상태 변경은 저장하지 않는다.
+                invoice.markOverdue()
                 if (invoicePersistencePort.markOverdueIfIssued(invoice.id!!, now)) {
                     log.warn("OverdueSweeper: 인보이스 연체 확정 invoiceId={} customerId={}", invoice.id, invoice.customerId)
                     metricsPort.incrementCounter("carry.payment.invoice_overdue")
