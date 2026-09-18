@@ -12,6 +12,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException
+import org.springframework.web.servlet.resource.NoResourceFoundException
 
 @RestControllerAdvice
 class GlobalExceptionHandler {
@@ -104,6 +105,27 @@ class GlobalExceptionHandler {
                     ErrorCode.FORBIDDEN.status,
                     ErrorCode.FORBIDDEN.name,
                     ErrorCode.FORBIDDEN.message,
+                    MDC.get("traceId"),
+                ),
+            )
+    }
+
+    /**
+     * 매핑된 핸들러가 없는 경로 — 클라이언트 오타·구버전 클라이언트·스캐너 트래픽이다.
+     *
+     * 이 핸들러가 없으면 catch-all 로 떨어져 **500 + error 로그**가 된다. [13-logging-policy] 상 5xx 는
+     * 알럿 대상이라, 바깥에서 아무 경로나 긁으면 알럿이 울리는 구조가 된다. 서버는 멀쩡하므로 404 가 맞다.
+     */
+    @ExceptionHandler(NoResourceFoundException::class)
+    fun handleNoResourceFound(e: NoResourceFoundException): ResponseEntity<ApiResponse<Nothing>> {
+        log.info("No handler for path: {}", e.resourcePath)
+        return ResponseEntity
+            .status(ErrorCode.NOT_FOUND.status)
+            .body(
+                ApiResponse.error(
+                    ErrorCode.NOT_FOUND.status,
+                    ErrorCode.NOT_FOUND.name,
+                    ErrorCode.NOT_FOUND.message,
                     MDC.get("traceId"),
                 ),
             )
