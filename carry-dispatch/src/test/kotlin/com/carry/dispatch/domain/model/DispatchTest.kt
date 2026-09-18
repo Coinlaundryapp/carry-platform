@@ -11,6 +11,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import java.time.Duration
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
@@ -286,24 +287,46 @@ class DispatchTest {
     @Nested
     inner class IsExpired {
 
-        @Test
-        fun `수거 희망 시각 30분 전이 지나면 만료로 판단한다`() {
-            val dispatch = Dispatch.reconstitute(
-                id = 1L, orderId = 1L, laundromatId = 10L, status = DispatchStatus.PENDING,
-                carrierId = null, areaCode = "GANGNAM",
-                desiredPickupAt = now.minus(1, ChronoUnit.HOURS),
-                assignedBy = null, assignedAt = null, acceptedAt = null,
-                cancelReason = null, createdAt = now, updatedAt = now,
-            )
+        private val lead = Duration.ofMinutes(30)
 
-            assertThat(dispatch.isExpired(now)).isTrue()
+        private fun pendingWithPickupAt(pickupAt: Instant) = Dispatch.reconstitute(
+            id = 1L, orderId = 1L, laundromatId = 10L, status = DispatchStatus.PENDING,
+            carrierId = null, areaCode = "GANGNAM", desiredPickupAt = pickupAt,
+            assignedBy = null, assignedAt = null, acceptedAt = null,
+            cancelReason = null, createdAt = now, updatedAt = now,
+        )
+
+        @Test
+        fun `수거 희망 시각에서 리드타임을 뺀 시점이 지나면 만료로 판단한다`() {
+            assertThat(pendingWithPickupAt(now.minus(1, ChronoUnit.HOURS)).isExpired(now, lead)).isTrue()
         }
 
         @Test
         fun `수거 희망 시각까지 충분한 시간이 있으면 만료가 아니다`() {
-            val dispatch = reconstitutedDispatch(DispatchStatus.PENDING)
+            assertThat(reconstitutedDispatch(DispatchStatus.PENDING).isExpired(now, lead)).isFalse()
+        }
 
-            assertThat(dispatch.isExpired(now)).isFalse()
+        @Test
+        fun `경계는 포함이다 - 수거 희망 시각 정확히 리드타임 전이면 만료다`() {
+            // 조회 프리필터(desiredPickupAt <= now + lead)와 같은 경계여야 후보가 판정에서 누락되지 않는다.
+            assertThat(pendingWithPickupAt(now.plus(lead)).isExpired(now, lead)).isTrue()
+            assertThat(pendingWithPickupAt(now.plus(lead).plusSeconds(1)).isExpired(now, lead)).isFalse()
+        }
+
+        @Test
+        fun `리드타임이 길어지면 같은 배차가 더 일찍 만료된다 - 정책값이 인자로 주입된다`() {
+            // 30분이 도메인에 박혀 있던 시절에는 표현할 수 없던 케이스.
+            val dispatch = pendingWithPickupAt(now.plus(45, ChronoUnit.MINUTES))
+
+            assertThat(dispatch.isExpired(now, Duration.ofMinutes(30))).isFalse()
+            assertThat(dispatch.isExpired(now, Duration.ofMinutes(60))).isTrue()
+        }
+
+        @Test
+        fun `PENDING 이 아니면 리드타임과 무관하게 만료가 아니다`() {
+            val accepted = reconstitutedDispatch(DispatchStatus.ACCEPTED, 100L)
+
+            assertThat(accepted.isExpired(now.plus(10, ChronoUnit.HOURS), lead)).isFalse()
         }
     }
 }

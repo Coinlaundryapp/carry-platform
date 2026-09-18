@@ -7,8 +7,8 @@ import com.carry.dispatch.domain.exception.DispatchTimeoutNotAllowedException
 import com.carry.dispatch.domain.vo.AssignedBy
 import com.carry.dispatch.domain.vo.DispatchStatus
 import com.carry.dispatch.domain.vo.PenaltyReason
+import java.time.Duration
 import java.time.Instant
-import java.time.temporal.ChronoUnit
 
 class Dispatch private constructor(
     val id: Long?,
@@ -131,7 +131,14 @@ class Dispatch private constructor(
         return true
     }
 
-    fun isExpired(now: Instant): Boolean =
+    /**
+     * 만료 판정의 **유일한 근거**. 리드타임은 호출자(스위퍼)가 설정값으로 주입한다 —
+     * 정책값을 도메인에 박아 두면 조회 SQL 과 두 곳에 존재하게 되고 한쪽만 바뀌면 어긋난다.
+     *
+     * 경계는 포함이다(`desiredPickupAt - lead == now` 면 만료). 조회 쿼리가 같은 경계로
+     * 후보를 추리므로 둘이 일치해야 프리필터-판정 사이에 누락이 없다.
+     */
+    fun isExpired(now: Instant, lead: Duration): Boolean =
         _status == DispatchStatus.PENDING &&
-            now.isAfter(desiredPickupAt.minus(30, ChronoUnit.MINUTES))
+            !now.isBefore(desiredPickupAt.minus(lead))
 }

@@ -253,7 +253,7 @@ fun markOverdueInvoices() {
 | FAILED Payment 재과금 | 1h→4h→12h→24h→이후 24h(백오프) | ChargeRetrySweeper 가 재과금 | ✅ 구현 |
 | ISSUED Invoice 미결제 | 72시간 | OverdueSweeper 가 OVERDUE 마킹 → 신규 주문만 차단 | ✅ 구현 |
 | 물리 사가 비종결 정체(CREATED/DISPATCHED/PICKED_UP/IN_PROGRESS) | 24시간 | `StuckSagaDetector` 가 메트릭·경고로 가시화(비파괴, 자동 취소 없음) | ✅ 구현 |
-| 배차 대기(PENDING) | `desiredPickupAt` 30분 전 — 현재 설정값이 아니라 상수이며 두 곳에 중복(`carry-dispatch/.../domain/model/Dispatch.kt` `isExpired`: `minus(30, MINUTES)`, `DispatchJpaRepository.kt` `findExpiredPendingDispatches`: `INTERVAL '30 minutes'`; 프로퍼티로 뺀 것은 스윕 주기 `carry.dispatch.timeout-sweep-interval-ms` 뿐, [15-invariant-catalog §6.1](15-invariant-catalog.md)) | DispatchTimeout → 주문 취소 | ✅ 기존 |
+| 배차 대기(PENDING) | `desiredPickupAt` 기준 리드타임 전 — 설정값 `carry.dispatch.pickup-timeout-lead-minutes`(기본 30). 스위퍼가 이 값 하나로 조회 프리필터 임계 시각과 도메인 판정(`Dispatch.isExpired`)을 함께 구동한다(2026-09-18 일원화, 이전엔 도메인 상수와 SQL `INTERVAL` 에 이중화) | DispatchTimeout → 주문 취소 | ✅ 기존 |
 
 ---
 
