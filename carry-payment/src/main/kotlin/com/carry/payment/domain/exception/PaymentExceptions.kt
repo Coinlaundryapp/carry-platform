@@ -8,9 +8,10 @@ class InvoiceNotFoundException(identifier: String) : BusinessException(
     "청구서를 찾을 수 없습니다: $identifier",
 )
 
-class InvoiceAlreadyPaidException(invoiceId: Long) : BusinessException(
+/** 미저장 애그리거트(id=null)에서도 던질 수 있어야 하므로 식별자는 nullable 이다. */
+class InvoiceAlreadyPaidException(invoiceId: Long?) : BusinessException(
     ErrorCode.INVOICE_ALREADY_PAID,
-    "이미 결제된 청구서입니다: $invoiceId",
+    "이미 결제된 청구서입니다: ${invoiceId ?: "미저장"}",
 )
 
 class PaymentNotFoundException(identifier: String) : BusinessException(
@@ -18,9 +19,10 @@ class PaymentNotFoundException(identifier: String) : BusinessException(
     "결제를 찾을 수 없습니다: $identifier",
 )
 
-class PaymentAlreadyCompletedException(paymentId: Long) : BusinessException(
+/** 미저장 애그리거트(id=null)에서도 던질 수 있어야 하므로 식별자는 nullable 이다. */
+class PaymentAlreadyCompletedException(paymentId: Long?) : BusinessException(
     ErrorCode.PAYMENT_ALREADY_COMPLETED,
-    "이미 완료된 결제입니다: $paymentId",
+    "이미 완료된 결제입니다: ${paymentId ?: "미저장"}",
 )
 
 class PaymentGatewayException(message: String) : BusinessException(

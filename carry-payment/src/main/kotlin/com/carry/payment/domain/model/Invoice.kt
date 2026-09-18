@@ -61,6 +61,10 @@ class Invoice private constructor(
     }
 
     fun markPaid() {
+        // 이미 결제된 청구서만 전용 코드로 구분한다(409 동일). 클라이언트 재시도 가이드(docs/14)가
+        // INVOICE_ALREADY_PAID 를 "재시도 말고 최신 상태를 조회하라" 로 안내하므로, 일반 CONFLICT 로
+        // 뭉뚱그리면 그 안내가 닿지 않는다. 그 외 비정상 전이는 transitTo 의 일반 충돌로 남긴다.
+        if (_status == InvoiceStatus.PAID) throw InvoiceAlreadyPaidException(id)
         transitTo(InvoiceStatus.PAID)
     }
 

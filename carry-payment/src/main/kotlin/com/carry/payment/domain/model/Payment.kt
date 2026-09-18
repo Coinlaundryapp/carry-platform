@@ -89,6 +89,9 @@ class Payment private constructor(
     }
 
     fun markCompleted(pgTransactionId: String, now: Instant) {
+        // 중복 완료만 전용 코드로 구분한다(409 동일) — docs/14 가 PAYMENT_ALREADY_COMPLETED 를
+        // "이미 그렇게 됐으니 재시도 말고 상태를 조회하라" 로 안내한다. 그 외 전이는 일반 충돌.
+        if (_status == PaymentStatus.COMPLETED) throw PaymentAlreadyCompletedException(id)
         transitTo(PaymentStatus.COMPLETED)
         _pgTransactionId = pgTransactionId
         _paidAt = now

@@ -97,6 +97,31 @@ class OrderStatusTest {
     }
 
     @Test
+    fun `취소 가능한 상태는 모두 CANCELLED 로 전이 가능하다 - 두 표가 갈라지면 깨진다`() {
+        // Order.cancel 은 canTransitionTo 를 거치지 않고 isCancellableBy 만 본다(행위자별 규칙이라 의도된 설계).
+        // 그래서 두 표가 갈라지면 "취소는 되는데 전이표는 금지" 같은 모순이 조용히 생긴다.
+        // 여기서 한쪽 방향(취소 허용 ⇒ 전이 허용)을 전 상태·전 행위자에 대해 못박는다.
+        OrderStatus.entries.forEach { status ->
+            CancelledBy.entries.forEach { by ->
+                if (status.isCancellableBy(by)) {
+                    assertThat(status.canTransitionTo(OrderStatus.CANCELLED))
+                        .withFailMessage("$by 가 $status 를 취소할 수 있는데 전이표는 CANCELLED 를 막는다")
+                        .isTrue()
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `전이표가 CANCELLED 를 허용하는 상태 집합은 코디네이터가 취소 가능한 집합과 같다`() {
+        // 반대 방향. 코디/시스템은 완료 전 모든 상태에서 취소할 수 있으므로 두 집합이 정확히 일치해야 한다.
+        val transitionAllows = OrderStatus.entries.filter { it.canTransitionTo(OrderStatus.CANCELLED) }.toSet()
+        val coordinatorCanCancel = OrderStatus.entries.filter { it.isCancellableBy(CancelledBy.COORDINATOR) }.toSet()
+
+        assertThat(transitionAllows).isEqualTo(coordinatorCanCancel)
+    }
+
+    @Test
     fun `COMPLETED, CANCELLED 만 forward 사가가 비활성이다`() {
         assertThat(OrderStatus.COMPLETED.isForwardActive()).isFalse()
         assertThat(OrderStatus.CANCELLED.isForwardActive()).isFalse()

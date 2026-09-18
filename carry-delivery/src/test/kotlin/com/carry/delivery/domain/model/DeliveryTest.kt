@@ -1,5 +1,7 @@
 package com.carry.delivery.domain.model
 
+import com.carry.common.exception.BusinessException
+import com.carry.common.exception.ErrorCode
 import com.carry.delivery.domain.exception.DeliveryNotInExpectedStatusException
 import com.carry.delivery.domain.exception.DeliveryPhotoRequiredException
 import com.carry.delivery.domain.exception.DeliveryWeightRequiredException
@@ -53,6 +55,23 @@ class DeliveryTest {
 
     @Nested
     inner class Create {
+
+        @Test
+        fun `식별자가 0 이하면 내부 불변식 위반이다`() {
+            // 배달은 DispatchAcceptedEvent 소비 경로에서 만들어진다 — 깨진 식별자는 클라이언트가 아니라
+            // 이벤트를 만든 쪽의 버그라 INVALID_INPUT(400) 이 아니라 INTERNAL_ERROR(500) 다.
+            listOf(
+                { Delivery.create(orderId = 0L, dispatchId = 10L, carrierId = 100L, laundromatId = 200L, now = now) },
+                { Delivery.create(orderId = 1L, dispatchId = 0L, carrierId = 100L, laundromatId = 200L, now = now) },
+                { Delivery.create(orderId = 1L, dispatchId = 10L, carrierId = -1L, laundromatId = 200L, now = now) },
+                { Delivery.create(orderId = 1L, dispatchId = 10L, carrierId = 100L, laundromatId = 0L, now = now) },
+            ).forEach { create ->
+                assertThatThrownBy { create() }
+                    .isInstanceOf(BusinessException::class.java)
+                    .extracting { (it as BusinessException).errorCode }
+                    .isEqualTo(ErrorCode.INTERNAL_ERROR)
+            }
+        }
 
         @Test
         fun `배달을 생성하면 PICKUP_PENDING 상태이고 5개 스텝이 생성된다`() {

@@ -1,5 +1,7 @@
 package com.carry.dispatch.domain.model
 
+import com.carry.common.exception.BusinessException
+import com.carry.common.exception.ErrorCode
 import com.carry.dispatch.domain.exception.DispatchAlreadyAcceptedException
 import com.carry.dispatch.domain.exception.DispatchNotCancellableException
 import com.carry.dispatch.domain.exception.DispatchNotPendingException
@@ -38,6 +40,50 @@ class DispatchTest {
         assignedAt = if (status == DispatchStatus.ASSIGNED) now else null,
         acceptedAt = null, cancelReason = null, createdAt = now, updatedAt = now,
     )
+
+    @Nested
+    inner class Create {
+
+        // 배차는 OrderCreatedEvent 소비 경로에서 만들어진다 — 깨진 값은 클라이언트가 아니라 프로듀서 버그라
+        // INVALID_INPUT(400) 이 아니라 INTERNAL_ERROR(500) 로 드러나야 한다.
+
+        @Test
+        fun `주문 식별자가 0 이하면 내부 불변식 위반이다`() {
+            assertThatThrownBy {
+                Dispatch.create(orderId = 0L, laundromatId = 10L, areaCode = "GANGNAM", desiredPickupAt = pickupAt, now = now)
+            }
+                .isInstanceOf(BusinessException::class.java)
+                .extracting { (it as BusinessException).errorCode }
+                .isEqualTo(ErrorCode.INTERNAL_ERROR)
+        }
+
+        @Test
+        fun `세탁소 식별자가 0 이하면 내부 불변식 위반이다`() {
+            assertThatThrownBy {
+                Dispatch.create(orderId = 1L, laundromatId = -1L, areaCode = "GANGNAM", desiredPickupAt = pickupAt, now = now)
+            }.isInstanceOf(BusinessException::class.java)
+        }
+
+        @Test
+        fun `지역 코드가 비어 있으면 내부 불변식 위반이다`() {
+            // 비면 그 배차는 어떤 캐리어 구역과도 매칭되지 않으면서 생성만 성공한다.
+            assertThatThrownBy {
+                Dispatch.create(orderId = 1L, laundromatId = 10L, areaCode = " ", desiredPickupAt = pickupAt, now = now)
+            }.isInstanceOf(BusinessException::class.java)
+        }
+
+        @Test
+        fun `수거 희망 시각이 과거여도 생성된다 - 재배달 replay 를 막지 않기 위해 의도적으로 검사하지 않는다`() {
+            // Outbox 재배달·사가 재처리로 오래된 이벤트가 다시 소비될 수 있다. 여기서 거부하면
+            // 정상 replay 가 영구 실패(DLQ)한다. 만료 판정은 스위퍼가 리드타임으로 따로 한다.
+            val dispatch = Dispatch.create(
+                orderId = 1L, laundromatId = 10L, areaCode = "GANGNAM",
+                desiredPickupAt = now.minus(10, ChronoUnit.HOURS), now = now,
+            )
+
+            assertThat(dispatch.status).isEqualTo(DispatchStatus.PENDING)
+        }
+    }
 
     @Nested
     inner class ClaimByCarrier {

@@ -1,6 +1,8 @@
 package com.carry.payment.domain.model
 
 import com.carry.common.exception.BusinessException
+import com.carry.common.exception.ErrorCode
+import com.carry.payment.domain.exception.InvoiceAlreadyPaidException
 import com.carry.payment.domain.vo.ChargeType
 import com.carry.payment.domain.vo.InvoiceLineItem
 import com.carry.payment.domain.vo.InvoiceStatus
@@ -85,6 +87,28 @@ class InvoiceTest {
             val invoice = reconstitutedInvoice(InvoiceStatus.ISSUED)
             invoice.cancel()
             assertThat(invoice.status).isEqualTo(InvoiceStatus.CANCELLED)
+        }
+
+        @Test
+        fun `이미 PAID 인 청구서를 다시 markPaid 하면 전용 예외로 구분된다`() {
+            // 일반 CONFLICT 로 뭉뚱그리면 docs-14 의 "INVOICE_ALREADY_PAID 는 재시도 말고 상태 조회" 안내가
+            // 클라이언트에 닿지 않는다. 상태 코드는 409 로 동일하고 에러 코드만 구체화된다.
+            val invoice = reconstitutedInvoice(InvoiceStatus.PAID)
+
+            assertThatThrownBy { invoice.markPaid() }
+                .isInstanceOf(InvoiceAlreadyPaidException::class.java)
+                .extracting { (it as BusinessException).errorCode }
+                .isEqualTo(ErrorCode.INVOICE_ALREADY_PAID)
+        }
+
+        @Test
+        fun `PAID 가 아닌 비정상 전이는 일반 충돌로 남는다`() {
+            val cancelled = reconstitutedInvoice(InvoiceStatus.CANCELLED)
+
+            assertThatThrownBy { cancelled.markPaid() }
+                .isInstanceOf(BusinessException::class.java)
+                .extracting { (it as BusinessException).errorCode }
+                .isEqualTo(ErrorCode.CONFLICT)
         }
 
         @Test

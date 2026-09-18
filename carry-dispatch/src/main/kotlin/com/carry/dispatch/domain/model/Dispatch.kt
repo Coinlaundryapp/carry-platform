@@ -1,5 +1,6 @@
 package com.carry.dispatch.domain.model
 
+import com.carry.common.exception.checkInvariant
 import com.carry.dispatch.domain.exception.DispatchAlreadyAcceptedException
 import com.carry.dispatch.domain.exception.DispatchNotCancellableException
 import com.carry.dispatch.domain.exception.DispatchNotPendingException
@@ -33,7 +34,18 @@ class Dispatch private constructor(
     val cancelReason get() = _cancelReason
 
     companion object {
+        /**
+         * 배차는 사용자 요청이 아니라 `OrderCreatedEvent` 소비 경로에서 만들어진다. 그래서 여기서 깨진 값은
+         * 클라이언트 잘못이 아니라 **이벤트를 만든 쪽의 버그**이고, 400 이 아니라 500 이 맞다([checkInvariant]).
+         *
+         * ⚠️ `desiredPickupAt` 이 과거인지는 **의도적으로 검사하지 않는다.** Outbox 재배달·사가 재처리로
+         * 오래된 이벤트가 다시 소비될 수 있는데, 그때 생성을 거부하면 정상 replay 가 영구 실패(DLQ)한다.
+         * 만료 판정은 스위퍼가 리드타임으로 따로 한다.
+         */
         fun create(orderId: Long, laundromatId: Long, areaCode: String, desiredPickupAt: Instant, now: Instant): Dispatch {
+            checkInvariant(orderId > 0) { "배차의 주문 식별자가 유효하지 않습니다: $orderId" }
+            checkInvariant(laundromatId > 0) { "배차의 세탁소 식별자가 유효하지 않습니다: $laundromatId" }
+            checkInvariant(areaCode.isNotBlank()) { "배차의 지역 코드가 비어 있습니다 (orderId=$orderId)" }
             return Dispatch(
                 id = null, orderId = orderId, laundromatId = laundromatId,
                 _status = DispatchStatus.PENDING, _carrierId = null,
