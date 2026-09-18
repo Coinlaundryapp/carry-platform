@@ -1,12 +1,17 @@
 plugins {
-    kotlin("jvm") version "2.1.0" apply false
-    kotlin("plugin.spring") version "2.1.0" apply false
-    kotlin("plugin.jpa") version "2.1.0" apply false
+    kotlin("jvm") version "2.4.20" apply false
+    kotlin("plugin.spring") version "2.4.20" apply false
+    kotlin("plugin.jpa") version "2.4.20" apply false
     id("org.springframework.boot") version "3.4.1" apply false
     id("io.spring.dependency-management") version "1.1.7" apply false
 }
 
 allprojects {
+    // Spring Boot BOM(io.spring.dependency-management)이 kotlin.version 을 고정하므로,
+    // Kotlin 플러그인만 올리면 kotlin-build-tools-api 등이 옛 버전으로 끌려와
+    // "GRANULARITY is available only since 2.3.0" 으로 classpath 스냅샷 변환이 깨진다.
+    extra["kotlin.version"] = "2.4.20"
+
     group = "com.carry"
     version = "0.0.1-SNAPSHOT"
 
