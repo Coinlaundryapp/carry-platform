@@ -1,5 +1,6 @@
 package com.carry.payment.domain.model
 
+import com.carry.common.exception.checkInvariant
 import com.carry.payment.domain.vo.ChargeType
 import com.carry.payment.domain.vo.LedgerAccountType
 import com.carry.payment.domain.vo.LedgerEntryType
@@ -66,7 +67,8 @@ object LedgerEntries {
 
     private fun balanced(entries: List<LedgerEntry>): List<LedgerEntry> {
         val sum = entries.sumOf { it.amount }
-        require(sum == 0L) {
+        // 입력 검증(4xx)이 아니라 내부 일관성이다 — 여기까지 왔는데 Σ≠0 이면 산식이 틀린 것이므로 500.
+        checkInvariant(sum == 0L) {
             "원장 거래 그룹이 균형이 아닙니다(Σ=$sum) — invoice 총액과 라인아이템 합계 불일치"
         }
         return entries

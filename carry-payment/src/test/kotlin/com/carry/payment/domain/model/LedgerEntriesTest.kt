@@ -1,5 +1,7 @@
 package com.carry.payment.domain.model
 
+import com.carry.common.exception.BusinessException
+import com.carry.common.exception.ErrorCode
 import com.carry.payment.domain.vo.ChargeType
 import com.carry.payment.domain.vo.InvoiceLineItem
 import com.carry.payment.domain.vo.InvoiceStatus
@@ -79,9 +81,12 @@ class LedgerEntriesTest {
 
     @Test
     fun `인보이스 총액과 라인아이템 합계가 어긋나면 기입을 거부한다`() {
-        // 균형(Σ=0) 불변식 — 산식 드리프트가 원장에 스며드는 것을 차단
+        // 균형(Σ=0) 불변식 — 산식 드리프트가 원장에 스며드는 것을 차단.
+        // 클라이언트 입력 오류가 아니라 내부 일관성 위반이므로 500(INTERNAL_ERROR)이 의도된 매핑이다.
         assertThatThrownBy { LedgerEntries.forPayment(payment, anInvoice(totalAmount = 20000L), carrierId = 77L) }
-            .isInstanceOf(IllegalArgumentException::class.java)
+            .isInstanceOf(BusinessException::class.java)
             .hasMessageContaining("균형")
+            .extracting { (it as BusinessException).errorCode }
+            .isEqualTo(ErrorCode.INTERNAL_ERROR)
     }
 }
