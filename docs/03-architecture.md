@@ -1,7 +1,7 @@
 # 03. 아키텍처 원칙 및 모듈 구조
 
-> 최종 수정일: 2026-03-11
-> 상태: Draft
+> 최종 수정일: 2026-09-19 (패키지 구조 정정 2026-09-08, 모듈 트리 정정 2026-09-19)
+> 상태: 구현 — 원칙과 계층은 ArchUnit(`HexagonalArchitectureTest`·`ModuleBoundaryTest`)이 강제한다
 
 ---
 
@@ -35,9 +35,12 @@ carry-backend/
 │
 ├── carry-security/                          # JWT, SecurityConfig, 인증 필터
 │
+├── carry-audit/                             # 감사 로그 (운영 행위 기록)
+│
 ├── carry-order/                             # 주문 도메인
-├── carry-payment/                           # 결제 도메인
+├── carry-payment/                           # 결제 도메인 (청구·결제·환불·정산 원장·PG 대사)
 ├── carry-dispatch/                          # 배차 도메인
+├── carry-delivery/                          # 배달 도메인 (수거→세탁→건조→배달 단계)
 ├── carry-operation/                         # 운영 도메인
 ├── carry-user/                              # 회원 도메인
 ├── carry-laundromat/                        # 세탁소 도메인
@@ -48,8 +51,12 @@ carry-backend/
 ├── carry-price/                             # 가격 도메인
 ├── carry-service-availability/              # 서비스 가용성 도메인
 │
-└── carry-app/                               # @SpringBootApplication, 모듈 조립, 설정
+├── carry-app/                               # @SpringBootApplication, 모듈 조립, 크로스모듈 어댑터
+└── carry-loadtest/                          # Gatling 부하 시나리오
 ```
+
+> 정정(2026-09-19): 이전 판의 트리에는 `carry-delivery`·`carry-audit`·`carry-loadtest` 가 빠져 있었다.
+> 현재 서브모듈은 **24개**이며 원천은 `settings.gradle.kts` 다.
 
 ### 모듈 의존성 규칙
 
