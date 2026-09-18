@@ -63,9 +63,9 @@
 | # | 불변식 | 강제 위치 | 위반 시 예외 | 검증 상태 |
 |---|--------|-----------|--------------|-----------|
 | D-C1 | 생성 직후 상태는 `PENDING`, carrierId/assignedBy/assignedAt/acceptedAt/cancelReason 은 null | `Dispatch.kt:36-44` | 해당 없음 (구조적 보장) | 단위 테스트 있음 (`carry-dispatch/src/test/kotlin/com/carry/dispatch/domain/model/DispatchTest.kt` 의 fixture 가 `create` 사용) |
-| D-C2 | `Dispatch.create` 는 입력값 검증(`requireInput`)이 없다 | `Dispatch.kt:36-44` | 없음 | 해당 없음 |
+| D-C2 | `Dispatch.create` 는 구조적 불변식(orderId·laundromatId > 0, areaCode 비공백)을 검사한다. ⚠️`desiredPickupAt` 이 과거인지는 **의도적으로 검사하지 않는다** — Outbox 재배달 replay 가 영구 실패(DLQ)하기 때문 | `Dispatch.kt` `create` | `BusinessException(INTERNAL_ERROR)` — 이벤트 소비 경로라 클라이언트 잘못이 아니다 | 단위 테스트 있음 (`DispatchTest.Create`, 과거 시각 허용 케이스 포함) |
 | D-C3 | `CarrierArea.create` 는 `areaCode` 가 공백이면 거부한다 | `CarrierArea.kt:19` | `BusinessException(INVALID_INPUT)` | 단위 테스트 있음 (`CarrierAreaTest`) |
-| D-C4 | `PenaltyRecord` 는 생성 후 변경할 수 없다 (모든 필드 `val`, 변경 메서드 없음) | `PenaltyRecord.kt:6-22` | 해당 없음 | 해당 없음 |
+| D-C4 | `PenaltyRecord` 는 생성 후 변경할 수 없고(모든 필드 `val`), 식별자는 양수여야 한다 | `PenaltyRecord.kt` | `BusinessException(INTERNAL_ERROR)` (식별자) | 단위 테스트 있음 (`PenaltyRecordTest`) |
 
 ### 2.2 상태 전이표
 
@@ -209,7 +209,7 @@
 
 | # | 규칙 | 강제 위치 | 검증 상태 |
 |---|------|-----------|-----------|
-| V-R1 | `DeliveryStep.complete` 는 상태 가드가 없다. 이미 COMPLETED 인 스텝을 다시 완료하면 mediaIds 가 누적된다. 실제 보호는 `Delivery` 의 멱등 가드(목표 상태면 조기 반환)에 의존한다 | `DeliveryStep.kt:51-56`, `Delivery.kt:86,97,105,119` | 없음 (`DeliveryStep` 단독 테스트 없음, `DeliveryTest.kt` 에서 간접 확인) |
+| V-R1 | `DeliveryStep.complete` 는 **자연 멱등**이다 — 이미 COMPLETED 면 아무것도 바꾸지 않고 `false` 를 돌려준다(사진 중복 누적·완료시각 덮어쓰기 없음). `Delivery` 의 멱등 가드는 여전히 앞단에 있고, 스텝 자체에도 가드가 생겼다 | `DeliveryStep.kt` `complete`, `Delivery.kt` 각 전이 | 단위 테스트 있음 (`DeliveryStepTest` — 재완료 no-op·복원된 완료 스텝 포함) |
 | V-R2 | 멱등 no-op 전이에서는 이벤트를 재발행하지 않는다 (사가 이중 트리거 방지) | `carry-delivery/src/main/kotlin/com/carry/delivery/application/service/DeliveryCommandService.kt:42-43, 69-70, 89-90, 97-98, 110-111` | 서비스 단위 테스트 있음 (`carry-delivery/src/test/kotlin/com/carry/delivery/application/service/DeliveryCommandServiceTest.kt`) |
 | V-R3 | 행위자는 항상 배정된 캐리어 본인이며 소유 검증은 서비스가 한다 (`DeliveryNotOwnedException`) | `Delivery.kt:81-83` 주석, `DeliveryCommandService.kt` | 서비스 단위 테스트 있음 (동일 파일, 상세 케이스 미확인) |
 
@@ -242,19 +242,21 @@
 
 ## 6. 카탈로그가 드러낸 갭
 
-코드를 읽으면서 확인한 것 중, 문서·주석과 코드가 어긋나거나 한쪽에만 있는 항목이다. 발견한 사실을 적어 두는 것이 목적이며, 각 항목을 고칠지는 별도로 판단한다.
+코드를 읽으면서 확인한 것 중, 문서·주석과 코드가 어긋나거나 한쪽에만 있는 항목이다. 발견한 사실을 적어 두는 것이 목적이며, 각 항목을 고칠지는 별도로 판단했다.
+
+> **상태(2026-09-18): 15건 전부 처리됨.** 원문을 지우지 않고 취소선 + 해소 경위로 남긴다 — 무엇이 비어 있었고 **어떤 판단으로 닫았는지**가 이 문서의 값이기 때문이다. 일부는 "고치지 않기로" 결정한 것이며(6.2-6 의 `desiredPickupAt` 검사, 6.4-15 의 `cancel` 우회), 그 근거도 함께 적었다.
 
 ### 6.1 도메인에는 있는데 프로덕션 경로가 쓰지 않는 규칙
 
 1. ~~`Invoice.markOverdue()` 가 main 코드에서 호출되지 않고, ISSUED → OVERDUE 전이 규칙이 enum 과 JPQL 두 곳에 존재한다.~~ — **2026-09-18 해소.** `OverdueSweeper` 가 확정 전에 `invoice.markOverdue()` 로 도메인 전이표의 판정을 먼저 거치게 했다(실제 확정은 lost-update 방지를 위해 여전히 조건부 UPDATE 가 한다 — 이 설계는 유지). 두 표현이 어긋나는 것 자체는 `InvoiceOverdueGuardIntegrationTest` 가 막는다: 모든 `InvoiceStatus` 에 대해 조건부 UPDATE 의 수행 여부가 `canTransitionTo(OVERDUE)` 와 정확히 일치함을 단언한다.
 2. ~~`Dispatch.isExpired(now)` 가 main 코드에서 호출되지 않고, 30분 정책값이 도메인과 SQL 에 중복된다.~~ — **2026-09-18 해소.** 리드타임을 설정값(`carry.dispatch.pickup-timeout-lead-minutes`)으로 빼고 `DispatchTimeoutSweeper` 가 그 값 하나로 조회 임계 시각과 도메인 판정을 함께 구동한다. 조회는 프리필터, 판정은 `Dispatch.isExpired(now, lead)` 로 역할이 갈리고 경계(포함)도 일치시켰다. SQL 이 쥐고 있던 `CURRENT_TIMESTAMP` 도 주입된 `Clock` 으로 바뀌었다.
-3. `InvoiceAlreadyPaidException`, `PaymentAlreadyCompletedException` 이 `Invoice.kt:5`, `Payment.kt:5` 에 import 돼 있으나 두 파일 모두 사용하지 않는다. 실제 전이 위반은 모두 `checkState` 의 일반 `BusinessException(CONFLICT)` 로 나간다. Order/Dispatch/Delivery 는 전용 예외 클래스를 쓰는 것과 대비된다.
+3. ~~`InvoiceAlreadyPaidException`·`PaymentAlreadyCompletedException` 이 import 만 돼 있고 쓰이지 않는다.~~ — **2026-09-18 해소: 지우지 않고 살려 썼다.** 두 에러 코드는 [13-logging-policy](13-logging-policy.md)·[14-client-retry-guide](14-client-retry-guide.md) 가 이미 클라이언트 대응 코드로 문서화하고 있어서, 코드가 던지지 않으면 문서가 거짓말이 된다. `markPaid`·`markCompleted` 가 **이미 목표 상태일 때만** 전용 예외를 던지고(상태 코드는 409 로 동일), 그 외 비정상 전이는 `transitTo` 의 일반 충돌로 남긴다.
 
 ### 6.2 코드가 강제하지 않고 관례·주석에만 있는 규칙
 
 4. ~~원장 append-only (L-R4) 가 관례에만 의존한다.~~ — **2026-09-18 해소.** DB 트리거(V31)가 UPDATE/DELETE 를 거부하고, 리포지토리는 `Repository` 상속으로 바꿔 `saveAll`+집계만 노출한다. TRUNCATE 는 열어 두었다(행 트리거는 반응하지 않으며 테스트 격리가 쓴다 — 운영에서 막는 것은 권한 설계의 몫).
-5. `DeliveryStep.complete` (V-R1) 에 상태 가드가 없다. `Delivery` 의 멱등 조기 반환이 유일한 보호막이며, `DeliveryStep` 단독 테스트도 없다.
-6. `Dispatch.create`, `Delivery.create`, `PenaltyRecord.create` 에는 `requireInput` 이 하나도 없다 (예: `desiredPickupAt` 이 과거인지, id 가 양수인지). 상위 계층(DTO 검증)에서 걸러지는지는 본 문서 작성 시 확인하지 않았다 (미확인).
+5. ~~`DeliveryStep.complete` (V-R1) 에 상태 가드가 없다.~~ — **2026-09-18 해소.** 스텝 자체를 자연 멱등(이미 완료면 `false`, 무변경)으로 바꾸고 `DeliveryStepTest` 를 추가했다. 애그리거트 가드가 유일한 보호막이면 호출 경로가 하나 늘 때 증빙(사진·완료시각)이 조용히 덮어써진다.
+6. ~~`Dispatch.create`·`Delivery.create`·`PenaltyRecord.create` 에 입력 검증이 없다.~~ — **2026-09-18 해소(부분, 의도적).** 이 팩토리들은 사용자 입력이 아니라 **이벤트 소비 경로**에서 호출되므로 깨진 값은 클라이언트 잘못이 아니다 → `requireInput`(400) 이 아니라 `checkInvariant`(500)로 **구조적 불변식만** 검사한다(식별자 양수, `areaCode` 비공백). ⚠️**`desiredPickupAt` 이 과거인지는 검사하지 않기로 했다** — Outbox 재배달·사가 재처리로 오래된 이벤트가 다시 소비될 때 생성을 거부하면 정상 replay 가 영구 실패(DLQ)한다. 만료 판정은 스위퍼가 리드타임으로 따로 한다(PR #149 의 P0b 드롭과 같은 논리).
 7. ~~`LedgerEntries.balanced` (L-R1) 가 Kotlin 표준 `require` 를 써서 500 이 의도인지 누락인지 구분되지 않는다.~~ — **2026-09-18 해소.** `DomainValidation` 에 `checkInvariant`(→ 500 `INTERNAL_ERROR`)를 추가하고 `balanced` 가 이를 쓴다. 500 이 의도임이 코드에 드러나고, `GlobalExceptionHandler` 가 에러 코드 이름과 함께 error 레벨로 남긴다.
 
 ### 6.3 테스트가 없는 불변식
@@ -262,14 +264,14 @@
 8. ~~`OrderShippingAddress` 의 공백 검증 4건 (O-C4) 에 테스트가 없다.~~ — **2026-09-18 해소** (`OrderShippingAddressTest` — 4개 필드 × 공백 4종, 에러 코드까지 단언).
 9. ~~`CarrierArea.create` 의 `areaCode` 공백 검증 (D-C3) 을 호출하는 테스트가 없다.~~ — **2026-09-18 해소** (`CarrierAreaTest`).
 10. ~~`uq_billing_keys_active_per_customer` 부분 유니크 인덱스 (B-R1) 가 실제로 두 번째 ACTIVE 행을 거부하는지 확인하는 테스트가 없다.~~ — **2026-09-18 해소** (`BillingKeyActiveUniqueIntegrationTest` — 두 번째 ACTIVE 거부, INVALID 이력은 몇 개든 허용, 고객 간 독립).
-11. `PaymentTest.kt:101` 의 테스트명은 "FAILED 상태에서 다시 PENDING 으로 전이할 수 없다" 인데, `PaymentStatus.canTransitionTo` (`PaymentEnums.kt:24`) 는 FAILED → PENDING 을 허용하고 `markRetrying` 이 그 경로다. 테스트 본문은 `markCompleted` 를 검사하므로 동작은 맞고 이름만 오래됐다.
+11. ~~`PaymentTest` 의 테스트명이 전이표와 반대로 읽힌다.~~ — **2026-09-18 해소.** 이름을 "FAILED 에서 markCompleted 로 바로 완료할 수 없다 — 재과금은 markRetrying 경유" 로 고치고, 왜 이름이 틀렸는지를 주석으로 남겼다(FAILED → PENDING 은 허용되며 그 경로가 `markRetrying` 이다).
 
 ### 6.4 문서와 코드의 불일치
 
 12. ~~`docs/06-saga.md:256` 은 배차 대기 한도를 "정책값" 이라고 적었으나 코드에서는 30분이 두 곳에 하드코딩돼 있다.~~ — **2026-09-18 해소**(위 6.1-2 와 동일 변경). 이제 실제로 설정 프로퍼티다.
-13. `docs/03-architecture.md:91` 의 모듈 레이아웃은 `domain/event/` (모듈 내부 도메인 이벤트) 디렉터리를 보여주지만, 어떤 모듈에도 그런 패키지가 없다. 도메인 이벤트 계층이 없다는 결정은 [ADR-0008](adr/0008-no-domain-event-layer.md) 에 정리했다.
-14. `docs/05-cdc-outbox.md:209-210` 이 인용하는 `carry-event/.../DomainEvent.kt` 는 현재 저장소에 없다. ADR-0005:61 은 이를 "사용되지 않는 잔재" 로 기록했는데, 지금은 파일 자체가 제거된 상태라 문서 인용이 남아 있다.
-15. `Order.cancel` 은 `canTransitionTo` 를 거치지 않고 `isCancellableBy` 만 본다 (`Order.kt:113-119`). 현재는 두 표가 일치하지만(비종결 상태 전부 → CANCELLED 허용), `OrderStatusTest.kt:68` 이 이 일치를 간접적으로만 확인한다.
+13. ~~`docs/03-architecture.md` 의 모듈 레이아웃이 존재하지 않는 `domain/event/` 를 보여준다.~~ — **2026-09-18 해소**(#164 에서 트리를 실제 구조로 고치고 정정 표기를 남겼다). 도메인 이벤트 계층이 없다는 결정은 [ADR-0008](adr/0008-no-domain-event-layer.md) 에 정리했다.
+14. ~~`docs/05-cdc-outbox.md` 가 저장소에 없는 `carry-event/.../DomainEvent.kt` 를 인용한다.~~ — **2026-09-18 해소**(#164 에서 실제 계약(`EventPublisherPort` + 모듈별 `*Events.kt` + 컨슈머 측 `OutboxEventEnvelope`)으로 교체).
+15. ~~`Order.cancel` 이 `canTransitionTo` 를 우회해 두 표의 일치가 간접적으로만 확인된다.~~ — **2026-09-18 해소: 우회는 유지하고 일치를 테스트로 못박았다.** 취소는 행위자별 규칙이라 `isCancellableBy` 를 보는 것이 의도된 설계이고, 위험은 두 표가 갈라지는 것이다. `OrderStatusTest` 가 ①모든 상태×행위자에 대해 "취소 허용 ⇒ 전이표도 허용" ②전이표가 CANCELLED 를 허용하는 집합 == 코디네이터가 취소 가능한 집합 을 단언한다.
 
 ---
 
