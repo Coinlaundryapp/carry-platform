@@ -1,5 +1,6 @@
 package com.carry.delivery.domain.model
 
+import com.carry.common.exception.checkInvariant
 import com.carry.delivery.domain.exception.DeliveryNotInExpectedStatusException
 import com.carry.delivery.domain.exception.DeliveryPhotoRequiredException
 import com.carry.delivery.domain.exception.DeliveryWeightRequiredException
@@ -25,6 +26,10 @@ class Delivery private constructor(
     val steps: List<DeliveryStep> get() = _steps.toList()
 
     companion object {
+        /**
+         * 배달은 `DispatchAcceptedEvent` 소비 경로에서 만들어진다 — 사용자 입력이 아니라 이벤트 페이로드라,
+         * 여기서 깨진 식별자는 클라이언트가 아니라 **프로듀서의 버그**다(400 아님, [checkInvariant] 로 500).
+         */
         fun create(
             orderId: Long,
             dispatchId: Long,
@@ -32,6 +37,10 @@ class Delivery private constructor(
             laundromatId: Long,
             now: Instant,
         ): Delivery {
+            checkInvariant(orderId > 0) { "배달의 주문 식별자가 유효하지 않습니다: $orderId" }
+            checkInvariant(dispatchId > 0) { "배달의 배차 식별자가 유효하지 않습니다: $dispatchId" }
+            checkInvariant(carrierId > 0) { "배달의 캐리어 식별자가 유효하지 않습니다: $carrierId" }
+            checkInvariant(laundromatId > 0) { "배달의 세탁소 식별자가 유효하지 않습니다: $laundromatId" }
             val steps = mutableListOf(
                 DeliveryStep.createPending(DeliveryStepType.PICKUP),
                 DeliveryStep.createPending(DeliveryStepType.WEIGHING),
