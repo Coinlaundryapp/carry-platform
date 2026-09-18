@@ -12,11 +12,11 @@ dependencyManagement {
 dependencies {
     api("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-web")
-    implementation("com.auth0:java-jwt:4.4.0")
+    implementation("com.auth0:java-jwt:4.6.1")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation(project(":carry-common"))
 
-    testImplementation("io.mockk:mockk:1.13.13")
-    testImplementation("org.assertj:assertj-core:3.27.0")
+    testImplementation("io.mockk:mockk:1.14.11")
+    testImplementation("org.assertj:assertj-core:3.27.7")
     testImplementation("org.springframework:spring-test")
 }
