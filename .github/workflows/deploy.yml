@@ -20,9 +20,9 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Set up kubectl
-        uses: azure/setup-kubectl@v4
+        uses: azure/setup-kubectl@v5
       - name: Configure kubeconfig
         run: echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config
       - name: Update image tag
