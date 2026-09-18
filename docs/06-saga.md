@@ -1,6 +1,6 @@
 # 06. Saga 설계 — 주문 프로세스
 
-> 최종 수정일: 2026-07-12
+> 최종 수정일: 2026-09-19 (배차 만료 리드타임 설정값화 반영)
 > 상태: 구현 (결제·물리 흐름 완전 분리)
 > 보상 설계 상세: [superpowers/specs/2026-06-06-saga-compensation-design.md](superpowers/specs/2026-06-06-saga-compensation-design.md)
 > 빌링키 자동과금 설계: [superpowers/specs/2026-07-12-billing-key-autocharge-design.md](superpowers/specs/2026-07-12-billing-key-autocharge-design.md)
