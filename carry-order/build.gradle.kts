@@ -24,7 +24,7 @@ dependencies {
     implementation("org.springframework.security:spring-security-core")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     // @SchedulerLock 어노테이션(스위퍼 메서드). 락 프로바이더 결선은 carry-app.
-    implementation("net.javacrumbs.shedlock:shedlock-spring:5.16.0")
+    implementation("net.javacrumbs.shedlock:shedlock-spring:7.10.1")
 
     // OpenAPI
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0")
