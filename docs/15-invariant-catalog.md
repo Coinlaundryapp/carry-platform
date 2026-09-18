@@ -91,7 +91,7 @@
 | D-R2 | `rejectAssignment` 은 영속화된 배차(id != null)와 배정된 캐리어(carrierId != null)를 전제한다 (`!!`) | `Dispatch.kt:101,106` | 미확인 (전제 위반 케이스 테스트 없음, 위반 시 `NullPointerException`) |
 | D-R3 | 캐리어는 자기 구역(active `CarrierArea`)의 PENDING 배차만 선점할 수 있다. 이미 소유한 배차의 멱등 재시도는 구역 검사를 건너뛴다 | `DispatchCommandService.kt:45-50` | 단위 테스트 있음 (`DispatchCommandServiceTest.kt:122`, `CarrierNotInAreaException` 케이스) |
 | D-R4 | 수락·거절·소유 검증은 서비스 계층에서 `carrierId` 비교로 수행한다 (`DispatchNotOwnedException`) | `DispatchCommandService.kt:94-96, 122-124` | 단위 테스트 있음 (`DispatchCommandServiceTest.kt`) |
-| D-R5 | PENDING 배차는 `desiredPickupAt` 30분 전이 지나면 만료다 | 도메인 술어 `Dispatch.kt:134-136`; 실제 스위퍼 조회는 SQL `carry-dispatch/src/main/kotlin/com/carry/dispatch/adapter/outbound/persistence/repository/DispatchJpaRepository.kt:49` (`INTERVAL '30 minutes'`) | 단위 테스트 있음 (`DispatchTest.kt:290-310`, 도메인 술어만) |
+| D-R5 | PENDING 배차는 `desiredPickupAt` 에서 리드타임(`carry.dispatch.pickup-timeout-lead-minutes`, 기본 30분)을 뺀 시점이 지나면 만료다 | 판정은 도메인 술어 `Dispatch.isExpired(now, lead)` 하나뿐. 조회(`DispatchJpaRepository.findExpiredPendingDispatches(threshold)`)는 같은 값으로 계산한 임계 시각을 받는 프리필터이며, `DispatchTimeoutSweeper` 가 설정값과 주입된 `Clock` 으로 둘 다 구동한다 | 단위 테스트 있음 (`DispatchTest.IsExpired` 경계·리드타임 주입 포함, `DispatchTimeoutSweeperTest` 임계 계산·프리필터 통과분 재판정) |
 | D-R6 | 멱등 no-op(false) 전이에서는 이벤트 발행·메트릭을 억제한다 | `DispatchCommandService.kt:52-53, 165-166` | 단위 테스트 있음 (`DispatchCommandServiceTest.kt`) |
 
 ---
@@ -247,7 +247,7 @@
 ### 6.1 도메인에는 있는데 프로덕션 경로가 쓰지 않는 규칙
 
 1. `Invoice.markOverdue()` (`Invoice.kt:68-70`) 는 main 코드 어디서도 호출되지 않는다. 실제 OVERDUE 확정은 `InvoiceJpaRepository.markOverdueIfIssued` 의 조건부 UPDATE (`InvoiceJpaRepository.kt:24-29`) 가 애그리거트를 우회해서 수행한다. 동시성 이유는 주석에 있으나, 결과적으로 ISSUED → OVERDUE 전이 규칙이 enum 과 JPQL 두 곳에 존재한다.
-2. `Dispatch.isExpired(now)` (`Dispatch.kt:134-136`) 도 main 코드에서 호출되지 않는다. 스위퍼는 `DispatchJpaRepository.kt:49` 의 SQL(`INTERVAL '30 minutes'`) 로 만료 건을 조회한다. 30분이라는 정책값이 도메인과 SQL 에 중복돼 있어 한쪽만 바뀌면 어긋난다.
+2. ~~`Dispatch.isExpired(now)` 가 main 코드에서 호출되지 않고, 30분 정책값이 도메인과 SQL 에 중복된다.~~ — **2026-09-18 해소.** 리드타임을 설정값(`carry.dispatch.pickup-timeout-lead-minutes`)으로 빼고 `DispatchTimeoutSweeper` 가 그 값 하나로 조회 임계 시각과 도메인 판정을 함께 구동한다. 조회는 프리필터, 판정은 `Dispatch.isExpired(now, lead)` 로 역할이 갈리고 경계(포함)도 일치시켰다. SQL 이 쥐고 있던 `CURRENT_TIMESTAMP` 도 주입된 `Clock` 으로 바뀌었다.
 3. `InvoiceAlreadyPaidException`, `PaymentAlreadyCompletedException` 이 `Invoice.kt:5`, `Payment.kt:5` 에 import 돼 있으나 두 파일 모두 사용하지 않는다. 실제 전이 위반은 모두 `checkState` 의 일반 `BusinessException(CONFLICT)` 로 나간다. Order/Dispatch/Delivery 는 전용 예외 클래스를 쓰는 것과 대비된다.
 
 ### 6.2 코드가 강제하지 않고 관례·주석에만 있는 규칙
@@ -266,7 +266,7 @@
 
 ### 6.4 문서와 코드의 불일치
 
-12. `docs/06-saga.md:256` 은 배차 대기 한도를 "정책값" 이라고 적었으나, 코드에서는 30분이 `Dispatch.kt:136` 과 `DispatchJpaRepository.kt:49` 에 하드코딩돼 있다. 설정 프로퍼티로 뺀 것은 스윕 주기(`carry.dispatch.timeout-sweep-interval-ms`)뿐이다.
+12. ~~`docs/06-saga.md:256` 은 배차 대기 한도를 "정책값" 이라고 적었으나 코드에서는 30분이 두 곳에 하드코딩돼 있다.~~ — **2026-09-18 해소**(위 6.1-2 와 동일 변경). 이제 실제로 설정 프로퍼티다.
 13. `docs/03-architecture.md:91` 의 모듈 레이아웃은 `domain/event/` (모듈 내부 도메인 이벤트) 디렉터리를 보여주지만, 어떤 모듈에도 그런 패키지가 없다. 도메인 이벤트 계층이 없다는 결정은 [ADR-0008](adr/0008-no-domain-event-layer.md) 에 정리했다.
 14. `docs/05-cdc-outbox.md:209-210` 이 인용하는 `carry-event/.../DomainEvent.kt` 는 현재 저장소에 없다. ADR-0005:61 은 이를 "사용되지 않는 잔재" 로 기록했는데, 지금은 파일 자체가 제거된 상태라 문서 인용이 남아 있다.
 15. `Order.cancel` 은 `canTransitionTo` 를 거치지 않고 `isCancellableBy` 만 본다 (`Order.kt:113-119`). 현재는 두 표가 일치하지만(비종결 상태 전부 → CANCELLED 허용), `OrderStatusTest.kt:68` 이 이 일치를 간접적으로만 확인한다.

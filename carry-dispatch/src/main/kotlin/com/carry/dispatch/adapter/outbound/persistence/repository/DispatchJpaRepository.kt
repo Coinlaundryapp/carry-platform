@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
+import java.time.Instant
 
 interface DispatchJpaRepository : JpaRepository<DispatchJpaEntity, Long> {
 
@@ -44,10 +45,14 @@ interface DispatchJpaRepository : JpaRepository<DispatchJpaEntity, Long> {
         pageable: Pageable,
     ): List<DispatchJpaEntity>
 
+    /**
+     * 만료 후보 프리필터. 임계 시각은 호출자가 주입한다 — 예전에는
+     * `CURRENT_TIMESTAMP + INTERVAL '30 minutes'` 로 SQL 이 정책값과 시계를 함께 쥐고 있어
+     * 도메인(`Dispatch.isExpired`)과 값이 이중화되고, 주입된 Clock 도 무시됐다.
+     */
     @Query(
-        value = "SELECT d.* FROM dispatch_dispatches d WHERE d.status = 'PENDING' " +
-            "AND d.desired_pickup_at <= CURRENT_TIMESTAMP + INTERVAL '30 minutes'",
-        nativeQuery = true,
+        "SELECT d FROM DispatchJpaEntity d WHERE d.status = com.carry.dispatch.domain.vo.DispatchStatus.PENDING " +
+            "AND d.desiredPickupAt <= :threshold",
     )
-    fun findExpiredPendingDispatches(): List<DispatchJpaEntity>
+    fun findExpiredPendingDispatches(@Param("threshold") threshold: Instant): List<DispatchJpaEntity>
 }
