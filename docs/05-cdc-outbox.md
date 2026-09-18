@@ -205,27 +205,49 @@ Debezium의 Outbox Event Router SMT는 outbox 테이블의 row를 다음과 같�
 
 ## 이벤트 계약 (carry-event 모듈)
 
-```kotlin
-// carry-event/src/main/kotlin/com/carry/event/DomainEvent.kt
-data class DomainEvent<T>(
-    val eventId: String,          // UUID
-    val eventType: String,        // "OrderCreated"
-    val aggregateId: String,      // 주문 ID
-    val aggregateType: String,    // "Order"
-    val payload: T,
-    val occurredAt: Instant,
-    val traceId: String?          // OTel trace context 전파
-)
+`carry-event` 에는 공통 이벤트 봉투(envelope) 타입이 없다. 모듈은 `EventPublisherPort` 로 payload 만 넘기고,
+봉투 필드(id·aggregateType·aggregateId·eventType·traceId·createdAt)는 Outbox 행 → Debezium → 컨슈머 쪽
+`OutboxEventEnvelope`(carry-infra-kafka) 에서 합성된다([ADR-0008](adr/0008-no-domain-event-layer.md)).
 
-// carry-event/src/main/kotlin/com/carry/event/order/OrderCreatedEvent.kt
+```kotlin
+// carry-event/src/main/kotlin/com/carry/event/port/EventPublisherPort.kt
+interface EventPublisherPort {
+    fun publish(
+        aggregateType: String,    // "Order"
+        aggregateId: String,      // 주문 ID
+        eventType: String,        // "OrderCreatedEvent"
+        payload: Any,             // 아래 이벤트 data class
+        traceId: String? = null,  // OTel trace context 전파
+    )
+}
+
+// carry-event/src/main/kotlin/com/carry/event/order/OrderEvents.kt
 data class OrderCreatedEvent(
     val orderId: Long,
     val customerId: Long,
     val laundromatId: Long,
-    val totalAmount: Long,
-    val items: List<OrderItemSummary>
+    val laundryItemType: String,
+    val selectedOptions: List<SelectedOptionDto>,
+    val shippingAddress: ShippingAddressDto,
+    val desiredPickupAt: Instant,
+    val desiredDeliveryAt: Instant,
+    val areaCode: String,
+)
+
+// carry-infra-kafka/src/main/kotlin/com/carry/infra/kafka/consumer/OutboxEventEnvelope.kt (컨슈머 측 봉투)
+data class OutboxEventEnvelope(
+    val id: String,
+    val aggregateType: String,
+    val aggregateId: String,
+    val eventType: String,
+    val payload: String,          // 위 이벤트의 JSON
+    val traceId: String? = null,
+    val createdAt: String? = null,
 )
 ```
+
+> 2026-09-08 정정: 이전 판이 인용한 `carry-event/.../DomainEvent.kt` 와 `OrderCreatedEvent.kt`(`totalAmount`, `items`) 는 현재 저장소에 없다.
+> 이벤트는 모듈별 `*Events.kt` 파일에 모여 있다(`order/OrderEvents.kt`, `dispatch/DispatchEvents.kt`, `delivery/DeliveryEvents.kt`, `payment/PaymentEvents.kt`, `review/ReviewEvents.kt`).
 
 ---
 

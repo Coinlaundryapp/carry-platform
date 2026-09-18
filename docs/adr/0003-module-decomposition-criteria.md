@@ -49,16 +49,19 @@ carry-platform은 24개의 Gradle 서브모듈로 구성된다(`settings.gradle.
    `carry-event`·필요한 `carry-infra-*`만 의존하고, **다른 도메인 모듈을 `project(...)`로 의존하지 않는다.**
 
 3. **크로스모듈 동기 조회는 쿼리 포트로** — 소비자 모듈이 자신의 `application/port/outbound`에
-   `UserQueryPort`·`LaundromatQueryPort`·`ServiceAvailabilityQueryPort`(carry-order 정의)·
-   `PaymentQueryPort`(carry-delivery 정의)를 정의하고, **구현은 `carry-app`의 `*QueryPortAdapter`가**
+   `UserQueryPort`·`LaundromatQueryPort`·`ServiceAvailabilityQueryPort`·`BillingQueryPort`(carry-order 정의)·
+   `OrderStateQueryPort`(carry-payment 정의)를 정의하고, **구현은 `carry-app`의 `*QueryPortAdapter`가**
    공급자 모듈의 인바운드 UseCase에 위임한다. 소비자는 공급자 모듈의 존재를 모른다.
+   > 정정(2026-09-08): 원문의 `PaymentQueryPort`(carry-delivery 정의)는 현재 코드에 없다. carry-delivery 의
+   > outbound 포트는 `DeliveryPersistencePort` 뿐이며, 실제 쿼리 포트 5개는 위와 같다. 발견 경위는 [16-context-map §5.9](../16-context-map.md) 참조.
 
 4. **모듈 내부는 헥사고날 3계층 일관** — 모든 도메인 모듈이 `domain`(모델·VO·예외) /
    `application`(port.inbound·port.outbound·service) / `adapter`(inbound.rest·inbound.kafka·
    outbound.persistence) 구조를 따르며 `HexagonalArchitectureTest`로 강제.
 
 5. **`carry-app`이 유일한 의존 수렴점** — 모든 모듈을 의존·스캔하고, 공통 빈(`ClockConfig`,
-   `OpenApiConfig`)과 4개 `*QueryPortAdapter`를 보유. 통합 테스트(Saga IT·계약 테스트·
+   `OpenApiConfig`)과 5개 `*QueryPortAdapter`를 보유(정정 2026-09-08: 원문 4개 → `BillingQueryPortAdapter`·
+   `LaundromatQueryPortAdapter`·`OrderStateQueryPortAdapter`·`ServiceAvailabilityQueryPortAdapter`·`UserQueryPortAdapter`). 통합 테스트(Saga IT·계약 테스트·
    `ModuleBoundaryTest`)도 여기서만 실행.
 
 ## 결과
@@ -113,7 +116,7 @@ carry-platform은 24개의 Gradle 서브모듈로 구성된다(`settings.gradle.
 ## 참조
 
 - `settings.gradle.kts`
-- `carry-app/src/main/kotlin/com/carry/app/adapter/` (`UserQueryPortAdapter` 등 4개)
+- `carry-app/src/main/kotlin/com/carry/app/adapter/` (`UserQueryPortAdapter` 등 5개 — 정정 2026-09-08, 원문 4개)
 - `carry-order/src/main/kotlin/com/carry/order/application/port/outbound/UserQueryPort.kt`
 - `carry-app/src/test/kotlin/.../ModuleBoundaryTest`
 - 관련: [ADR-0001 도메인/JPA 분리](0001-domain-jpa-separation.md),

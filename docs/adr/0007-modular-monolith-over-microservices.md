@@ -45,8 +45,10 @@ carry-platform 은 24개 모듈의 **모듈러 모놀리스**다 — 모듈 경�
 현재 구조 덕분에 다음 모듈은 **최소 변경으로** 독립 서비스화할 수 있다(분리 비용이 낮음):
 
 - **`carry-payment`**: 외부 PG 연동·보안 격리 요구가 가장 크고, 이미 이벤트(`PaymentCompletedEvent`
-  등)로만 사가에 참여한다. 동기 결합은 `PaymentQueryPort`(carry-delivery 소비) 하나뿐 → REST/gRPC
-  어댑터로 교체 가능.
+  등)로만 사가에 참여한다. 동기 결합은 `BillingQueryPort`(carry-order 가 정의·소비, Payment 가 공급)와
+  `OrderStateQueryPort`(carry-payment 가 정의·소비, Order 가 공급) 둘 → REST/gRPC 어댑터로 교체 가능.
+  > 정정(2026-09-08): 원문은 "`PaymentQueryPort`(carry-delivery 소비) 하나뿐" 이었으나 그 포트는 코드에 없다.
+  > 실제 어댑터는 `carry-app/.../adapter/BillingQueryPortAdapter.kt`·`OrderStateQueryPortAdapter.kt`. [16-context-map §5.9](../16-context-map.md) 참조.
 - **`carry-notification`**: 순수 이벤트 소비자(비동기). 동기 호출 진입점이 없어 가장 깨끗하게 분리된다.
 
 분리 시 공통 작업: 모듈의 in-process 이벤트 소비를 독립 컨슈머 그룹의 별도 배포로 전환하고,
