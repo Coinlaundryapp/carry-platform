@@ -36,8 +36,8 @@ dependencies {
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0")
 
     // 분산 스케줄러 락(멀티 인스턴스에서 @Scheduled 1회 실행). 락 프로바이더는 Redis(prod) / NoOp(test·단일).
-    implementation("net.javacrumbs.shedlock:shedlock-spring:5.16.0")
-    implementation("net.javacrumbs.shedlock:shedlock-provider-redis-spring:5.16.0")
+    implementation("net.javacrumbs.shedlock:shedlock-spring:7.10.1")
+    implementation("net.javacrumbs.shedlock:shedlock-provider-redis-spring:7.10.1")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.security:spring-security-test")
