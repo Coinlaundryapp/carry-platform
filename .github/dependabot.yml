@@ -1,8 +1,14 @@
 version: 2
+
+# ⚠️ target-branch 는 필수다. Dependabot 은 기본값으로 **기본 브랜치(main)** 에 PR 을 연다.
+# 이 저장소의 통합 브랜치는 develop 이라(main 은 승격 PR 로만 따라온다), 그대로 두면 의존성 업데이트가
+# main 에만 들어가고 develop 은 계속 옛 버전으로 빌드된다 — 실제로 Gradle 9 업그레이드(#181)가 그렇게
+# main 에만 들어갔다. 두 ecosystem 모두 develop 을 base 로 고정한다.
 updates:
   # Gradle 의존성(전 모듈 — 루트에서 버전 카탈로그/BOM 관리) 주간 점검.
   - package-ecosystem: "gradle"
     directory: "/"
+    target-branch: "develop"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -19,6 +25,7 @@ updates:
   # GitHub Actions 워크플로 액션 버전 주간 점검.
   - package-ecosystem: "github-actions"
     directory: "/"
+    target-branch: "develop"
     schedule:
       interval: "weekly"
       day: "monday"

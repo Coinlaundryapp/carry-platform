@@ -21,7 +21,7 @@ dependencies {
     api("io.micrometer:micrometer-tracing")
 
     // Structured JSON logging
-    api("net.logstash.logback:logstash-logback-encoder:8.0")
+    api("net.logstash.logback:logstash-logback-encoder:9.0")
 
     testImplementation("org.junit.jupiter:junit-jupiter:5.11.3")
     testImplementation("org.assertj:assertj-core:3.27.0")
