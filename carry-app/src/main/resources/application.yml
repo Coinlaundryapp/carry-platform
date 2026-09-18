@@ -24,6 +24,13 @@ spring:
       max-lifetime: 1800000             # 30분 (DB 측 wait_timeout보다 짧게)
       leak-detection-threshold: 5000    # 5초
       pool-name: CarryHikariPool
+      # connection-timeout 은 커넥션 '획득'에만 적용된다. 이미 획득한 커넥션의 소켓 읽기는
+      # 드라이버 소관이며 pgjdbc 기본값이 0(무한)이라, DB 경로가 블랙홀이 되면 요청 스레드가
+      # 영원히 점유된다(2026-09-04 장애 주입 실측: 3시간 43분 미반환).
+      # URL 이 프로파일별 환경변수라 data-source-properties 로 준다 — 전 프로파일·테스트 공통 적용.
+      data-source-properties:
+        socketTimeout: 10      # 초. OLTP 경로에서 10초 넘는 단일 read 는 병리로 본다.
+        tcpKeepAlive: true     # 조용히 끊긴 피어를 감지
 
   jpa:
     hibernate:
