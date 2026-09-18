@@ -100,4 +100,4 @@ V1은 두 가지 형태로 존재한다:
 | [15-invariant-catalog.md](15-invariant-catalog.md) | 불변식 카탈로그 (애그리거트·사가·스위퍼 규칙, 코드에서 역추출) |
 | [16-context-map.md](16-context-map.md) | 컨텍스트 맵 (바운디드 컨텍스트 관계·DDD 라벨) |
 | [17-ubiquitous-language.md](17-ubiquitous-language.md) | 유비쿼터스 언어 사전 (용어·불일치 목록) |
-| [adr/](adr/) | 아키텍처 의사결정 기록 (ADR-0001~0008) |
+| [adr/](adr/) | 아키텍처 의사결정 기록 (ADR-0001~0009) |
