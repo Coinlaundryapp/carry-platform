@@ -23,6 +23,6 @@ dependencies {
     // Structured JSON logging
     api("net.logstash.logback:logstash-logback-encoder:9.0")
 
-    testImplementation("org.junit.jupiter:junit-jupiter:5.11.3")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
     testImplementation("org.assertj:assertj-core:3.27.7")
 }

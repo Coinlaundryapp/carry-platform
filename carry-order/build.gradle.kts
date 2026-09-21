@@ -34,6 +34,6 @@ dependencies {
     testImplementation("com.tngtech.archunit:archunit-junit5:1.5.0")
 
     // 계약/Fake는 mockk 금지 — junit5 + assertj 만
-    testFixturesApi("org.junit.jupiter:junit-jupiter:5.11.3")
+    testFixturesApi("org.junit.jupiter:junit-jupiter:6.1.3")
     testFixturesApi("org.assertj:assertj-core:3.27.7")
 }
