@@ -31,7 +31,7 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
       - name: Generate dependency graph
-        uses: gradle/actions/dependency-submission@v4
+        uses: gradle/actions/dependency-submission@v6
         with:
           # 리포 Dependency graph 기능이 켜지면 generate-and-submit 로 전환.
           dependency-graph: generate-and-upload
