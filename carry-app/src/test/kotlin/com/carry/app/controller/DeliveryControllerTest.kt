@@ -184,6 +184,28 @@ class DeliveryControllerTest {
     }
 
     @Nested
+    inner class StartDelivery {
+
+        // LAUNDRY_COMPLETE → DELIVERY_PENDING 은 상태기계의 필수 단계라 HTTP 로 닿아야 한다.
+        // 이 엔드포인트가 없던 동안 캐리어는 배달을 끝낼 수 없었다(`/delivery` 가 400 DELIVERY_INVALID_STATUS).
+        @Test
+        fun `배달 출발 요청 시 요청한 캐리어로 전이하고 200을 반환한다`() {
+            every { deliveryCommandUseCase.startDelivery(any(), any()) } returns
+                sampleDelivery(status = DeliveryStatus.DELIVERY_PENDING)
+
+            mockMvc.post("/api/v2/deliveries/1/start-delivery") {
+                with(carrierAuth(userId = 100L))
+                with(csrf())
+            }.andExpect {
+                status { isOk() }
+                jsonPath("$.data.status") { value("DELIVERY_PENDING") }
+            }
+
+            verify { deliveryCommandUseCase.startDelivery(1L, 100L) }
+        }
+    }
+
+    @Nested
     inner class CompleteDelivery {
 
         @Test

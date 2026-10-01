@@ -138,7 +138,7 @@ carry-app                 조립 + 크로스모듈 쿼리 포트 어댑터 5종 
 | `carry-order` | `POST /api/v2/orders` · `GET /api/v2/orders/my` |
 | `carry-payment` | `POST /api/v2/billing-keys` · `GET /api/v2/payments/{orderId}/invoice` |
 | `carry-dispatch` | `GET /api/v2/dispatches/available` · `POST /api/v2/dispatches/{dispatchId}/claim` |
-| `carry-delivery` | `POST /api/v2/deliveries/{deliveryId}/pickup` · `.../washing` · `.../drying` · `.../delivery` |
+| `carry-delivery` | `POST /api/v2/deliveries/{deliveryId}/pickup` · `.../washing` · `.../drying` · `.../start-delivery` · `.../delivery` |
 | `carry-user` | `GET /api/v2/users/me` · `POST /api/v2/shipping-addresses` |
 | `carry-laundromat` | `GET /api/v2/laundromats`(PostGIS 인근 검색) |
 | `carry-review` | `POST /api/v2/reviews` · `GET /api/v2/reviews/laundromat/{laundromatId}/statistics` |
@@ -146,7 +146,7 @@ carry-app                 조립 + 크로스모듈 쿼리 포트 어댑터 5종 
 
 코디네이터 전용 경로는 `/api/v2/coordinator/*`, 관리자 전용은 `/api/v2/admin/*` 이며 역할 가드가
 걸려 있다(`RoleGuardTest` 가 올바른 역할·잘못된 역할 양방향으로 확인한다).
-전체 70개 엔드포인트는 [openapi-v2.json](docs/api/openapi-v2.json) 에 고정돼 있다.
+전체 71개 엔드포인트는 [openapi-v2.json](docs/api/openapi-v2.json) 에 고정돼 있다.
 
 ---
 
