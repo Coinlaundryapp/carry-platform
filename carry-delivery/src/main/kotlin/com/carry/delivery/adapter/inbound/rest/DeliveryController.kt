@@ -96,7 +96,18 @@ class DeliveryController(
         return ResponseEntity.ok(ApiResponse.success(DeliveryResponse.from(delivery)))
     }
 
-    @Operation(summary = "배달 완료", description = "배달 완료 사진과 함께 배달 완료를 기록합니다")
+    @Operation(summary = "배달 출발", description = "세탁 완료(LAUNDRY_COMPLETE)된 세탁물을 싣고 배달을 시작합니다(→ DELIVERY_PENDING). 배달 완료의 선행 단계입니다")
+    @ApiResponses(value = [SwaggerApiResponse(responseCode = "200", description = "배달 출발 처리 성공")])
+    @PostMapping("/{deliveryId}/start-delivery")
+    fun startDelivery(
+        @Parameter(hidden = true) @AuthenticationPrincipal userId: Long,
+        @PathVariable deliveryId: Long,
+    ): ResponseEntity<ApiResponse<DeliveryResponse>> {
+        val delivery = deliveryCommandUseCase.startDelivery(deliveryId, userId)
+        return ResponseEntity.ok(ApiResponse.success(DeliveryResponse.from(delivery)))
+    }
+
+    @Operation(summary = "배달 완료", description = "배달 완료 사진과 함께 배달 완료를 기록합니다. 배달 출발(DELIVERY_PENDING) 이후에만 가능합니다")
     @ApiResponses(value = [SwaggerApiResponse(responseCode = "200", description = "배달 완료 처리 성공")])
     @PostMapping("/{deliveryId}/delivery")
     fun completeDelivery(

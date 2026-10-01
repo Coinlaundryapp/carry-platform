@@ -15,7 +15,10 @@ URL="${OPENAPI_URL:-http://localhost:8080/api-docs}"
 OUT="docs/api/openapi-v2.json"
 
 mkdir -p docs/api
-curl -sf "$URL" | python -m json.tool > "$OUT"
+# ⚠️ -X utf8 필수: 없으면 Windows 의 python 이 파이프 stdin 을 로캘 인코딩(cp949)으로 읽어 한국어가
+# 전부 깨진 채(mojibake) 저장된다 — 2026-06-14 첫 내보내기부터 10-01 까지 그렇게 커밋돼 있었다.
+# --no-ensure-ascii: 한국어를 \uXXXX 이스케이프 대신 원문으로 남겨 diff 를 사람이 읽을 수 있게 한다.
+curl -sf "$URL" | python -X utf8 -m json.tool --no-ensure-ascii > "$OUT"
 
-PATHS=$(python -c "import json; print(len(json.load(open('$OUT'))['paths']))")
+PATHS=$(python -X utf8 -c "import json; print(len(json.load(open('$OUT'))['paths']))")
 echo "✓ $OUT — paths=$PATHS"
