@@ -30,7 +30,8 @@ carry-delivery/
 | POST   | `/api/v2/deliveries/{id}/pickup`      | 수거 완료     |
 | POST   | `/api/v2/deliveries/{id}/washing`     | 세탁 시작     |
 | POST   | `/api/v2/deliveries/{id}/drying`      | 건조 완료     |
-| POST   | `/api/v2/deliveries/{id}/delivery`    | 배달 완료     |
+| POST   | `/api/v2/deliveries/{id}/start-delivery` | 배달 출발 (→ DELIVERY_PENDING) |
+| POST   | `/api/v2/deliveries/{id}/delivery`    | 배달 완료 (배달 출발 이후) |
 
 ## 주요 도메인 모델
 
