@@ -7,8 +7,8 @@ import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import org.testcontainers.containers.Network
-import org.testcontainers.containers.PostgreSQLContainer
-import org.testcontainers.containers.ToxiproxyContainer
+import org.testcontainers.postgresql.PostgreSQLContainer
+import org.testcontainers.toxiproxy.ToxiproxyContainer
 import org.testcontainers.utility.DockerImageName
 
 /**
