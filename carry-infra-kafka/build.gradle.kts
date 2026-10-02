@@ -25,8 +25,8 @@ dependencies {
     testImplementation("org.springframework.kafka:spring-kafka-test")
     testImplementation("org.awaitility:awaitility:4.3.0")
     // 멀티브로커 HA 무손실 IT — 3-node KRaft 클러스터 수동 와이어링(GenericContainer).
-    testImplementation("org.testcontainers:testcontainers:1.21.4")
-    testImplementation("org.testcontainers:junit-jupiter:1.21.4")
+    testImplementation("org.testcontainers:testcontainers:2.0.5")
+    testImplementation("org.testcontainers:testcontainers-junit-jupiter:2.0.5")
     testImplementation("org.apache.kafka:kafka-clients:3.8.1")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
