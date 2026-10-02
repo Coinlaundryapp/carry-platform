@@ -31,3 +31,9 @@ updates:
       day: "monday"
     commit-message:
       prefix: "ci"
+    ignore:
+      # gradle/actions v6 부터 캐싱이 독점 컴포넌트(gradle-actions-caching)로 분리돼, 올리는 것 자체가
+      # Gradle Terms of Use 동의가 된다(MIT 아님). 약관 동의 없이 v5 에 머문다(2026-10-02 결정, #204).
+      # v5.x 의 minor·patch 는 계속 받는다. 다시 검토할 때 이 항목을 지운다.
+      - dependency-name: "gradle/actions"
+        versions: [">= 6"]
