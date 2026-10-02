@@ -21,6 +21,14 @@ spring:
 
   kafka:
     bootstrap-servers: localhost:0
+    # ⚠️ Kafka 4 클라이언트는 bootstrap 실패 시 기본으로 재부트스트랩한다(metadata.recovery.strategy=rebootstrap,
+    # Kafka 3 의 기본은 none). localhost:0 은 연결이 즉시 실패해 그 재시도가 백오프 없는 고속 루프가 되고, 테스트
+    # 하나에 "Rebootstrapping" 로그가 8만 줄씩 쌓여 4코어 CI 에서 carry-app 테스트가 30분 안에 끝나지 못했다.
+    # 브로커 없는 테스트 프로필에선 Kafka 3 의 동작으로 되돌리고, 기동 시 토픽 생성(KafkaAdmin)도 끈다.
+    properties:
+      metadata.recovery.strategy: none
+    admin:
+      auto-create: false
     listener:
       auto-startup: false
     consumer:

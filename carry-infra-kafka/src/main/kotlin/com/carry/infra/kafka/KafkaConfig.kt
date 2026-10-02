@@ -4,11 +4,13 @@ import com.carry.common.metrics.MetricsPort
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.TopicPartition
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.boot.kafka.autoconfigure.ConcurrentKafkaListenerContainerFactoryConfigurer
 import org.springframework.kafka.annotation.EnableKafka
 import org.springframework.kafka.config.ContainerCustomizer
+import org.springframework.kafka.config.KafkaListenerEndpointRegistry
 import org.springframework.kafka.core.KafkaTemplate
 import org.springframework.kafka.listener.ConcurrentMessageListenerContainer
 import org.springframework.kafka.listener.ConsumerRecordRecoverer
@@ -64,6 +66,25 @@ class KafkaConfig {
                     "exception" to rootCause.javaClass.simpleName,
                 )
             }
+
+        /**
+         * 컨텍스트가 재시작(Lifecycle stop → start)돼도 리스너의 autoStartup 을 지키게 한다.
+         *
+         * 레지스트리 기본값(alwaysStartAfterRefresh=true)은 refresh 이후의 start() 에서 autoStartup 을 무시하고
+         * 컨테이너를 전부 시작한다. Spring Framework 7 의 테스트 컨텍스트 캐시는 쓰지 않는 컨텍스트를 일시정지했다가
+         * 재사용할 때 restart 하므로, 브로커가 없는 테스트 프로필(auto-startup=false)에서 컨슈머 수십 개가 매번
+         * 떴다 닫혔다 — 그 churn 이 JDK 21 가상 스레드 pinning 교착으로 4코어 CI 를 멈췄다.
+         * 운영 리스너는 모두 autoStartup=true 라 동작이 바뀌지 않는다. static 이라 이 설정 클래스를 앞당겨
+         * 초기화하지 않는다(BeanPostProcessor 규약).
+         */
+        @JvmStatic
+        @Bean
+        fun honorListenerAutoStartupOnRestart(): BeanPostProcessor = object : BeanPostProcessor {
+            override fun postProcessAfterInitialization(bean: Any, beanName: String): Any {
+                if (bean is KafkaListenerEndpointRegistry) bean.setAlwaysStartAfterRefresh(false)
+                return bean
+            }
+        }
     }
 
     /**
