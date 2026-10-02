@@ -11,7 +11,7 @@ carry-platform 은 분산 시스템·헥사고날 아키텍처·사가 패턴을
 ./scripts/dev-up.sh        # 또는 Windows: ./scripts/dev-up.ps1
 
 # 2) 애플리케이션 실행 — 로컬에선 트레이싱 export 를 꺼야 요청이 블록되지 않는다
-MANAGEMENT_TRACING_ENABLED=false ./gradlew :carry-app:bootRun
+MANAGEMENT_TRACING_EXPORT_ENABLED=false ./gradlew :carry-app:bootRun
 
 # 3) 빌드 & 테스트
 ./gradlew build

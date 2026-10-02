@@ -157,7 +157,7 @@ carry-app                 조립 + 크로스모듈 쿼리 포트 어댑터 5종 
 ./scripts/dev-up.sh
 
 # 2. 애플리케이션
-MANAGEMENT_TRACING_ENABLED=false SPRING_PROFILES_ACTIVE=local ./gradlew :carry-app:bootRun
+MANAGEMENT_TRACING_EXPORT_ENABLED=false SPRING_PROFILES_ACTIVE=local ./gradlew :carry-app:bootRun
 #    트레이싱 export 를 끄지 않으면 otel exporter 가 요청을 블록한다
 
 # 3. 개발용 토큰 (비프로덕션 전용)
