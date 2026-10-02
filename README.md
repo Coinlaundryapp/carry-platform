@@ -7,11 +7,11 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Kotlin-2.x-7F52FF?logo=kotlin&logoColor=white" alt="Kotlin" />
   <img src="https://img.shields.io/badge/Java-21-ED8B00?logo=openjdk&logoColor=white" alt="Java 21" />
-  <img src="https://img.shields.io/badge/Spring%20Boot-3.4-6DB33F?logo=springboot&logoColor=white" alt="Spring Boot" />
+  <img src="https://img.shields.io/badge/Spring%20Boot-4.1-6DB33F?logo=springboot&logoColor=white" alt="Spring Boot" />
   <img src="https://img.shields.io/badge/PostgreSQL-16%20+%20PostGIS-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL" />
   <img src="https://img.shields.io/badge/Kafka-Outbox%20+%20Debezium%20CDC-231F20?logo=apachekafka&logoColor=white" alt="Kafka" />
   <img src="https://img.shields.io/badge/modules-24-blue" alt="24 modules" />
-  <img src="https://img.shields.io/badge/tests-970-brightgreen" alt="tests" />
+  <img src="https://img.shields.io/badge/tests-971-brightgreen" alt="tests" />
 </p>
 
 **운영 트래픽 없이 분산 워크플로를 끝까지 구현한 모듈러 모놀리스 — 세탁 픽업·배송 O2O 백엔드.**
@@ -157,7 +157,7 @@ carry-app                 조립 + 크로스모듈 쿼리 포트 어댑터 5종 
 ./scripts/dev-up.sh
 
 # 2. 애플리케이션
-MANAGEMENT_TRACING_ENABLED=false SPRING_PROFILES_ACTIVE=local ./gradlew :carry-app:bootRun
+MANAGEMENT_TRACING_EXPORT_ENABLED=false SPRING_PROFILES_ACTIVE=local ./gradlew :carry-app:bootRun
 #    트레이싱 export 를 끄지 않으면 otel exporter 가 요청을 블록한다
 
 # 3. 개발용 토큰 (비프로덕션 전용)

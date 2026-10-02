@@ -1,6 +1,6 @@
 # 02. 기술 스택 결정 및 근거
 
-> 최종 수정일: 2026-03-11
+> 최종 수정일: 2026-03-11 · 버전 갱신: 2026-10-02 (Spring Boot 4.1 · Gradle 9)
 > 상태: Draft
 
 ---
@@ -11,7 +11,7 @@
 |------|------|------|
 | 언어 | Kotlin | 2.x |
 | 플랫폼 | Java | 21 (Virtual Threads) |
-| 프레임워크 | Spring Boot | 3.4.x |
+| 프레임워크 | Spring Boot | 4.1.x |
 | 웹 | Spring MVC | (WebFlux 제거) |
 | ORM | Spring Data JPA (Hibernate) | |
 | DB | PostgreSQL | 16+ |
@@ -24,7 +24,7 @@
 | 서비스 메시 | Linkerd | |
 | 배포 전략 | Flagger (카나리 배포) | |
 | 컨테이너 오케스트레이션 | Kubernetes | |
-| 빌드 | Gradle (Kotlin DSL) | 8.x |
+| 빌드 | Gradle (Kotlin DSL) | 9.x |
 | 컨테이너 | Docker + Docker Compose | |
 
 ---

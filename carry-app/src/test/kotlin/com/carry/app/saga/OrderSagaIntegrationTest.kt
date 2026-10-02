@@ -31,7 +31,7 @@ import com.carry.order.domain.vo.OrderStatus
 import com.carry.payment.application.port.inbound.PaymentSagaEventHandler
 import com.carry.payment.application.service.PaymentCommandService
 import com.carry.payment.application.port.outbound.PgProviderAdapter
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.ObjectMapper
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach

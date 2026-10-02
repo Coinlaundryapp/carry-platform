@@ -3,7 +3,7 @@ package com.carry.audit.adapter.outbound.persistence
 import com.carry.audit.domain.AuditAction
 import com.carry.audit.domain.AuditLog
 import com.carry.audit.port.AuditPort
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.slf4j.MDC
 import org.springframework.security.core.context.SecurityContextHolder
@@ -61,7 +61,8 @@ class AuditPersistenceAdapter(
     private fun resolveRole(): String? {
         val auth = SecurityContextHolder.getContext().authentication ?: return null
         if (auth.principal !is Long) return null
-        return auth.authorities.firstOrNull { it.authority.startsWith(ROLE_PREFIX) }
+        // Spring Security 7 은 GrantedAuthority.authority 를 nullable 로 선언한다(JSpecify).
+        return auth.authorities.firstOrNull { it.authority?.startsWith(ROLE_PREFIX) == true }
             ?.authority?.removePrefix(ROLE_PREFIX)
     }
 
