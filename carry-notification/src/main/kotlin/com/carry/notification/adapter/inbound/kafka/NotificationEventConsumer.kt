@@ -11,7 +11,7 @@ import com.carry.event.payment.RefundCompletedEvent
 import com.carry.infra.kafka.consumer.EventConsumerSupport
 import com.carry.infra.kafka.consumer.OutboxEventEnvelope
 import com.carry.notification.application.port.inbound.NotificationEventHandler
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.ObjectMapper
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.slf4j.LoggerFactory
 import org.springframework.kafka.annotation.KafkaListener

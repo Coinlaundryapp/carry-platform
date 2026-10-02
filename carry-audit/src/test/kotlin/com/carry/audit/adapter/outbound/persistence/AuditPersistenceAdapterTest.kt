@@ -1,7 +1,7 @@
 package com.carry.audit.adapter.outbound.persistence
 
 import com.carry.audit.domain.AuditAction
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.ObjectMapper
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot

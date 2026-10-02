@@ -5,7 +5,7 @@ import com.carry.infra.kafka.consumer.EventConsumerSupport
 import com.carry.infra.kafka.consumer.OutboxEventEnvelope
 import com.carry.infra.kafka.consumer.ProcessedEventRepository
 import com.carry.order.application.port.inbound.OrderSagaEventHandler
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import tools.jackson.module.kotlin.jacksonObjectMapper
 import io.micrometer.tracing.Tracer
 import io.mockk.every
 import io.mockk.mockk

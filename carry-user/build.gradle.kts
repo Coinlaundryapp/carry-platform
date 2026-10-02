@@ -6,7 +6,7 @@ plugins {
 
 dependencyManagement {
     imports {
-        mavenBom("org.springframework.boot:spring-boot-dependencies:3.4.1")
+        mavenBom("org.springframework.boot:spring-boot-dependencies:4.1.1")
     }
 }
 
@@ -25,10 +25,10 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
 
     // Kotlin
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+    implementation("tools.jackson.module:jackson-module-kotlin")
 
     // OpenAPI
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.1")
 
     // Test
     testImplementation("io.mockk:mockk:1.14.11")

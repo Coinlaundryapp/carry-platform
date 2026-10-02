@@ -32,10 +32,12 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
 
+  # ⚠️ 문자열 클래스명이라 컴파일러가 못 잡는다 — Boot 4 에서 패키지·이름이 바뀌자 제외가 조용히 무효가 되어
+  # 테스트가 Redis 에 붙으려 했다(RedisConnectionFailureException). Boot 업그레이드 때 이 목록을 다시 확인할 것.
   autoconfigure:
     exclude:
-      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
-      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+      - org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration
+      - org.springframework.boot.data.redis.autoconfigure.DataRedisRepositoriesAutoConfiguration
 
 jwt:
   secret: test-secret-key-for-integration-tests
@@ -59,7 +61,8 @@ management:
       exposure:
         include: health
   tracing:
-    enabled: false
+    export:
+      enabled: false
 
 carry:
   geo:

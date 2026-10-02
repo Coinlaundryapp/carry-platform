@@ -9,7 +9,7 @@ import com.carry.event.dispatch.DispatchTimeoutEvent
 import com.carry.infra.kafka.consumer.EventConsumerSupport
 import com.carry.infra.kafka.consumer.OutboxEventEnvelope
 import com.carry.order.application.port.inbound.OrderSagaEventHandler
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.ObjectMapper
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.slf4j.LoggerFactory
 import org.springframework.kafka.annotation.KafkaListener

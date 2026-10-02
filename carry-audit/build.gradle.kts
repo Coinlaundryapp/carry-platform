@@ -6,7 +6,7 @@ plugins {
 
 dependencyManagement {
     imports {
-        mavenBom("org.springframework.boot:spring-boot-dependencies:3.4.1")
+        mavenBom("org.springframework.boot:spring-boot-dependencies:4.1.1")
     }
 }
 
@@ -16,7 +16,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     // SecurityContextHolder(actor/role)
     implementation("org.springframework.security:spring-security-core")
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+    implementation("tools.jackson.module:jackson-module-kotlin")
 
     testImplementation("io.mockk:mockk:1.14.11")
     testImplementation("org.assertj:assertj-core:3.27.7")

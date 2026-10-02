@@ -23,7 +23,7 @@ import com.carry.order.application.port.inbound.SelectedOptionCommand
 import com.carry.order.application.service.OrderCommandService
 import com.carry.order.application.port.outbound.OrderPersistencePort
 import com.carry.order.domain.vo.OrderStatus
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.ObjectMapper
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.AfterEach

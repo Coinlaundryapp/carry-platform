@@ -6,7 +6,7 @@ plugins {
 
 dependencyManagement {
     imports {
-        mavenBom("org.springframework.boot:spring-boot-dependencies:3.4.1")
+        mavenBom("org.springframework.boot:spring-boot-dependencies:4.1.1")
     }
 }
 
@@ -21,13 +21,13 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.security:spring-security-core")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+    implementation("tools.jackson.module:jackson-module-kotlin")
 
     // OpenAPI
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.1")
 
     // Resilience4j Circuit Breaker — PG 장애 시 fast-fail로 스레드 블로킹 방지
-    implementation("io.github.resilience4j:resilience4j-spring-boot3:2.4.0")
+    implementation("io.github.resilience4j:resilience4j-spring-boot4:2.4.0")
     // @SchedulerLock 어노테이션(RefundRetrySweeper). 락 프로바이더 결선은 carry-app.
     implementation("net.javacrumbs.shedlock:shedlock-spring:7.10.1")
 

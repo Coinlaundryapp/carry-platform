@@ -6,7 +6,7 @@ import org.apache.kafka.common.TopicPartition
 import org.slf4j.LoggerFactory
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.boot.autoconfigure.kafka.ConcurrentKafkaListenerContainerFactoryConfigurer
+import org.springframework.boot.kafka.autoconfigure.ConcurrentKafkaListenerContainerFactoryConfigurer
 import org.springframework.kafka.annotation.EnableKafka
 import org.springframework.kafka.config.ContainerCustomizer
 import org.springframework.kafka.core.KafkaTemplate
@@ -91,7 +91,7 @@ class KafkaConfig {
         handler.setRetryListeners({ record, ex, deliveryAttempt ->
             log.warn(
                 "Kafka retry attempt={} topic={} offset={} cause={}",
-                deliveryAttempt, record.topic(), record.offset(), ex.message,
+                deliveryAttempt, record.topic(), record.offset(), ex?.message,
             )
         })
         return handler

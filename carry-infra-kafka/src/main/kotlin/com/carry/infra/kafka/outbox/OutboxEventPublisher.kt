@@ -1,7 +1,7 @@
 package com.carry.infra.kafka.outbox
 
 import com.carry.event.port.EventPublisherPort
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.ObjectMapper
 import io.opentelemetry.api.trace.Span
 import org.springframework.stereotype.Component
 import java.util.UUID

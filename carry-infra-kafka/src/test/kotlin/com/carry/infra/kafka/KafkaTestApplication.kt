@@ -2,9 +2,9 @@ package com.carry.infra.kafka
 
 import org.springframework.boot.SpringBootConfiguration
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration
-import org.springframework.boot.autoconfigure.data.jpa.JpaRepositoriesAutoConfiguration
-import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
-import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+import org.springframework.boot.data.jpa.autoconfigure.DataJpaRepositoriesAutoConfiguration
+import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+import org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration
 
 /**
  * carry-infra-kafka 통합 테스트용 최소 Spring Boot 컨피그.
@@ -17,7 +17,7 @@ import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfigurat
     exclude = [
         DataSourceAutoConfiguration::class,
         HibernateJpaAutoConfiguration::class,
-        JpaRepositoriesAutoConfiguration::class,
+        DataJpaRepositoriesAutoConfiguration::class,
     ],
 )
 open class KafkaTestApplication
