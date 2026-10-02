@@ -49,7 +49,7 @@
 - 상태 전이 로직
 
 ### 도구
-- JUnit 5
+- JUnit 6 (Jupiter)
 - MockK (Kotlin-native mocking)
 
 ### 예시: 주문 상태 전이
