@@ -47,6 +47,7 @@ class DlqRedriveService(
         /** redrive/purge가 공유하는 컨슈머 그룹. purge는 이 그룹의 committed offset까지 절단한다. */
         const val REDRIVE_GROUP = "carry-dlq-redrive"
         private val POLL_TIMEOUT: Duration = Duration.ofSeconds(2)
+        private val POSITION_TIMEOUT: Duration = Duration.ofSeconds(30)
         private const val SEND_TIMEOUT_SECONDS = 10L
     }
 
@@ -66,6 +67,11 @@ class DlqRedriveService(
                 .orEmpty()
             if (partitions.isEmpty()) return DlqRedriveResult(0, 0)
             consumer.assign(partitions)
+            // 읽기 위치를 먼저 확정한다. 커밋 오프셋 조회는 그룹 코디네이터를 거치는데, 코디네이터가 준비되기 전
+            // (콜드 클러스터에서 그룹을 처음 쓸 때·브로커 재시작 직후)에는 poll 이 빈 결과로 돌아온다. 아래 drain 은
+            // 빈 poll 을 "더 없음"으로 보므로, 위치 확정 없이 들어가면 DLQ 에 메시지가 있어도 조용히 0건을 보고한다.
+            // position() 은 위치가 정해질 때까지 기다리고, 시간 안에 못 정하면 예외로 드러낸다.
+            partitions.forEach { consumer.position(it, POSITION_TIMEOUT) }
 
             val toCommit = mutableMapOf<TopicPartition, OffsetAndMetadata>()
             try {
