@@ -7,7 +7,7 @@ plugins {
 
 dependencyManagement {
     imports {
-        mavenBom("org.springframework.boot:spring-boot-dependencies:3.4.1")
+        mavenBom("org.springframework.boot:spring-boot-dependencies:4.1.1")
     }
 }
 
@@ -18,17 +18,17 @@ dependencies {
     implementation(project(":carry-infra-kafka"))
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+    implementation("tools.jackson.module:jackson-module-kotlin")
     implementation("org.springframework.security:spring-security-core")
 
     // OpenAPI
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.1")
 
     testImplementation("io.mockk:mockk:1.14.11")
     testImplementation("org.assertj:assertj-core:3.27.7")
     testImplementation("com.tngtech.archunit:archunit-junit5:1.5.0")
 
     // 계약/Fake는 mockk 금지 — junit5 + assertj 만
-    testFixturesApi("org.junit.jupiter:junit-jupiter:5.11.3")
+    testFixturesApi("org.junit.jupiter:junit-jupiter")
     testFixturesApi("org.assertj:assertj-core:3.27.7")
 }

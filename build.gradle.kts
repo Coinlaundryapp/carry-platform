@@ -2,7 +2,7 @@ plugins {
     kotlin("jvm") version "2.4.20" apply false
     kotlin("plugin.spring") version "2.4.20" apply false
     kotlin("plugin.jpa") version "2.4.20" apply false
-    id("org.springframework.boot") version "3.4.1" apply false
+    id("org.springframework.boot") version "4.1.1" apply false
     id("io.spring.dependency-management") version "1.1.7" apply false
 }
 
@@ -46,7 +46,10 @@ subprojects {
         val testRuntimeOnly by configurations
 
         implementation(kotlin("stdlib"))
-        testImplementation("org.junit.jupiter:junit-jupiter:5.11.3")
+        // Spring Boot 4.1.1 BOM 의 junit-jupiter.version 과 맞춘다. BOM 을 가져오는 모듈에선 BOM 이 api·engine
+        // 버전을 강제하므로, 여기만 따로 올리면 껍데기 집계 아티팩트만 바뀌고 실제 엔진은 그대로다(#203).
+        testImplementation(platform("org.junit:junit-bom:6.0.3"))
+        testImplementation("org.junit.jupiter:junit-jupiter")
         testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     }
 }

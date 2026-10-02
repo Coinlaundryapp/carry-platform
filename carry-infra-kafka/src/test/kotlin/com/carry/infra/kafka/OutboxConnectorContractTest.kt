@@ -1,8 +1,8 @@
 package com.carry.infra.kafka
 
 import com.carry.infra.kafka.consumer.OutboxEventEnvelope
-import com.fasterxml.jackson.databind.exc.MismatchedInputException
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import tools.jackson.databind.exc.MismatchedInputException
+import tools.jackson.module.kotlin.jacksonObjectMapper
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test

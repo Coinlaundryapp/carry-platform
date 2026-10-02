@@ -31,7 +31,7 @@ import com.carry.payment.application.port.outbound.PgTransactionType
 import com.carry.payment.application.service.PaymentCommandService
 import com.carry.payment.application.service.PgReconciliationJob
 import com.carry.payment.domain.vo.PaymentStatus
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.ObjectMapper
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
@@ -137,7 +137,7 @@ class PaymentReconciliationIntegrationTest : IntegrationTestBase() {
         return orderId
     }
 
-    private fun mismatchRows(): List<Map<String, Any>> =
+    private fun mismatchRows(): List<Map<String, Any?>> =
         jdbc.queryForList("SELECT mismatch_type, dedup_key, detail FROM payment_reconciliation_mismatches")
 
     @Test

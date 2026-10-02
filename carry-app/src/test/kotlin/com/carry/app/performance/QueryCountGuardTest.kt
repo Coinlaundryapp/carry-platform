@@ -27,7 +27,7 @@ class QueryCountGuardTest : IntegrationTestBase() {
     @Autowired lateinit var dispatchCommandService: com.carry.dispatch.application.service.DispatchCommandService
     @Autowired lateinit var dispatchSagaHandler: com.carry.dispatch.application.port.inbound.DispatchSagaEventHandler
     @Autowired lateinit var dispatchPersistencePort: com.carry.dispatch.application.port.outbound.DispatchPersistencePort
-    @Autowired lateinit var objectMapper: com.fasterxml.jackson.databind.ObjectMapper
+    @Autowired lateinit var objectMapper: tools.jackson.databind.ObjectMapper
     @Autowired lateinit var billingKeyUseCase: com.carry.payment.application.port.inbound.BillingKeyUseCase
 
     @BeforeEach

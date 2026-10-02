@@ -35,7 +35,7 @@ class JwtAuthenticationFilterTest {
 
         val authentication = SecurityContextHolder.getContext().authentication
         assertThat(authentication).isNotNull
-        assertThat(authentication.principal).isEqualTo(99L)
+        assertThat(authentication!!.principal).isEqualTo(99L)
         assertThat(authentication.authorities.map { it.authority }).containsExactly("ROLE_COORDINATOR")
     }
 

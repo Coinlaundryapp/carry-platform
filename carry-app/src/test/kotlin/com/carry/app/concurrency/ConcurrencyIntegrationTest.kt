@@ -23,7 +23,7 @@ import com.carry.payment.domain.vo.PaymentStatus
 import com.carry.payment.domain.vo.PgProvider
 import com.carry.review.adapter.outbound.persistence.entity.ReviewJpaEntity
 import com.carry.review.adapter.outbound.persistence.repository.ReviewJpaRepository
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.ObjectMapper
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.AfterEach

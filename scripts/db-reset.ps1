@@ -21,4 +21,4 @@ Write-Host "▶ postgres 재기동 (postgis 이미지, 빈 DB)..."
 docker compose up -d postgres
 
 Write-Host "✓ 빈 DB 준비 완료. 앱 기동 시 Flyway가 스키마를 빌드한다:"
-Write-Host '    $env:SERVER_PORT="8081"; $env:SPRING_PROFILES_ACTIVE="local"; $env:MANAGEMENT_TRACING_ENABLED="false"; ./gradlew :carry-app:bootRun'
+Write-Host '    $env:SERVER_PORT="8081"; $env:SPRING_PROFILES_ACTIVE="local"; $env:MANAGEMENT_TRACING_EXPORT_ENABLED="false"; ./gradlew :carry-app:bootRun'

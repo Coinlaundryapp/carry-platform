@@ -1,3 +1,3 @@
 dependencies {
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.22.2")
+    implementation("tools.jackson.module:jackson-module-kotlin:3.1.5")
 }

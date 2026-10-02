@@ -39,7 +39,7 @@ docker compose up -d postgres redis kafka-1 kafka-2 kafka-3
 
 # 2. 앱 기동 — local 프로파일이 ddl-auto:update로 스키마를 생성한다.
 #    (flyway off이므로 스키마는 bootRun이 만든다 → seed.sql은 기동 이후에 적용)
-SPRING_PROFILES_ACTIVE=local MANAGEMENT_TRACING_ENABLED=false ./gradlew :carry-app:bootRun
+SPRING_PROFILES_ACTIVE=local MANAGEMENT_TRACING_EXPORT_ENABLED=false ./gradlew :carry-app:bootRun
 # GET http://localhost:8080/actuator/health 가 {"status":"UP"} 될 때까지 대기
 # 8080이 다른 프로세스에 점유돼 있으면 SERVER_PORT=8081 등으로 바꾸고 아래 -DbaseUrl 함께 변경.
 

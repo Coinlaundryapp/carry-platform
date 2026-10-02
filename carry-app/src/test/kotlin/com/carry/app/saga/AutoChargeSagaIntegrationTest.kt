@@ -37,7 +37,7 @@ import com.carry.payment.application.service.OverdueSweeper
 import com.carry.payment.application.service.PaymentCommandService
 import com.carry.payment.domain.vo.InvoiceStatus
 import com.carry.payment.domain.vo.PaymentStatus
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.ObjectMapper
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.AfterEach

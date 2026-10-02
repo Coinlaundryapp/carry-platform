@@ -5,11 +5,11 @@ plugins {
 
 dependencyManagement {
     imports {
-        mavenBom("org.springframework.boot:spring-boot-dependencies:3.4.1")
+        mavenBom("org.springframework.boot:spring-boot-dependencies:4.1.1")
     }
 }
 
 dependencies {
-    api("software.amazon.awssdk:s3:2.54.18")
+    api("software.amazon.awssdk:s3:2.55.5")
     implementation("org.springframework.boot:spring-boot-starter")
 }

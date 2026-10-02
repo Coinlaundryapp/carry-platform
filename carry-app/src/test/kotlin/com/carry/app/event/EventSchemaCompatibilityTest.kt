@@ -4,25 +4,37 @@ import com.carry.event.order.OrderCreatedEvent
 import com.carry.event.order.SelectedOptionDto
 import com.carry.event.order.ShippingAddressDto
 import com.carry.infra.kafka.consumer.OutboxEventEnvelope
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.ObjectMapper
+import tools.jackson.databind.json.JsonMapper
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
-import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder
+import org.springframework.boot.autoconfigure.AutoConfigurations
+import org.springframework.boot.jackson.autoconfigure.JacksonAutoConfiguration
+import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import java.time.Instant
 
 /**
  * ADR-0005 이벤트 스키마 진화 전략의 회귀 가드.
  *
- * 프로덕션 ObjectMapper는 Spring Boot 자동설정이 [Jackson2ObjectMapperBuilder]로 만든다
- * (커스텀 ObjectMapper @Bean·spring.jackson.* 설정 없음). 본 테스트는 같은 빌더로 동급 매퍼를
- * 구성해 tolerant-reader 불변식을 잠근다 — 이 빌더는 기본적으로 FAIL_ON_UNKNOWN_PROPERTIES 와
- * WRITE_DATES_AS_TIMESTAMPS 를 비활성화하고 클래스패스의 well-known 모듈(kotlin·jsr310)을 등록한다.
+ * 프로덕션 매퍼는 Spring Boot 4 의 [JacksonAutoConfiguration] 이 만드는 Jackson 3 [JsonMapper] 다
+ * (커스텀 매퍼 @Bean·spring.jackson.* 설정 없음). 본 테스트는 **같은 자동구성을 [ApplicationContextRunner] 로
+ * 띄워 그 빈을 그대로 쓴다** — 미지 필드 무시·ISO-8601 날짜·클래스패스 모듈(kotlin) 등록 같은 기본값을 손으로
+ * 흉내 내지 않으므로, Boot 의 기본값이 바뀌면 이 테스트가 먼저 알려 준다.
+ * (Boot 3 시절에는 Jackson2ObjectMapperBuilder 로 동급 매퍼를 구성했다.)
  *
  * 이 테스트가 깨지면 가산적 진화(생산자·소비자 독립 배포)의 전제가 무너진 것이다.
  */
 class EventSchemaCompatibilityTest {
 
-    private val objectMapper: ObjectMapper = Jackson2ObjectMapperBuilder.json().build()
+    private val objectMapper: ObjectMapper = bootJsonMapper()
+
+    private fun bootJsonMapper(): JsonMapper {
+        var mapper: JsonMapper? = null
+        ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(JacksonAutoConfiguration::class.java))
+            .run { context -> mapper = context.getBean(JsonMapper::class.java) }
+        return checkNotNull(mapper)
+    }
 
     @Test
     fun `전방 호환 — 생산자가 추가한 미지의 필드를 구버전 소비자가 무시한다`() {

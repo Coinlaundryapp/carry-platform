@@ -17,5 +17,5 @@ echo "▶ Debezium 아웃박스 커넥터 등록..."
 bash infra/debezium/register-connector.sh
 
 echo "✓ 인프라 준비 완료."
-echo "  앱 실행:  MANAGEMENT_TRACING_ENABLED=false ./gradlew :carry-app:bootRun"
+echo "  앱 실행:  MANAGEMENT_TRACING_EXPORT_ENABLED=false ./gradlew :carry-app:bootRun"
 echo "  (로컬에선 트레이싱 export 를 꺼야 otel exporter 가 요청을 블록하지 않는다)"
