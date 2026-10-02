@@ -31,7 +31,7 @@ dependencies {
 
     testImplementation("io.mockk:mockk:1.14.11")
     testImplementation("org.assertj:assertj-core:3.27.7")
-    testImplementation("com.tngtech.archunit:archunit-junit5:1.5.0")
+    testImplementation("com.tngtech.archunit:archunit-junit5:1.5.1")
 
     // 계약/Fake는 mockk 금지 — junit5 + assertj 만
     testFixturesApi("org.junit.jupiter:junit-jupiter")
