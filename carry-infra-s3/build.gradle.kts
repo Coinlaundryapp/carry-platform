@@ -10,6 +10,6 @@ dependencyManagement {
 }
 
 dependencies {
-    api("software.amazon.awssdk:s3:2.55.5")
+    api("software.amazon.awssdk:s3:2.55.10")
     implementation("org.springframework.boot:spring-boot-starter")
 }
