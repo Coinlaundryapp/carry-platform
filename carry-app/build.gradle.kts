@@ -42,7 +42,7 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     testImplementation("org.springframework.boot:spring-boot-starter-security-test")
-    testImplementation("com.tngtech.archunit:archunit-junit5:1.5.0")
+    testImplementation("com.tngtech.archunit:archunit-junit5:1.5.1")
     testImplementation("org.testcontainers:testcontainers:2.0.5")
     testImplementation("org.testcontainers:testcontainers-postgresql:2.0.5")
     testImplementation("org.testcontainers:testcontainers-junit-jupiter:2.0.5")
@@ -50,7 +50,7 @@ dependencies {
     testImplementation("com.ninja-squad:springmockk:5.0.1")
     testImplementation("io.mockk:mockk:1.14.11")
     testImplementation("org.assertj:assertj-core:3.27.7")
-    testImplementation("net.ttddyy:datasource-proxy:1.11.0")
+    testImplementation("net.ttddyy:datasource-proxy:1.11.1")
     testImplementation(testFixtures(project(":carry-order")))
     testImplementation(testFixtures(project(":carry-delivery")))
 }

@@ -5,14 +5,14 @@ plugins {
 
 dependencyManagement {
     imports {
-        mavenBom("org.springframework.boot:spring-boot-dependencies:4.1.1")
+        mavenBom("org.springframework.boot:spring-boot-dependencies:4.1.2")
     }
 }
 
 dependencies {
     api("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-web")
-    implementation("com.auth0:java-jwt:4.6.1")
+    implementation("com.auth0:java-jwt:4.6.2")
     implementation("tools.jackson.module:jackson-module-kotlin")
     implementation(project(":carry-common"))
 
