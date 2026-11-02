@@ -33,7 +33,7 @@ dependencies {
 
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("tools.jackson.module:jackson-module-kotlin")
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.1")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.2.0")
 
     // 분산 스케줄러 락(멀티 인스턴스에서 @Scheduled 1회 실행). 락 프로바이더는 Redis(prod) / NoOp(test·단일).
     implementation("net.javacrumbs.shedlock:shedlock-spring:7.10.1")
@@ -42,7 +42,7 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     testImplementation("org.springframework.boot:spring-boot-starter-security-test")
-    testImplementation("com.tngtech.archunit:archunit-junit5:1.5.0")
+    testImplementation("com.tngtech.archunit:archunit-junit5:1.5.1")
     testImplementation("org.testcontainers:testcontainers:2.0.5")
     testImplementation("org.testcontainers:testcontainers-postgresql:2.0.5")
     testImplementation("org.testcontainers:testcontainers-junit-jupiter:2.0.5")
@@ -50,7 +50,7 @@ dependencies {
     testImplementation("com.ninja-squad:springmockk:5.0.1")
     testImplementation("io.mockk:mockk:1.14.11")
     testImplementation("org.assertj:assertj-core:3.27.7")
-    testImplementation("net.ttddyy:datasource-proxy:1.11.0")
+    testImplementation("net.ttddyy:datasource-proxy:1.11.1")
     testImplementation(testFixtures(project(":carry-order")))
     testImplementation(testFixtures(project(":carry-delivery")))
 }
