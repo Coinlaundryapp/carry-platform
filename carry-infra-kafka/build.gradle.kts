@@ -6,7 +6,7 @@ plugins {
 
 dependencyManagement {
     imports {
-        mavenBom("org.springframework.boot:spring-boot-dependencies:4.1.1")
+        mavenBom("org.springframework.boot:spring-boot-dependencies:4.1.2")
     }
 }
 
@@ -20,7 +20,7 @@ dependencies {
     implementation(project(":carry-infra-observability"))
 
     testImplementation("org.junit.jupiter:junit-jupiter")
-    testImplementation("io.mockk:mockk:1.14.11")
+    testImplementation("io.mockk:mockk:1.14.12")
     testImplementation("org.assertj:assertj-core:3.27.7")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.kafka:spring-kafka-test")

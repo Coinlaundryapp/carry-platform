@@ -5,13 +5,13 @@ plugins {
 
 dependencyManagement {
     imports {
-        mavenBom("org.springframework.boot:spring-boot-dependencies:4.1.1")
+        mavenBom("org.springframework.boot:spring-boot-dependencies:4.1.2")
     }
 }
 
 dependencies {
     api("org.springframework.boot:spring-boot-starter-data-redis")
 
-    testImplementation("io.mockk:mockk:1.14.11")
+    testImplementation("io.mockk:mockk:1.14.12")
     testImplementation("org.assertj:assertj-core:3.27.7")
 }
